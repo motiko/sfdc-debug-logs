@@ -1,0 +1,26 @@
+{
+    "name": "Beautify Salesforce Debug ",
+    "version": "0.1.1",
+    "manifest_version": 2,
+    "description": "Beautify Salesforce Debug Logs",
+    "content_scripts": [
+        {
+            "css": [
+                "debug.css"
+            ],
+            "matches": [
+                "https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*"
+            ],
+            "js": [
+                "beautify.js",
+                "sfdc.debug.js"
+            ],
+            "run_at": "document_end"
+        }
+    ],
+    "permissions": [
+        "https://*.force.com/*",
+        "https://*.salesforce.com/*",
+        "storage"
+    ]
+}
