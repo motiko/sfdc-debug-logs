@@ -1,8 +1,8 @@
 {
-    "name": "Beautify Salesforce Debug ",
-    "version": "0.1.1",
+    "name": "Beautify Salesforce Debug Logs",
+    "version": "0.1.2",
     "manifest_version": 2,
-    "description": "Beautify Salesforce Debug Logs",
+    "description": "Beautify Salesforce Debug Logs https://github.com/motiko/sfdc-debug-logs",
     "content_scripts": [
         {
             "css": [
