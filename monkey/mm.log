@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:ns0="urn:partner.soap.sforce.com" xmlns:ns1="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:tns="urn:partner.soap.sforce.com" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+   <SOAP-ENV:Header>
+      <tns:SessionHeader>
+         <tns:sessionId>00Dw0000000CvAI!AQ0AQJt3X8kqMF6Jo7ek9vmb_G96KnwEbGatTqCz6i_Pi.1e4WbjwrlEd5ml2514H.hLPzgiycgz3YZyJsyU6D7ORH85tMOS</tns:sessionId>
+      </tns:SessionHeader>
+   </SOAP-ENV:Header>
+   <ns1:Body>
+      <ns0:getUserInfo/>
+   </ns1:Body>
+</SOAP-ENV:Envelope>
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
+Starting new HTTPS connection (1): eu3.salesforce.com
