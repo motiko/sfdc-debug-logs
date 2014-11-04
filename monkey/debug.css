@@ -63,12 +63,18 @@
 .codeBlock .gd { color: #f92672; } /* Generic.Deleted & Diff Deleted */
 .codeBlock .gi { color: #a6e22e; } /* Generic.Inserted & Diff Inserted */
 
+.codeBlock {
+	font-size: 1.6em;
+}
 .detailList{
 	z-index: 999;
 	width: 100vw;
 	height: 100vh;
 }
 
+.systemMethodLog{
+	display:none;
+}
 .debug{
-	
+
 }
