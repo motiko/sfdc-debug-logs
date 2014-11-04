@@ -16,6 +16,15 @@
                 "sfdc.debug.js"
             ],
             "run_at": "document_end"
+        },
+        {
+            "matches": [
+                "https://*.salesforce.com/setup/ui/listApexTraces.apexp*"
+            ],
+            "js": [
+                "sfdc.debug.btn.js"
+            ],
+            "run_at": "document_end"
         }
     ],
     "permissions": [
