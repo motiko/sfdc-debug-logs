@@ -42,7 +42,7 @@ document.getElementsByClassName('oLeft')[0].style.display ="none";
 var userDebugDivs = document.getElementsByClassName('debug');
 for(var index=0; index < userDebugDivs.length; index++){
     //if(userDebugDivs[index].innderHTML.indexOf('BEAUTIFY') > -1)
-    userDebugDivs[index].innerHTML = js_beautify(userDebugDivs[index].innerHTML);
+    //userDebugDivs[index].innerHTML = js_beautify(userDebugDivs[index].innerHTML);
 }
 
 console.log(document.getElementsByClassName('debug')[0].innerHTML )//= js_beautify(document.getElementsByClassName('debug')[0].innerHTML);

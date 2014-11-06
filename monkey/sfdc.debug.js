@@ -72,7 +72,7 @@ for(var index=0; index < userDebugDivs.length; index++){
     if(userDebugDivs[index].innerHTML.indexOf('~^~') > -1){
         userDebugDivs[index].innerHTML = sfdcObjectBeautify(userDebugDivs[index].innerHTML);
     }
-    userDebugDivs[index].innerHTML = js_beautify(userDebugDivs[index].innerHTML);
+    //userDebugDivs[index].innerHTML = js_beautify(userDebugDivs[index].innerHTML);
 }
 
 function escapeHtml(str) {
