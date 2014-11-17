@@ -1,6 +1,8 @@
+var showSystemLabel = document.createElement('label');
+showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" value="value" id="showSystem" >Show System Methods</label>';
 var codeElement = document.getElementsByTagName('pre')[0];
+codeElement.style.fontSize = '1.8em';
 var debugText = codeElement.innerText;
-
 var res = debugText.split('\n').map(function(curLine){
     var splitedDebugLine = curLine.split('|');
     if(curLine.indexOf('Execute Anonymous:') == 0){
@@ -13,7 +15,7 @@ var res = debugText.split('\n').map(function(curLine){
         return '<div class="o debug">' +  curLine + '</div>';
     }
     if(curLine.indexOf('|SYSTEM_METHOD_') > -1){
-        return '<div class="c">' +  curLine + '</div>';
+        return '<div class="c systemMethodLog">' +  curLine + '</div>';
     }
     if(curLine.indexOf('|SOQL_EXECUTE_') > -1){
         return '<div class="l">' +  curLine + '</div>';
@@ -35,20 +37,67 @@ var res = debugText.split('\n').map(function(curLine){
         return prevVal + curLine;
     }
     return prevVal.substr(0,prevVal.length - '</div>'.length) + '\n' + curLine + '</div>';
-});
 
-document.getElementsByTagName('pre')[0].innerHTML = '<div class="hll">' + res + '</div>';
+});
+document.getElementsByTagName('pre')[0].innerHTML = '<div class="hll" id="debugText">' + res + '</div>';
 document.getElementsByClassName('oLeft')[0].style.display ="none";
-var userDebugDivs = document.getElementsByClassName('debug');
-for(var index=0; index < userDebugDivs.length; index++){
-    //if(userDebugDivs[index].innderHTML.indexOf('BEAUTIFY') > -1)
-    //userDebugDivs[index].innerHTML = js_beautify(userDebugDivs[index].innerHTML);
+
+document.getElementsByClassName('codeBlock')[0].insertBefore(showSystemLabel,document.getElementById('debugText'));
+var showsystem = document.getElementById('showSystem');
+showSystem.onchange = function(event){
+    var systemLogs = document.getElementsByClassName('systemMethodLog');
+    systemLogs.forEach(function(systemLog){
+        systemLog.style.display = this.checked ? 'block' : 'none';
+    });
 }
 
-console.log(document.getElementsByClassName('debug')[0].innerHTML )//= js_beautify(document.getElementsByClassName('debug')[0].innerHTML);
+var userDebugDivs = [].slice.call(document.getElementsByClassName('debug'));
+
+userDebugDivs.forEach(function(userDebugDiv){
+    var debugParts = userDebugDiv.innerHTML.split('|DEBUG|');
+    userDebugDiv.innerHTML = '<span class="header">' +
+            debugParts[0] + '|DEBUG| </span> <div class="content">' +
+            debugParts[1] + '</div>';
+    var buttonExpand = document.createElement('button');
+    buttonExpand.onclick = expandUserDebug;
+    buttonExpand.innerText = '+'
+    userDebugDiv.insertBefore(buttonExpand,userDebugDiv.children[0]);
+});
+
+function expandUserDebug(e){
+    var debugNode = this.nextElementSibling.nextElementSibling;
+    var  oldVal =  debugNode.innerHTML;
+    debugNode.innerHTML = js_beautify(sfdcObjectBeautify(debugNode.innerHTML));
+    this.innerText = '-';
+    this.onclick = function(e){
+        debugNode.innerHTML = oldVal;
+        this.innerText = '+';
+        this.onclick = expandUserDebug;
+    }
+}
 
 function escapeHtml(str) {
     var div = document.createElement('div');
     div.appendChild(document.createTextNode(str));
     return div.innerHTML;
 };
+
+function sfdcObjectBeautify(string){
+    return string.split('').reduce(function(prevSum,curChar,index,arr){
+        if(curChar == '{'){
+            return prevSum + '{"';
+        }
+        if(curChar == '}'){
+            return prevSum + '"}';
+        }
+        if(curChar == ','){
+            return prevSum + '","';
+        }
+        if(curChar == '='){
+            return prevSum + '":"';
+        }
+        return prevSum + curChar;
+    })
+}
+
+

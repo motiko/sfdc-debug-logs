@@ -1,8 +1,11 @@
 {
     "name": "Salesforce Debug Tools",
-    "version": "0.1.3",
+    "version": "0.1.5",
     "manifest_version": 2,
-    "description": "Beautify Salesforce Debug Logs https://github.com/motiko/sfdc-debug-logs",
+    "icons": { "16": "16.png",
+           "48": "48.png",
+          "128": "128.png" },
+    "description": "Salesforce developer tools https://github.com/motiko/sfdc-debug-logs",
     "content_scripts": [
         {
             "css": [
@@ -25,11 +28,20 @@
                 "sfdc.debug.btn.js"
             ],
             "run_at": "document_end"
+        },
+        {
+            "matches": [
+                "https://*.force.com/*",
+                "https://*.salesforce.com/*"
+            ],
+            "js": [
+                "shortcuts.js"
+            ],
+            "run_at": "document_end"
         }
     ],
     "permissions": [
         "https://*.force.com/*",
-        "https://*.salesforce.com/*",
-        "storage"
+        "https://*.salesforce.com/*"
     ]
 }

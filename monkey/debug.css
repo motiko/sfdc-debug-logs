@@ -1,67 +1,19 @@
-.codeBlock .hll { background-color: #49483e }
-.codeBlock .c { color: #75715e } /* Comment */
+.codeBlock .hll { background-color: #000 }
 .codeBlock .err { color: #960050; background-color: #1e0010 } /* Error */
+.err a{color: #760050}
+.codeBlock .c { color: #75715e } /* Comment */
+.c a{color: #75715e}
 .codeBlock .k { color: #66d9ef } /* Keyword */
+.k a{color: #66d9ef}
 .codeBlock .l { color: #ae81ff } /* Literal */
+.l a{color: #ae81ff}
 .codeBlock .n { color: #f8f8f2 } /* Name */
-.codeBlock .o { color: #f92672 } /* Operator */
-.codeBlock .p { color: #f8f8f2 } /* Punctuation */
-.codeBlock .cm { color: #75715e } /* Comment.Multiline */
-.codeBlock .cp { color: #75715e } /* Comment.Preproc */
-.codeBlock .c1 { color: #75715e } /* Comment.Single */
-.codeBlock .cs { color: #75715e } /* Comment.Special */
-.codeBlock .ge { font-style: italic } /* Generic.Emph */
-.codeBlock .gs { font-weight: bold } /* Generic.Strong */
-.codeBlock .kc { color: #66d9ef } /* Keyword.Constant */
-.codeBlock .kd { color: #66d9ef } /* Keyword.Declaration */
-.codeBlock .kn { color: #f92672 } /* Keyword.Namespace */
-.codeBlock .kp { color: #66d9ef } /* Keyword.Pseudo */
-.codeBlock .kr { color: #66d9ef } /* Keyword.Reserved */
-.codeBlock .kt { color: #66d9ef } /* Keyword.Type */
-.codeBlock .ld { color: #e6db74 } /* Literal.Date */
-.codeBlock .m { color: #ae81ff } /* Literal.Number */
+.n a{color: #f8f8f2;}
 .codeBlock .s { color: #e6db74 } /* Literal.String */
+.s a{color: #e6db74;}
 .codeBlock .na { color: #a6e22e } /* Name.Attribute */
-.codeBlock .nb { color: #f8f8f2 } /* Name.Builtin */
-.codeBlock .nc { color: #a6e22e } /* Name.Class */
-.codeBlock .no { color: #66d9ef } /* Name.Constant */
-.codeBlock .nd { color: #a6e22e } /* Name.Decorator */
-.codeBlock .ni { color: #f8f8f2 } /* Name.Entity */
-.codeBlock .ne { color: #a6e22e } /* Name.Exception */
-.codeBlock .nf { color: #a6e22e } /* Name.Function */
-.codeBlock .nl { color: #f8f8f2 } /* Name.Label */
-.codeBlock .nn { color: #f8f8f2 } /* Name.Namespace */
-.codeBlock .nx { color: #a6e22e } /* Name.Other */
-.codeBlock .py { color: #f8f8f2 } /* Name.Property */
-.codeBlock .nt { color: #f92672 } /* Name.Tag */
-.codeBlock .nv { color: #f8f8f2 } /* Name.Variable */
-.codeBlock .ow { color: #f92672 } /* Operator.Word */
-.codeBlock .w { color: #f8f8f2 } /* Text.Whitespace */
-.codeBlock .mf { color: #ae81ff } /* Literal.Number.Float */
-.codeBlock .mh { color: #ae81ff } /* Literal.Number.Hex */
-.codeBlock .mi { color: #ae81ff } /* Literal.Number.Integer */
-.codeBlock .mo { color: #ae81ff } /* Literal.Number.Oct */
-.codeBlock .sb { color: #e6db74 } /* Literal.String.Backtick */
-.codeBlock .sc { color: #e6db74 } /* Literal.String.Char */
-.codeBlock .sd { color: #e6db74 } /* Literal.String.Doc */
-.codeBlock .s2 { color: #e6db74 } /* Literal.String.Double */
-.codeBlock .se { color: #ae81ff } /* Literal.String.Escape */
-.codeBlock .sh { color: #e6db74 } /* Literal.String.Heredoc */
-.codeBlock .si { color: #e6db74 } /* Literal.String.Interpol */
-.codeBlock .sx { color: #e6db74 } /* Literal.String.Other */
-.codeBlock .sr { color: #e6db74 } /* Literal.String.Regex */
-.codeBlock .s1 { color: #e6db74 } /* Literal.String.Single */
-.codeBlock .ss { color: #e6db74 } /* Literal.String.Symbol */
-.codeBlock .bp { color: #f8f8f2 } /* Name.Builtin.Pseudo */
-.codeBlock .vc { color: #f8f8f2 } /* Name.Variable.Class */
-.codeBlock .vg { color: #f8f8f2 } /* Name.Variable.Global */
-.codeBlock .vi { color: #f8f8f2 } /* Name.Variable.Instance */
-.codeBlock .il { color: #ae81ff } /* Literal.Number.Integer.Long */
+.na a{color: #a6e22e;}
 
-.codeBlock .gh { } /* Generic Heading & Diff Header */
-.codeBlock .gu { color: #75715e; } /* Generic.Subheading & Diff Unified/Comment? */
-.codeBlock .gd { color: #f92672; } /* Generic.Deleted & Diff Deleted */
-.codeBlock .gi { color: #a6e22e; } /* Generic.Inserted & Diff Inserted */
 
 .codeBlock {
 	font-size: 1.6em;
@@ -75,6 +27,12 @@
 .systemMethodLog{
 	display:none;
 }
+
 .debug{
 
 }
+
+.toggleHidden{
+	padding-right: 22px;
+}
+
