@@ -1,8 +1,9 @@
-var showSystemLabel = document.createElement('label');
-showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" value="value" id="showSystem" >Show System Methods</label>';
-var codeElement = document.getElementsByTagName('pre')[0];
-codeElement.style.fontSize = '1.8em';
+(function(){
+
+var idRegex = /[a-zA-Z0-9]{18}|[a-zA-Z0-9]{15}/g;
+var codeElement = document.querySelector('pre');
 var debugText = codeElement.innerText;
+
 var res = debugText.split('\n').map(function(curLine){
     var splitedDebugLine = curLine.split('|');
     if(curLine.indexOf('Execute Anonymous:') == 0){
@@ -11,24 +12,26 @@ var res = debugText.split('\n').map(function(curLine){
     if(!splitedDebugLine || splitedDebugLine.length <= 1){
         return escapeHtml(curLine);
     }
+
+    curLine = curLine.replace(idRegex,'<a href="/$&">$&</a>');
     if(curLine.indexOf('|USER_DEBUG') > -1){
-        return '<div class="o debug">' +  curLine + '</div>';
+        return '<div class="na debug">' +  curLine + '</div>';
     }
-    if(curLine.indexOf('|SYSTEM_METHOD_') > -1){
+    if(curLine.indexOf('|SYSTEM_') > -1){
         return '<div class="c systemMethodLog">' +  curLine + '</div>';
     }
     if(curLine.indexOf('|SOQL_EXECUTE_') > -1){
-        return '<div class="l">' +  curLine + '</div>';
-    }if(curLine.indexOf('METHOD_') > -1){
         return '<div class="k">' +  curLine + '</div>';
+    }if(curLine.indexOf('METHOD_') > -1){
+        return '<div class="s methodLog">' +  curLine + '</div>';
     }if(curLine.indexOf('EXCEPTION') > -1){
         return '<div class="err">' +  curLine + '</div>';
     }if(curLine.indexOf('|CODE_UNIT') > -1){
-        return '<div class="sc">' +  curLine + '</div>';
+        return '<div class="s">' +  curLine + '</div>';
     }if(curLine.indexOf('|CALLOUT') > -1){
-        return '<div class="na">' +  curLine + '</div>';
+        return '<div class="s">' +  curLine + '</div>';
     }
-    return '<div class="nv">' + curLine +'</div>';
+    return '<div class="n">' + curLine +'</div>';
 }).reduce(function(prevVal,curLine,index,arr){
     if(index == 1){
         return '<div class="p">' + prevVal + '</div>' + curLine ;
@@ -37,19 +40,11 @@ var res = debugText.split('\n').map(function(curLine){
         return prevVal + curLine;
     }
     return prevVal.substr(0,prevVal.length - '</div>'.length) + '\n' + curLine + '</div>';
-
 });
-document.getElementsByTagName('pre')[0].innerHTML = '<div class="hll" id="debugText">' + res + '</div>';
-document.getElementsByClassName('oLeft')[0].style.display ="none";
 
-document.getElementsByClassName('codeBlock')[0].insertBefore(showSystemLabel,document.getElementById('debugText'));
-var showsystem = document.getElementById('showSystem');
-showSystem.onchange = function(event){
-    var systemLogs = document.getElementsByClassName('systemMethodLog');
-    systemLogs.forEach(function(systemLog){
-        systemLog.style.display = this.checked ? 'block' : 'none';
-    });
-}
+document.querySelector('pre').innerHTML = '<div class="hll" id="debugText">' + res + '</div>';
+document.querySelector('.oLeft').style.display ="none";
+addCheckboxes();
 
 var userDebugDivs = [].slice.call(document.getElementsByClassName('debug'));
 
@@ -64,10 +59,44 @@ userDebugDivs.forEach(function(userDebugDiv){
     userDebugDiv.insertBefore(buttonExpand,userDebugDiv.children[0]);
 });
 
+function idToLinks(separator){
+    return function (sum,word){
+        if(/^[a-zA-Z0-9]*$/.test(word) && ( word.length == 15 || word.length == 18 ) ){
+            return sum + separator + '<a href="/' + word + '">' +  word + '</a>';
+        }
+        return sum + separator + word;
+    }
+}
+
+function addCheckboxes(){
+    var showSystemLabel = document.createElement('label');
+    showSystemLabel.className = 'toggleHidden';
+    showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" id="showSystem" />Show System Methods</label>';
+    var showMethodLog = document.createElement('label');
+    showMethodLog.className = 'toggleHidden';
+    showMethodLog.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod"  />Show User Methods</label>';
+    document.querySelector('.codeBlock').insertBefore(showMethodLog,document.getElementById('debugText'));
+    document.querySelector('.codeBlock').insertBefore(showSystemLabel,document.getElementById('debugText'));
+    var showUser = document.getElementById('showUserMethod');
+    showUser.onchange = toogleHidden('methodLog');
+    var showsystem = document.getElementById('showSystem');
+    showSystem.onchange = toogleHidden('systemMethodLog');
+}
+
+function toogleHidden(className){
+    return function(e){
+        var systemLogs =[].slice.call(document.getElementsByClassName(className)) ;
+        systemLogs.forEach(function(systemLog){
+            systemLog.style.display = e.srcElement.checked ? 'block' : 'none';
+        });
+    }
+}
+
 function expandUserDebug(e){
     var debugNode = this.nextElementSibling.nextElementSibling;
     var  oldVal =  debugNode.innerHTML;
-    debugNode.innerHTML = js_beautify(sfdcObjectBeautify(debugNode.innerHTML));
+    debugNode.innerHTML = js_beautify(sfdcObjectBeautify(debugNode.innerText));
+    debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,'<a href="/$&">$&</a>');
     this.innerText = '-';
     this.onclick = function(e){
         debugNode.innerHTML = oldVal;
@@ -99,5 +128,4 @@ function sfdcObjectBeautify(string){
         return prevSum + curChar;
     })
 }
-
-
+})();

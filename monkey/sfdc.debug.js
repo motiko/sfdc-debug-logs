@@ -15,10 +15,12 @@
 // ==/UserScript==
 (function(){
 
-var idRegex = /[a-zA-Z0-9]{18}|[a-zA-Z0-9]{15}/g;
+// Monkey only
 var debug_css = GM_getResourceText ("debug_css");
 GM_addStyle (debug_css);
+//
 
+var idRegex = /[a-zA-Z0-9]{18}|[a-zA-Z0-9]{15}/g;
 var codeElement = document.querySelector('pre');
 var debugText = codeElement.innerText;
 
