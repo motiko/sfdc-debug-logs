@@ -19,8 +19,10 @@
 var debug_css = GM_getResourceText ("debug_css");
 GM_addStyle (debug_css);
 //
+var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
+var keyPrefixes = [];
 
-var idRegex = /[a-zA-Z0-9]{18}|[a-zA-Z0-9]{15}/g;
+var idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g;
 var codeElement = document.querySelector('pre');
 var debugText = codeElement.innerText;
 
@@ -33,7 +35,7 @@ var res = debugText.split('\n').map(function(curLine){
         return escapeHtml(curLine);
     }
 
-    curLine = curLine.replace(idRegex,'<a href="/$&">$&</a>');
+    curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
     if(curLine.indexOf('|USER_DEBUG') > -1){
         return '<div class="na debug">' +  curLine + '</div>';
     }
@@ -65,7 +67,7 @@ var res = debugText.split('\n').map(function(curLine){
 document.querySelector('pre').innerHTML = '<div class="hll" id="debugText">' + res + '</div>';
 document.querySelector('.oLeft').style.display ="none";
 addCheckboxes();
-
+removeIllegalIdLinks();
 var userDebugDivs = [].slice.call(document.getElementsByClassName('debug'));
 
 userDebugDivs.forEach(function(userDebugDiv){
@@ -86,6 +88,31 @@ function idToLinks(separator){
         }
         return sum + separator + word;
     }
+}
+
+function removeIllegalIdLinks(){
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET','/services/data/v29.0/sobjects');
+    xhr.onload = function(e){
+        var sobjects = JSON.parse(this.responseText).sobjects;
+        keyPrefixes = sobjects.filter(function(sobj){
+            return (sobj.keyPrefix != undefined);
+        }).map(function(sobjectDescribe){
+            return sobjectDescribe.keyPrefix;
+        });
+        var idLinks = document.getElementsByClassName('idLink');
+        [].slice.call(idLinks).forEach(function(link){
+            if(!isLegalId(link.innerText)){
+                link.className = 'disableClick';
+            }
+        });
+    }
+    xhr.setRequestHeader('Authorization','Bearer ' + sid);
+    xhr.send();
+}
+
+function isLegalId(id){
+    return ( keyPrefixes.indexOf( id.substr(0,3) ) > -1 );
 }
 
 function addCheckboxes(){
@@ -116,7 +143,14 @@ function expandUserDebug(e){
     var debugNode = this.nextElementSibling.nextElementSibling;
     var  oldVal =  debugNode.innerHTML;
     debugNode.innerHTML = js_beautify(sfdcObjectBeautify(debugNode.innerText));
-    debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,'<a href="/$&">$&</a>');
+    debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,function(id){
+        if(isLegalId(id)){
+            return '<a href="/' + id + '" class="idLink">' + id + '</a>';
+        }
+        else{
+            return id;
+        }
+    });
     this.innerText = '-';
     this.onclick = function(e){
         debugNode.innerHTML = oldVal;
@@ -148,4 +182,32 @@ function sfdcObjectBeautify(string){
         return prevSum + curChar;
     })
 }
+
+function normaliseSforceID( id) { // fluff up a 15 char id to return an 18 char id
+    if (id == null){
+        return id;
+    }
+    id = id.replace(/\"/g, ''); // scrub quotes from this id
+    if (id.length != 15) {
+        //print('well, id is not 15, bye' + id + ' ' + id.length);
+        return null;
+    }
+    var suffix = "";
+    for (var i = 0; i < 3; i++) {
+        var flags = 0;
+        for (var j = 0; j < 5; j++) {
+            var c = id.charAt(i * 5 + j);
+            if (c >= 'A' && c <= 'Z') {
+                flags += 1 << j;
+            }
+        }
+        if (flags <= 25) {
+            suffix += "ABCDEFGHIJKLMNOPQRSTUVWXYZ".charAt(flags);
+        } else {
+            suffix += "012345".charAt(flags-26);
+        }
+    }
+    return id + suffix;
+}
+
 })();

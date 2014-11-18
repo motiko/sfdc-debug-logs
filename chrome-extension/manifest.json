@@ -1,11 +1,11 @@
 {
     "name": "Salesforce Debug Tools",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "manifest_version": 2,
     "icons": { "16": "16.png",
            "48": "48.png",
           "128": "128.png" },
-    "description": "Salesforce developer tools https://github.com/motiko/sfdc-debug-logs",
+    "description": "Salesforce debug tools https://github.com/motiko/sfdc-debug-logs",
     "content_scripts": [
         {
             "css": [
