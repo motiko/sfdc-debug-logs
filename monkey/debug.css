@@ -1,6 +1,4 @@
 .codeBlock .hll { background-color: #000 }
-.codeBlock .err { color: #960050; background-color: #1e0010 } /* Error */
-.err a{color: #760050}
 .codeBlock .c { color: #75715e } /* Comment */
 .c a{color: #75715e}
 .codeBlock .k { color: #66d9ef } /* Keyword */
@@ -13,10 +11,13 @@
 .s a{color: #e6db74;}
 .codeBlock .na { color: #a6e22e } /* Name.Attribute */
 .na a{color: #a6e22e;}
+.codeBlock .err { color: #f92672 }
+.err a{color: #f92672;}
+
 
 
 .codeBlock {
-	font-size: 1.6em;
+	font-size: 1.6em !important;
 }
 .detailList{
 	z-index: 999;

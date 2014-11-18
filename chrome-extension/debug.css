@@ -1,18 +1,20 @@
 .codeBlock .hll { background-color: #000 }
-.codeBlock .err { color: #960050; background-color: #1e0010 } /* Error */
-.err a{color: #760050 !important}
 .codeBlock .c { color: #75715e } /* Comment */
-.c a{color: #75715e !important}
+.c a{color: #75715e}
 .codeBlock .k { color: #66d9ef } /* Keyword */
-.k a{color: #66d9ef !important}
+.k a{color: #66d9ef}
 .codeBlock .l { color: #ae81ff } /* Literal */
-.l a{color: #ae81ff !important}
+.l a{color: #ae81ff}
 .codeBlock .n { color: #f8f8f2 } /* Name */
-.n a{color: #f8f8f2 !important}
+.n a{color: #f8f8f2;}
 .codeBlock .s { color: #e6db74 } /* Literal.String */
-.s a{color: #e6db74 !important}
+.s a{color: #e6db74;}
 .codeBlock .na { color: #a6e22e } /* Name.Attribute */
-.na a{color: #a6e22e !important}
+.na a{color: #a6e22e;}
+.codeBlock .err { color: #f92672 }
+.err a{color: #f92672;}
+
+
 
 .codeBlock {
 	font-size: 1.6em !important;
@@ -35,3 +37,7 @@
 	padding-right: 22px;
 }
 
+.disableClick{
+    pointer-events: none;
+    text-decoration: none;
+}

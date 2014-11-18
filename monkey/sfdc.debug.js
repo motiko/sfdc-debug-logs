@@ -19,6 +19,7 @@
 var debug_css = GM_getResourceText ("debug_css");
 GM_addStyle (debug_css);
 //
+
 var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
 var keyPrefixes = [];
 
@@ -64,8 +65,11 @@ var res = debugText.split('\n').map(function(curLine){
     return prevVal.substr(0,prevVal.length - '</div>'.length) + '\n' + curLine + '</div>';
 });
 
-document.querySelector('pre').innerHTML = '<div class="hll" id="debugText">' + res + '</div>';
+var codeBlock = document.querySelector('pre');
+codeBlock.innerHTML = '<div class="hll" id="debugText">' + res + '</div>';
 document.querySelector('.oLeft').style.display ="none";
+var oRight = document.querySelector('.oRight');
+oRight.insertBefore(codeBlock,oRight.firstChild);
 addCheckboxes();
 removeIllegalIdLinks();
 var userDebugDivs = [].slice.call(document.getElementsByClassName('debug'));
@@ -166,48 +170,13 @@ function escapeHtml(str) {
 };
 
 function sfdcObjectBeautify(string){
-    return string.split('').reduce(function(prevSum,curChar,index,arr){
-        if(curChar == '{'){
-            return prevSum + '{"';
-        }
-        if(curChar == '}'){
-            return prevSum + '"}';
-        }
-        if(curChar == ','){
-            return prevSum + '","';
-        }
-        if(curChar == '='){
-            return prevSum + '":"';
-        }
-        return prevSum + curChar;
-    })
-}
-
-function normaliseSforceID( id) { // fluff up a 15 char id to return an 18 char id
-    if (id == null){
-        return id;
+    var regex = /\w+:{(\w+=.+,?\s*)+}/;
+    if(string.match(regex)){
+        return string.replace(/(\w+)=(.+?)(?=, |},|}\))/g,function(match,p1,p2){
+            return p1 + ':' + p2;
+        });
     }
-    id = id.replace(/\"/g, ''); // scrub quotes from this id
-    if (id.length != 15) {
-        //print('well, id is not 15, bye' + id + ' ' + id.length);
-        return null;
-    }
-    var suffix = "";
-    for (var i = 0; i < 3; i++) {
-        var flags = 0;
-        for (var j = 0; j < 5; j++) {
-            var c = id.charAt(i * 5 + j);
-            if (c >= 'A' && c <= 'Z') {
-                flags += 1 << j;
-            }
-        }
-        if (flags <= 25) {
-            suffix += "ABCDEFGHIJKLMNOPQRSTUVWXYZ".charAt(flags);
-        } else {
-            suffix += "012345".charAt(flags-26);
-        }
-    }
-    return id + suffix;
+    return string;
 }
 
 })();

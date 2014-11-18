@@ -35,6 +35,7 @@
                 "https://*.salesforce.com/*"
             ],
             "js": [
+                "mousetrap.min.js",
                 "shortcuts.js"
             ],
             "run_at": "document_end"

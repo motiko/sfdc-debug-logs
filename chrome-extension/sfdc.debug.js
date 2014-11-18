@@ -1,6 +1,9 @@
 (function(){
 
-var idRegex = /[a-zA-Z0-9]{18}|[a-zA-Z0-9]{15}/g;
+var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
+var keyPrefixes = [];
+
+var idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g;
 var codeElement = document.querySelector('pre');
 var debugText = codeElement.innerText;
 
@@ -13,7 +16,7 @@ var res = debugText.split('\n').map(function(curLine){
         return escapeHtml(curLine);
     }
 
-    curLine = curLine.replace(idRegex,'<a href="/$&">$&</a>');
+    curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
     if(curLine.indexOf('|USER_DEBUG') > -1){
         return '<div class="na debug">' +  curLine + '</div>';
     }
@@ -42,10 +45,13 @@ var res = debugText.split('\n').map(function(curLine){
     return prevVal.substr(0,prevVal.length - '</div>'.length) + '\n' + curLine + '</div>';
 });
 
-document.querySelector('pre').innerHTML = '<div class="hll" id="debugText">' + res + '</div>';
+var codeBlock = document.querySelector('pre');
+codeBlock.innerHTML = '<div class="hll" id="debugText">' + res + '</div>';
 document.querySelector('.oLeft').style.display ="none";
+var oRight = document.querySelector('.oRight');
+oRight.insertBefore(codeBlock,oRight.firstChild);
 addCheckboxes();
-
+removeIllegalIdLinks();
 var userDebugDivs = [].slice.call(document.getElementsByClassName('debug'));
 
 userDebugDivs.forEach(function(userDebugDiv){
@@ -66,6 +72,31 @@ function idToLinks(separator){
         }
         return sum + separator + word;
     }
+}
+
+function removeIllegalIdLinks(){
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET','/services/data/v29.0/sobjects');
+    xhr.onload = function(e){
+        var sobjects = JSON.parse(this.responseText).sobjects;
+        keyPrefixes = sobjects.filter(function(sobj){
+            return (sobj.keyPrefix != undefined);
+        }).map(function(sobjectDescribe){
+            return sobjectDescribe.keyPrefix;
+        });
+        var idLinks = document.getElementsByClassName('idLink');
+        [].slice.call(idLinks).forEach(function(link){
+            if(!isLegalId(link.innerText)){
+                link.className = 'disableClick';
+            }
+        });
+    }
+    xhr.setRequestHeader('Authorization','Bearer ' + sid);
+    xhr.send();
+}
+
+function isLegalId(id){
+    return ( keyPrefixes.indexOf( id.substr(0,3) ) > -1 );
 }
 
 function addCheckboxes(){
@@ -96,7 +127,14 @@ function expandUserDebug(e){
     var debugNode = this.nextElementSibling.nextElementSibling;
     var  oldVal =  debugNode.innerHTML;
     debugNode.innerHTML = js_beautify(sfdcObjectBeautify(debugNode.innerText));
-    debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,'<a href="/$&">$&</a>');
+    debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,function(id){
+        if(isLegalId(id)){
+            return '<a href="/' + id + '" class="idLink">' + id + '</a>';
+        }
+        else{
+            return id;
+        }
+    });
     this.innerText = '-';
     this.onclick = function(e){
         debugNode.innerHTML = oldVal;
@@ -112,20 +150,13 @@ function escapeHtml(str) {
 };
 
 function sfdcObjectBeautify(string){
-    return string.split('').reduce(function(prevSum,curChar,index,arr){
-        if(curChar == '{'){
-            return prevSum + '{"';
-        }
-        if(curChar == '}'){
-            return prevSum + '"}';
-        }
-        if(curChar == ','){
-            return prevSum + '","';
-        }
-        if(curChar == '='){
-            return prevSum + '":"';
-        }
-        return prevSum + curChar;
-    })
+    var regex = /\w+:{(\w+=.+,?\s*)+}/;
+    if(string.match(regex)){
+        return string.replace(/(\w+)=(.+?)(?=, |},|}\))/g,function(match,p1,p2){
+            return p1 + ':' + p2;
+        });
+    }
+    return string;
 }
+
 })();
