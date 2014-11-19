@@ -34,19 +34,19 @@ window.addEventListener("message", function(event) {
 
 inject(sendBackUserId);
 
-Mousetrap.bind(['ctrl+alt+d','command+option+d'],function(e){
+Mousetrap.bind(['ctrl+alt+d','command+d'],function(e){
     document.location.assign("/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true");
 });
 
-Mousetrap.bind(['ctrl+alt+o','command+option+o'],function(e){
+Mousetrap.bind(['ctrl+alt+o','command+o'],function(e){
     document.location.assign("/p/setup/custent/CustomObjectsPage");
 });
 
-Mousetrap.bind(['ctrl+alt+u','command+option+u'],function(e){
+Mousetrap.bind(['ctrl+alt+u','command+u'],function(e){
     document.location.assign("/005?setupid=ManageUsers");
 });
 
-Mousetrap.bind(['ctrl+alt+s','command+option+s'],function(e){
+Mousetrap.bind(['ctrl+alt+s','command+s'],function(e){
     document.location.assign("/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=SchemaBuilder");
 });
 

@@ -1,40 +1,44 @@
-.codeBlock .hll { background-color: #000 }
-.codeBlock .c { color: #75715e } /* Comment */
-.c a{color: #75715e}
-.codeBlock .k { color: #66d9ef } /* Keyword */
-.k a{color: #66d9ef}
-.codeBlock .l { color: #ae81ff } /* Literal */
-.l a{color: #ae81ff}
-.codeBlock .n { color: #f8f8f2 } /* Name */
-.n a{color: #f8f8f2;}
-.codeBlock .s { color: #e6db74 } /* Literal.String */
-.s a{color: #e6db74;}
-.codeBlock .na { color: #a6e22e } /* Name.Attribute */
-.na a{color: #a6e22e;}
-.codeBlock .err { color: #f92672 }
-.err a{color: #f92672;}
+.monokai { background-color: #000 }
+.monokai .debug, .debug a{ color: #a6e22e }
+.monokai .soql, .soql a { color: #66d9ef }
+.monokai .callout, .callout a { color: #ae81ff }
+.monokai .system, .system a { color: #75715e }
+.monokai .rest, .rest a { color: #f8f8f2 }
+.monokai .method, .method a{ color: #e6db74 }
+
+.monokai .err, .err a{ color: #f92672 }
+
+.emacs { background-color: #ffffcc }
+.emacs .debug, .debug a {color: #0000FF; font-weight: bold }
+.emacs .soql, .soql a { color: #AA22FF; font-style: italic }
+.emacs .callout, .callout a { color: #A0A000 }
+.emacs .system, .system a { color: #008800;}
+.emacs .rest, .rest a {  color: #880000}
+.emacs .method, .method a { color: #BB4444}
+.emacs .err, .err a{ color: #f92672 }
+
+.bw {background-color: #ffffff}
+.bw .debug, .debug a {font-weight: bold }
+.bw .soql, .soql a { font-style: italic  }
+.bw .callout, .callout a { font-style: oblique}
+/*.emacs .system, .system a { color: #008800;}
+.emacs .rest, .rest a {  color: #880000}
+.emacs .method, .method a { color: #BB4444}*/
+.bw .err, .err a{ color: #f92672 }
 
 
-
-.codeBlock {
+#debugText {
+	margin-top: 10px;
 	font-size: 1.6em !important;
-}
-.detailList{
-	z-index: 999;
-	width: 100vw;
-	height: 100vh;
 }
 
 .systemMethodLog{
 	display:none;
 }
 
-.debug{
-
-}
-
 .toggleHidden{
 	padding-right: 22px;
+	font-size: 1.6em;
 }
 
 .disableClick{

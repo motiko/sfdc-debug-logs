@@ -30,7 +30,7 @@ var debugText = codeElement.innerText;
 var res = debugText.split('\n').map(function(curLine){
     var splitedDebugLine = curLine.split('|');
     if(curLine.indexOf('Execute Anonymous:') == 0){
-        return '<div class="c">' + curLine + '</div>';
+        return '<div class="system">' + curLine + '</div>';
     }
     if(!splitedDebugLine || splitedDebugLine.length <= 1){
         return escapeHtml(curLine);
@@ -38,26 +38,26 @@ var res = debugText.split('\n').map(function(curLine){
 
     curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
     if(curLine.indexOf('|USER_DEBUG') > -1){
-        return '<div class="na debug">' +  curLine + '</div>';
+        return '<div class="debug">' +  curLine + '</div>';
     }
     if(curLine.indexOf('|SYSTEM_') > -1){
-        return '<div class="c systemMethodLog">' +  curLine + '</div>';
+        return '<div class="system systemMethodLog">' +  curLine + '</div>';
     }
     if(curLine.indexOf('|SOQL_EXECUTE_') > -1){
-        return '<div class="k">' +  curLine + '</div>';
+        return '<div class="soql">' +  curLine + '</div>';
     }if(curLine.indexOf('METHOD_') > -1){
-        return '<div class="s methodLog">' +  curLine + '</div>';
+        return '<div class="method methodLog">' +  curLine + '</div>';
     }if(curLine.indexOf('EXCEPTION') > -1){
         return '<div class="err">' +  curLine + '</div>';
     }if(curLine.indexOf('|CODE_UNIT') > -1){
-        return '<div class="s">' +  curLine + '</div>';
+        return '<div class="method">' +  curLine + '</div>';
     }if(curLine.indexOf('|CALLOUT') > -1){
-        return '<div class="s">' +  curLine + '</div>';
+        return '<div class="callout">' +  curLine + '</div>';
     }
-    return '<div class="n">' + curLine +'</div>';
+    return '<div class="rest">' + curLine +'</div>';
 }).reduce(function(prevVal,curLine,index,arr){
     if(index == 1){
-        return '<div class="p">' + prevVal + '</div>' + curLine ;
+        return '<div class="rest">' + prevVal + '</div>' + curLine ;
     }
     if(curLine.lastIndexOf('</div>') ==  curLine.length - '</div>'.length){
         return prevVal + curLine;
@@ -66,11 +66,12 @@ var res = debugText.split('\n').map(function(curLine){
 });
 
 var codeBlock = document.querySelector('pre');
-codeBlock.innerHTML = '<div class="hll" id="debugText">' + res + '</div>';
+codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>';
 document.querySelector('.oLeft').style.display ="none";
 var oRight = document.querySelector('.oRight');
 oRight.insertBefore(codeBlock,oRight.firstChild);
 addCheckboxes();
+addDropDown();
 removeIllegalIdLinks();
 var userDebugDivs = [].slice.call(document.getElementsByClassName('debug'));
 
@@ -117,6 +118,28 @@ function removeIllegalIdLinks(){
 
 function isLegalId(id){
     return ( keyPrefixes.indexOf( id.substr(0,3) ) > -1 );
+}
+
+function addDropDown(){
+    var dropDown = document.createElement('select');
+    var styles = [{name:'monokai',label:'Monokai'},{name:'bw',label:'Black/White'},{name:'emacs',label:'Emacs'}];
+    styles.forEach(function(style){
+        var opt = document.createElement('option');
+        opt.value = style.name;
+        opt.innerText = style.label;
+        dropDown.appendChild(opt);
+    });
+    dropDown.onchange = function(e){
+        document.querySelector('#debugText').className = this.value;
+        localStorage.setItem('style',this.value);
+        //debugger;
+    }
+    document.querySelector('.codeBlock').insertBefore(dropDown,document.getElementById('debugText'));
+    var savedStyle = localStorage.getItem('style');
+    if(savedStyle){
+        dropDown.value = savedStyle;
+        dropDown.onchange();
+    }
 }
 
 function addCheckboxes(){

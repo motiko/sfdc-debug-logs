@@ -1,6 +1,6 @@
 {
     "name": "Salesforce Debug Tools",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "manifest_version": 2,
     "icons": { "16": "16.png",
            "48": "48.png",
