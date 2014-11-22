@@ -26,7 +26,6 @@
 .emacs .method, .method a { color: #BB4444}*/
 .bw .err, .err a{ color: #f92672 }
 
-
 #debugText {
 	margin-top: 10px;
 	font-size: 1.6em !important;
@@ -44,4 +43,12 @@
 .disableClick{
     pointer-events: none;
     text-decoration: none;
+}
+
+.highlightSearchResult{
+	border-style:inset;
+}
+
+.currentResult{
+	border-style:outset;
 }

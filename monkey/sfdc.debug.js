@@ -7,12 +7,14 @@
 // @match        https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*
 // @grant        none
 // @require file:///c:/sfdc-debug-logs/monkey/beautify.js
+// @require file:///c:/sfdc-debug-logs/monkey/beautify-html.js
 // @require file:///c:/sfdc-debug-logs/monkey/sfdc.debug.js
 // @resource debug_css file:///c:/sfdc-debug-logs/monkey/debug.css
 // @grant    GM_addStyle
 // @grant    GM_getResourceText
 // @run-at document-end
 // ==/UserScript==
+
 
 (function(){
 
@@ -28,7 +30,6 @@ document.body.addEventListener('keyup',keyUpListener);
 function keyUpListener(event){
     console.log(maxResult);
     console.log(currentResult);
-    debugger;
     if(event.keyCode  == 70){ // 'f'
         if(currentResult === undefined || currentResult === maxResult){
             currentResult = -1;
@@ -46,8 +47,7 @@ function keyUpListener(event){
 }
 
 function goToResult(resultNum){
-    debugger;
-    document.location.hash = 'result' + resultNum;
+    document.location.replace('#result' + resultNum);
     document.body.addEventListener('keyup',keyUpListener);
     var previouslySelectdElement = document.querySelector('.currentResult')
     if(previouslySelectdElement){
@@ -239,7 +239,6 @@ function addDropDown(){
     dropDown.onchange = function(event){
         document.querySelector('#debugText').className = this.value;
         localStorage.setItem('style',this.value);
-        //debugger;
     }
     document.querySelector('.codeBlock').insertBefore(dropDown,document.getElementById('debugText'));
     var savedStyle = localStorage.getItem('style');
@@ -273,10 +272,19 @@ function toogleHidden(className){
     }
 }
 
+function looks_like_html(source) {
+    var trimmed = source.replace(/^[ \t\n\r]+/, '');
+    return (trimmed && trimmed.substring(0, 1) === '<');
+}
+
 function expandUserDebug(event){
     var debugNode = this.nextElementSibling.nextElementSibling;
     var  oldVal =  debugNode.innerHTML;
-    debugNode.innerHTML = js_beautify(sfdcObjectBeautify(debugNode.innerText));
+    if(looks_like_html(debugNode.innerText)){
+        debugNode.innerText = html_beautify(debugNode.innerText);
+    }else{
+        debugNode.innerText = js_beautify(sfdcObjectBeautify(debugNode.innerText));
+    }
     debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,function(id){
         if(isLegalId(id)){
             return '<a href="/' + id + '" class="idLink">' + id + '</a>';
