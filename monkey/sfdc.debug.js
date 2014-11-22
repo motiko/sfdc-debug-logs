@@ -13,6 +13,7 @@
 // @grant    GM_getResourceText
 // @run-at document-end
 // ==/UserScript==
+
 (function(){
 
 // Monkey only
@@ -20,20 +21,121 @@ var debug_css = GM_getResourceText ("debug_css");
 GM_addStyle (debug_css);
 //
 
+var selectedText,currentResult,maxResult;
+
+document.body.addEventListener('keyup',keyUpListener);
+
+function keyUpListener(event){
+    console.log(maxResult);
+    console.log(currentResult);
+    debugger;
+    if(event.keyCode  == 70){ // 'f'
+        if(currentResult === undefined || currentResult === maxResult){
+            currentResult = -1;
+        }
+        currentResult++;
+        goToResult(currentResult);
+    }
+    if(event.keyCode  == 66){ // 'b'
+        if(currentResult === undefined || currentResult === 0){
+            currentResult = maxResult + 1;
+        }
+        currentResult--;
+        goToResult(currentResult);
+    }
+}
+
+function goToResult(resultNum){
+    debugger;
+    document.location.hash = 'result' + resultNum;
+    document.body.addEventListener('keyup',keyUpListener);
+    var previouslySelectdElement = document.querySelector('.currentResult')
+    if(previouslySelectdElement){
+        previouslySelectdElement.classList.remove('currentResult');
+    }
+    document.querySelector('span.highlightSearchResult[data-number="' + resultNum + '"]')
+            .classList.add('currentResult');
+}
+
+document.body.addEventListener('mouseup',function(event){
+    if(event.button == 2){
+        return;
+    }
+    selectedText = document.getSelection().toString();
+    [].slice.call(document.querySelectorAll('.highlightSearchResult') ).forEach(function(span){
+        var highlightedText = span.innerText;
+        var textNode = document.createTextNode(highlightedText);
+        span.parentElement.insertBefore(textNode,span);
+        span.parentElement.removeChild(span);
+    });
+    [].slice.call(document.querySelectorAll('.searchResultAnchor') ).forEach(function(a){
+        a.parentElement.removeChild(a);
+    });
+    if(!selectedText){
+        currentResult = 0;
+        maxResult = 0;
+        return;
+    }
+    selectedText = escapeHtml(selectedText);
+    var searchableElements = [].slice.call(document.querySelectorAll('#debugText .searchable') );
+    var resultNum = 0;
+    searchableElements.filter(conatins(selectedText)).forEach(function(div){
+        var regExp = new RegExp(escapeRegExp(selectedText),'gi');
+        div.innerHTML = div.innerHTML.replace(regExp,function(match){
+            var resultString = '<a name="result' + resultNum
+            + '" class="searchResultAnchor" data-number="'
+            + resultNum + '"></a><span class="highlightSearchResult" data-number="' + resultNum + '">'
+            + match +'</span>';
+            resultNum++;
+            return resultString;
+        });
+        maxResult = resultNum-1;
+    });
+    var visibleSearchResults =  [].slice.call(document.querySelectorAll('.searchResultAnchor'))
+                                .filter(function(anchor){
+                                    return anchor.getBoundingClientRect().top >= 0;
+                                });
+    if(visibleSearchResults.length > 0){
+        var mouseY = event.clientY;
+        var closest = visibleSearchResults.map(function(anchor){
+            var anchorY = anchor.getBoundingClientRect().top;
+            return {element: anchor,distance:Math.abs(mouseY - anchorY)};
+        }).reduce(function(found,current){
+            if(current.distance < found.distance){
+                return current;
+            }
+            return found;
+        });
+        currentResult = parseInt(closest.element.dataset.number,10);
+        document.querySelector('span.highlightSearchResult[data-number="' + currentResult + '"]')
+            .classList.add('currentResult');
+    }
+});
+
+function conatins(searchString){
+    return function(nodeElem){
+        return nodeElem.innerHTML.indexOf(searchString) > -1;
+    }
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+}
+
 var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
 var keyPrefixes = [];
 
 var idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g;
 var codeElement = document.querySelector('pre');
-var debugText = codeElement.innerText;
+var debugText = escapeHtml(codeElement.innerText);
 
 var res = debugText.split('\n').map(function(curLine){
     var splitedDebugLine = curLine.split('|');
     if(curLine.indexOf('Execute Anonymous:') == 0){
-        return '<div class="system">' + curLine + '</div>';
+        return '<div class="system searchable">' + curLine + '</div>';
     }
     if(!splitedDebugLine || splitedDebugLine.length <= 1){
-        return escapeHtml(curLine);
+        return curLine;
     }
 
     curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
@@ -41,20 +143,20 @@ var res = debugText.split('\n').map(function(curLine){
         return '<div class="debug">' +  curLine + '</div>';
     }
     if(curLine.indexOf('|SYSTEM_') > -1){
-        return '<div class="system systemMethodLog">' +  curLine + '</div>';
+        return '<div class="system systemMethodLog searchable">' +  curLine + '</div>';
     }
     if(curLine.indexOf('|SOQL_EXECUTE_') > -1){
-        return '<div class="soql">' +  curLine + '</div>';
+        return '<div class="soql searchable">' +  curLine + '</div>';
     }if(curLine.indexOf('METHOD_') > -1){
-        return '<div class="method methodLog">' +  curLine + '</div>';
+        return '<div class="method methodLog searchable">' +  curLine + '</div>';
     }if(curLine.indexOf('EXCEPTION') > -1){
-        return '<div class="err">' +  curLine + '</div>';
+        return '<div class="err searchable">' +  curLine + '</div>';
     }if(curLine.indexOf('|CODE_UNIT') > -1){
-        return '<div class="method">' +  curLine + '</div>';
+        return '<div class="method searchable">' +  curLine + '</div>';
     }if(curLine.indexOf('|CALLOUT') > -1){
-        return '<div class="callout">' +  curLine + '</div>';
+        return '<div class="callout searchable">' +  curLine + '</div>';
     }
-    return '<div class="rest">' + curLine +'</div>';
+    return '<div class="rest searchable">' + curLine +'</div>';
 }).reduce(function(prevVal,curLine,index,arr){
     if(index == 1){
         return '<div class="rest">' + prevVal + '</div>' + curLine ;
@@ -77,14 +179,19 @@ var userDebugDivs = [].slice.call(document.getElementsByClassName('debug'));
 
 userDebugDivs.forEach(function(userDebugDiv){
     var debugParts = userDebugDiv.innerHTML.split('|DEBUG|');
-    userDebugDiv.innerHTML = '<span class="header">' +
-            debugParts[0] + '|DEBUG| </span> <div class="content">' +
+    userDebugDiv.innerHTML = '<span class="debugHeader searchable">' +
+            debugParts[0] + '|DEBUG| </span> <div class="debugContent searchable">' +
             debugParts[1] + '</div>';
     var buttonExpand = document.createElement('button');
     buttonExpand.onclick = expandUserDebug;
+    buttonExpand.onmouseup = haltEvent;
     buttonExpand.innerText = '+'
     userDebugDiv.insertBefore(buttonExpand,userDebugDiv.children[0]);
 });
+
+function haltEvent(event){
+    event.stopPropagation();
+}
 
 function idToLinks(separator){
     return function (sum,word){
@@ -98,7 +205,7 @@ function idToLinks(separator){
 function removeIllegalIdLinks(){
     var xhr = new XMLHttpRequest();
     xhr.open('GET','/services/data/v29.0/sobjects');
-    xhr.onload = function(e){
+    xhr.onload = function(event){
         var sobjects = JSON.parse(this.responseText).sobjects;
         keyPrefixes = sobjects.filter(function(sobj){
             return (sobj.keyPrefix != undefined);
@@ -129,7 +236,7 @@ function addDropDown(){
         opt.innerText = style.label;
         dropDown.appendChild(opt);
     });
-    dropDown.onchange = function(e){
+    dropDown.onchange = function(event){
         document.querySelector('#debugText').className = this.value;
         localStorage.setItem('style',this.value);
         //debugger;
@@ -158,15 +265,15 @@ function addCheckboxes(){
 }
 
 function toogleHidden(className){
-    return function(e){
+    return function(event){
         var systemLogs =[].slice.call(document.getElementsByClassName(className)) ;
         systemLogs.forEach(function(systemLog){
-            systemLog.style.display = e.srcElement.checked ? 'block' : 'none';
+            systemLog.style.display = event.srcElement.checked ? 'block' : 'none';
         });
     }
 }
 
-function expandUserDebug(e){
+function expandUserDebug(event){
     var debugNode = this.nextElementSibling.nextElementSibling;
     var  oldVal =  debugNode.innerHTML;
     debugNode.innerHTML = js_beautify(sfdcObjectBeautify(debugNode.innerText));
@@ -179,23 +286,30 @@ function expandUserDebug(e){
         }
     });
     this.innerText = '-';
-    this.onclick = function(e){
+    this.onclick = function(event){
         debugNode.innerHTML = oldVal;
         this.innerText = '+';
         this.onclick = expandUserDebug;
+        this.onmouseup = haltEvent;
     }
 }
 
-function escapeHtml(str) {
-    var div = document.createElement('div');
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
-};
+function escapeHtml(text) {
+  var map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+
+  return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
 
 function sfdcObjectBeautify(string){
     var regex = /\w+:{(\w+=.+,?\s*)+}/;
     if(string.match(regex)){
-        return string.replace(/(\w+)=(.+?)(?=, |},|}\))/g,function(match,p1,p2){
+        return string.replace(/([{| ]\w+)=(.+?)(?=, |},|}\))/g,function(match,p1,p2){
             return p1 + ':' + p2;
         });
     }
