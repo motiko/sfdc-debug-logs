@@ -15,21 +15,218 @@
 // @run-at document-end
 // ==/UserScript==
 
-
 (function(){
 
 // Monkey only
 var debug_css = GM_getResourceText ("debug_css");
 GM_addStyle (debug_css);
 //
+var selectedText,
+    currentResult,
+    maxResult,
+    keyPrefixes = [],
+    sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2],
+    idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g,
+    logEntryToDivTagClass = [{
+        logEntry: '|USER_DEBUG',
+        divClass: 'debug'
+    },
+    {
+        logEntry: '|SYSTEM_',
+        divClass: 'system systemMethodLog searchable'
+    },
+    {
+        logEntry: '|SOQL_EXECUTE_',
+        divClass: 'soql searchable'
+    },
+    {
+        logEntry: '|METHOD_',
+        divClass: 'method methodLog searchable'
+    },
+    {
+        logEntry: '|EXCEPTION_',
+        divClass: 'err searchable'
+    },
+    {
+        logEntry: '|CODE_UNIT',
+        divClass: 'method searchable'
+    },
+    {
+        logEntry: '|CALLOUT',
+        divClass: 'callout searchable'
+    },
+    {
+        logEntry: '|VALIDATION_',
+        divClass: 'method searchable'
+    },
+        {
+        logEntry: '|EXECUTION_',
+        divClass: 'rest searchable'
+    }
+    ];
 
-var selectedText,currentResult,maxResult;
+init();
 
-document.body.addEventListener('keyup',keyUpListener);
+function init(){
+    document.body.addEventListener('keyup',keyUpListener);
+    document.body.addEventListener('mouseup',searchSelectedText);
+    var codeElement = document.querySelector('pre');
+    var debugText = escapeHtml(codeElement.innerText);
+    var res = debugText.split('\n').map(addTagsToKnownLines).reduce(toMultilineDivs);
+    var codeBlock = document.querySelector('pre');
+    codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>';
+    document.querySelector('.oLeft').style.display ="none";
+    var oRight = document.querySelector('.oRight');
+    oRight.insertBefore(codeBlock,oRight.firstChild);
+    addControllersContainer();
+    addCheckboxes();
+    addDropDown();
+    if(!localStorage.getItem('dontShowSearchHint')){
+        addSearchHint();
+    }
+    removeIllegalIdLinks();
+    var userDebugDivs = toArray(document.getElementsByClassName('debug'));
+    userDebugDivs.forEach(addExpnasionButtonsForUserDebugDivs);
+    /*toArray(document.querySelectorAll('.expandUserDebugBtn')).forEach(function(button){
+        button.onclick();
+    });*/
+    addCollapseAllButton();
+}
+
+function addControllersContainer(){
+    var container = document.createElement('div');
+    container.id = 'controllersContainer';
+    addToTop(container);
+}
+
+function toArray(elemntList){
+    return [].slice.call(elemntList);
+}
+
+function addSearchHint(){
+    var hintContainer = document.createElement('span');
+    hintContainer.id = 'hintContainer';
+    var hint = document.createElement('span');
+    hint.innerText = 'Tip: To quick search hold Alt key while selecting text (f - forward, b - back, esc - clear)';
+    var hideTip = document.createElement('a');
+    hideTip.innerText = 'X';
+    hideTip.onclick = function(){
+        hintContainer.style.display = 'none';
+        localStorage.setItem('dontShowSearchHint',true);
+    }
+    hintContainer.appendChild(hideTip);
+    hintContainer.appendChild(hint);
+    addToTop(hintContainer);
+}
+
+function addDropDown(){
+    var selectStyleContainer = document.createElement('span');
+    selectStyleContainer.id = 'selectStyleContainer';
+    var label = document.createElement('label');
+    label.innerText = 'Pick Style: ';
+    label.for = 'styleSelection';
+    var dropDown = document.createElement('select');
+    dropDown.id = 'styleSelection';
+    var styles = [{name:'monokai',label:'Monokai'},{name:'bw',label:'Black/White'},{name:'emacs',label:'Emacs'}];
+    styles.forEach(function(style){
+        var opt = document.createElement('option');
+        opt.value = style.name;
+        opt.innerText = style.label;
+        dropDown.appendChild(opt);
+    });
+    dropDown.onchange = function(event){
+        document.querySelector('#debugText').className = this.value;
+        localStorage.setItem('style',this.value);
+    }
+    selectStyleContainer.appendChild(label);
+    selectStyleContainer.appendChild(dropDown);
+    addController(selectStyleContainer);
+    var savedStyle = localStorage.getItem('style');
+    if(savedStyle){
+        dropDown.value = savedStyle;
+        dropDown.onchange();
+    }
+}
+
+function addCheckboxes(){
+    var showSystemLabel = document.createElement('label');
+    showSystemLabel.className = 'toggleHidden';
+    showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" id="showSystem" />Show System Methods</label>';
+    var showMethodLog = document.createElement('label');
+    showMethodLog.className = 'toggleHidden';
+    showMethodLog.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod"  />Show User Methods</label>';
+    addController(showMethodLog);
+    addController(showSystemLabel);
+    var showUser = document.getElementById('showUserMethod');
+    showUser.onchange = toogleHidden('methodLog');
+    var showsystem = document.getElementById('showSystem');
+    showSystem.onchange = toogleHidden('systemMethodLog');
+}
+/*
+function addCheckboxes(){
+    var showSystemContainer = document.createElement('span');
+    showSystemContainer.className = 'checkBoxContainer';
+    var showSystemLabel = document.createElement('label');
+    showSystemLabel.className = 'toggleHidden';
+    showSystemLabel.for = 'showSystem';
+    showSystemLabel.innerText = 'Show System Methods';
+    var showSystemCb = document.createElement('input');
+    showSystemCb.type = 'checkbox';
+    showSystemCb.id = 'showSystem';
+    showSystemContainer.appendChild(showSystemCb);
+    showSystemContainer.appendChild(showSystemLabel);
+    var showUserContainer = document.createElement('span');
+    showUserContainer.className = 'checkBoxContainer';
+    var showUserLabel = document.createElement('label');
+    showUserLabel.className = 'toggleHidden';
+    showUserLabel.for = 'showUserMethod';
+    showUserLabel.innerText = 'Show User Methods';
+    var showUserCb = document.createElement('input');
+    showUserCb.type = 'checkbox';
+    showUserCb.id = 'showUserMethod';
+    showUserCb.checked = 'checked';
+    showUserContainer.appendChild(showUserCb);
+    showUserContainer.appendChild(showUserLabel);
+    addController(showUserContainer);
+    addController(showSystemContainer);
+    var showUser = document.getElementById('showUserMethod');
+    showUser.onchange = toogleHidden('methodLog');
+    var showsystem = document.getElementById('showSystem');
+    showSystem.onchange = toogleHidden('systemMethodLog');
+}*/
+
+function addCollapseAllButton(){
+    var button = document.createElement('button');
+    button.innerText = 'Expand All';
+    button.onclick = colapseAll;
+    button.id = 'collapseAllButton';
+    button.className = 'myButton';
+    addToTop(button);
+}
+
+function colapseAll(){
+    toArray(document.querySelectorAll('.expandUserDebugBtn.collapsed')).forEach(function(button){
+        button.onclick();
+    });
+    this.innerText = 'Collapse All';
+    this.onclick = function(){
+        toArray(document.querySelectorAll('.expandUserDebugBtn.expanded')).forEach(function(button){
+            button.onclick();
+        });
+        this.innerText = 'Expand All';
+        this.onclick = colapseAll;
+    }
+}
+
+function addToTop(nodeElement){
+    document.querySelector('.codeBlock').insertBefore(nodeElement,document.getElementById('debugText'));
+}
+
+function addController(controller){
+    document.querySelector('#controllersContainer').appendChild(controller);
+}
 
 function keyUpListener(event){
-    console.log(maxResult);
-    console.log(currentResult);
     if(event.keyCode  == 70){ // 'f'
         if(currentResult === undefined || currentResult === maxResult){
             currentResult = -1;
@@ -44,6 +241,9 @@ function keyUpListener(event){
         currentResult--;
         goToResult(currentResult);
     }
+    if(event.keyCode  == 27){ // 'esc'
+        removeHighlightingOfSearchResults();
+    }
 }
 
 function goToResult(resultNum){
@@ -57,31 +257,37 @@ function goToResult(resultNum){
             .classList.add('currentResult');
 }
 
-document.body.addEventListener('mouseup',function(event){
-    if(event.button == 2){
-        return;
-    }
-    selectedText = document.getSelection().toString();
-    [].slice.call(document.querySelectorAll('.highlightSearchResult') ).forEach(function(span){
+function removeHighlightingOfSearchResults(){
+    currentResult = 0;
+    maxResult = 0;
+    toArray(document.querySelectorAll('.highlightSearchResult') ).forEach(function(span){
         var highlightedText = span.innerText;
         var textNode = document.createTextNode(highlightedText);
         span.parentElement.insertBefore(textNode,span);
         span.parentElement.removeChild(span);
     });
-    [].slice.call(document.querySelectorAll('.searchResultAnchor') ).forEach(function(a){
+    toArray(document.querySelectorAll('.searchResultAnchor') ).forEach(function(a){
         a.parentElement.removeChild(a);
     });
+}
+
+function searchSelectedText(event){
+    if(event.button == 2 || !event.altKey){
+        return;
+    }
+    selectedText = document.getSelection().toString();
+    removeHighlightingOfSearchResults();
     if(!selectedText){
         currentResult = 0;
         maxResult = 0;
         return;
     }
     selectedText = escapeHtml(selectedText);
-    var searchableElements = [].slice.call(document.querySelectorAll('#debugText .searchable') );
-    var resultNum = 0;
-    searchableElements.filter(conatins(selectedText)).forEach(function(div){
+    var searchableElements = toArray(document.querySelectorAll('#debugText .searchable') );
+    var resultNum =0 ;
+    searchableElements.filter(notHidden).filter(conatins(selectedText)).forEach(function(div){
         var regExp = new RegExp(escapeRegExp(selectedText),'gi');
-        div.innerHTML = div.innerHTML.replace(regExp,function(match){
+        div.innerHTML = div.innerText.replace(regExp,function(match){
             var resultString = '<a name="result' + resultNum
             + '" class="searchResultAnchor" data-number="'
             + resultNum + '"></a><span class="highlightSearchResult" data-number="' + resultNum + '">'
@@ -89,12 +295,19 @@ document.body.addEventListener('mouseup',function(event){
             resultNum++;
             return resultString;
         });
+        div.innerHTML = div.innerHTML.replace(idRegex,withLegalId);
         maxResult = resultNum-1;
     });
-    var visibleSearchResults =  [].slice.call(document.querySelectorAll('.searchResultAnchor'))
-                                .filter(function(anchor){
-                                    return anchor.getBoundingClientRect().top >= 0;
-                                });
+    markNearestSearchResult();
+}
+
+function notHidden(element){
+    return element.offsetParent  !== null;
+}
+
+function markNearestSearchResult(){
+    var visibleSearchResults =  toArray(document.querySelectorAll('.searchResultAnchor'))
+                                .filter(isVisibleElement);
     if(visibleSearchResults.length > 0){
         var mouseY = event.clientY;
         var closest = visibleSearchResults.map(function(anchor){
@@ -110,74 +323,17 @@ document.body.addEventListener('mouseup',function(event){
         document.querySelector('span.highlightSearchResult[data-number="' + currentResult + '"]')
             .classList.add('currentResult');
     }
-});
-
-function conatins(searchString){
-    return function(nodeElem){
-        return nodeElem.innerHTML.indexOf(searchString) > -1;
-    }
 }
 
-function escapeRegExp(str) {
-  return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+function isVisibleElement(element){
+    return element.getBoundingClientRect().top >= 0;
 }
 
-var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
-var keyPrefixes = [];
+function highlightResults(resultNum){
+    return
+}
 
-var idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g;
-var codeElement = document.querySelector('pre');
-var debugText = escapeHtml(codeElement.innerText);
-
-var res = debugText.split('\n').map(function(curLine){
-    var splitedDebugLine = curLine.split('|');
-    if(curLine.indexOf('Execute Anonymous:') == 0){
-        return '<div class="system searchable">' + curLine + '</div>';
-    }
-    if(!splitedDebugLine || splitedDebugLine.length <= 1){
-        return curLine;
-    }
-
-    curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
-    if(curLine.indexOf('|USER_DEBUG') > -1){
-        return '<div class="debug">' +  curLine + '</div>';
-    }
-    if(curLine.indexOf('|SYSTEM_') > -1){
-        return '<div class="system systemMethodLog searchable">' +  curLine + '</div>';
-    }
-    if(curLine.indexOf('|SOQL_EXECUTE_') > -1){
-        return '<div class="soql searchable">' +  curLine + '</div>';
-    }if(curLine.indexOf('METHOD_') > -1){
-        return '<div class="method methodLog searchable">' +  curLine + '</div>';
-    }if(curLine.indexOf('EXCEPTION') > -1){
-        return '<div class="err searchable">' +  curLine + '</div>';
-    }if(curLine.indexOf('|CODE_UNIT') > -1){
-        return '<div class="method searchable">' +  curLine + '</div>';
-    }if(curLine.indexOf('|CALLOUT') > -1){
-        return '<div class="callout searchable">' +  curLine + '</div>';
-    }
-    return '<div class="rest searchable">' + curLine +'</div>';
-}).reduce(function(prevVal,curLine,index,arr){
-    if(index == 1){
-        return '<div class="rest">' + prevVal + '</div>' + curLine ;
-    }
-    if(curLine.lastIndexOf('</div>') ==  curLine.length - '</div>'.length){
-        return prevVal + curLine;
-    }
-    return prevVal.substr(0,prevVal.length - '</div>'.length) + '\n' + curLine + '</div>';
-});
-
-var codeBlock = document.querySelector('pre');
-codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>';
-document.querySelector('.oLeft').style.display ="none";
-var oRight = document.querySelector('.oRight');
-oRight.insertBefore(codeBlock,oRight.firstChild);
-addCheckboxes();
-addDropDown();
-removeIllegalIdLinks();
-var userDebugDivs = [].slice.call(document.getElementsByClassName('debug'));
-
-userDebugDivs.forEach(function(userDebugDiv){
+function addExpnasionButtonsForUserDebugDivs(userDebugDiv){
     var debugParts = userDebugDiv.innerHTML.split('|DEBUG|');
     userDebugDiv.innerHTML = '<span class="debugHeader searchable">' +
             debugParts[0] + '|DEBUG| </span> <div class="debugContent searchable">' +
@@ -185,21 +341,46 @@ userDebugDivs.forEach(function(userDebugDiv){
     var buttonExpand = document.createElement('button');
     buttonExpand.onclick = expandUserDebug;
     buttonExpand.onmouseup = haltEvent;
-    buttonExpand.innerText = '+'
+    buttonExpand.className = 'expandUserDebugBtn collapsed myButton';
+    buttonExpand.innerText = '+';
     userDebugDiv.insertBefore(buttonExpand,userDebugDiv.children[0]);
-});
+}
+
+function toMultilineDivs(prevVal,curLine,index){
+    if(index == 1){ // handling first line
+        return '<div class="rest">' + prevVal + '</div>' + curLine ;
+    }
+    else if(curLine.lastIndexOf('</div>') ==  curLine.length - '</div>'.length){ // current line ends with <div> tag all good
+        return prevVal + curLine;
+    }
+    else{ // expanding <div> to mutliline (e.g. LIMIT_USAGE_FOR_NS is multiline and cant recognise each line separately)
+        return prevVal.substr(0,prevVal.length - '</div>'.length) + '\n' + curLine + '</div>';
+    }
+}
+
+function addTagsToKnownLines(curLine){
+    if(curLine.indexOf('Execute Anonymous:') == 0){
+        return '<div class="system searchable">' + curLine + '</div>';
+    }
+    curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
+    var resultTag = '';
+    logEntryToDivTagClass.forEach(function(toClassMapping){
+        if(curLine.indexOf(toClassMapping.logEntry) > -1){
+            resultTag = '<div class="' + toClassMapping.divClass + '">' +  curLine + '</div>';
+        }
+    })
+    if(resultTag){
+        return resultTag;
+    }
+    var splitedDebugLine = curLine.split('|');
+    if(!splitedDebugLine || splitedDebugLine.length <= 2){
+        return curLine;
+    }
+    return '<div class="rest searchable">' + curLine +'</div>';
+}
 
 function haltEvent(event){
     event.stopPropagation();
-}
-
-function idToLinks(separator){
-    return function (sum,word){
-        if(/^[a-zA-Z0-9]*$/.test(word) && ( word.length == 15 || word.length == 18 ) ){
-            return sum + separator + '<a href="/' + word + '">' +  word + '</a>';
-        }
-        return sum + separator + word;
-    }
 }
 
 function removeIllegalIdLinks(){
@@ -212,8 +393,9 @@ function removeIllegalIdLinks(){
         }).map(function(sobjectDescribe){
             return sobjectDescribe.keyPrefix;
         });
+        keyPrefixes.push('03d') // validation rule
         var idLinks = document.getElementsByClassName('idLink');
-        [].slice.call(idLinks).forEach(function(link){
+        toArray(idLinks).forEach(function(link){
             if(!isLegalId(link.innerText)){
                 link.className = 'disableClick';
             }
@@ -227,54 +409,13 @@ function isLegalId(id){
     return ( keyPrefixes.indexOf( id.substr(0,3) ) > -1 );
 }
 
-function addDropDown(){
-    var dropDown = document.createElement('select');
-    var styles = [{name:'monokai',label:'Monokai'},{name:'bw',label:'Black/White'},{name:'emacs',label:'Emacs'}];
-    styles.forEach(function(style){
-        var opt = document.createElement('option');
-        opt.value = style.name;
-        opt.innerText = style.label;
-        dropDown.appendChild(opt);
-    });
-    dropDown.onchange = function(event){
-        document.querySelector('#debugText').className = this.value;
-        localStorage.setItem('style',this.value);
-    }
-    document.querySelector('.codeBlock').insertBefore(dropDown,document.getElementById('debugText'));
-    var savedStyle = localStorage.getItem('style');
-    if(savedStyle){
-        dropDown.value = savedStyle;
-        dropDown.onchange();
-    }
-}
-
-function addCheckboxes(){
-    var showSystemLabel = document.createElement('label');
-    showSystemLabel.className = 'toggleHidden';
-    showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" id="showSystem" />Show System Methods</label>';
-    var showMethodLog = document.createElement('label');
-    showMethodLog.className = 'toggleHidden';
-    showMethodLog.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod"  />Show User Methods</label>';
-    document.querySelector('.codeBlock').insertBefore(showMethodLog,document.getElementById('debugText'));
-    document.querySelector('.codeBlock').insertBefore(showSystemLabel,document.getElementById('debugText'));
-    var showUser = document.getElementById('showUserMethod');
-    showUser.onchange = toogleHidden('methodLog');
-    var showsystem = document.getElementById('showSystem');
-    showSystem.onchange = toogleHidden('systemMethodLog');
-}
-
 function toogleHidden(className){
     return function(event){
-        var systemLogs =[].slice.call(document.getElementsByClassName(className)) ;
+        var systemLogs =toArray(document.getElementsByClassName(className)) ;
         systemLogs.forEach(function(systemLog){
             systemLog.style.display = event.srcElement.checked ? 'block' : 'none';
         });
     }
-}
-
-function looks_like_html(source) {
-    var trimmed = source.replace(/^[ \t\n\r]+/, '');
-    return (trimmed && trimmed.substring(0, 1) === '<');
 }
 
 function expandUserDebug(event){
@@ -285,43 +426,64 @@ function expandUserDebug(event){
     }else{
         debugNode.innerText = js_beautify(sfdcObjectBeautify(debugNode.innerText));
     }
-    debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,function(id){
-        if(isLegalId(id)){
-            return '<a href="/' + id + '" class="idLink">' + id + '</a>';
-        }
-        else{
-            return id;
-        }
-    });
+    debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,withLegalId);
     this.innerText = '-';
+    this.classList.add('expanded');
+    this.classList.remove('collapsed');
     this.onclick = function(event){
         debugNode.innerHTML = oldVal;
+        this.classList.remove('expanded');
+        this.classList.add('collapsed');
         this.innerText = '+';
         this.onclick = expandUserDebug;
         this.onmouseup = haltEvent;
     }
 }
 
-function escapeHtml(text) {
-  var map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  };
-
-  return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+function withLegalId(id){
+    if(isLegalId(id)){
+        return '<a href="/' + id + '" class="idLink">' + id + '</a>';
+    }
+    else{
+        return id;
+    }
 }
 
 function sfdcObjectBeautify(string){
     var regex = /\w+:{(\w+=.+,?\s*)+}/;
     if(string.match(regex)){
         return string.replace(/([{| ]\w+)=(.+?)(?=, |},|}\))/g,function(match,p1,p2){
-            return p1 + ':' + p2;
+            return p1 + ': \'' + p2 + '\'';
         });
     }
     return string;
+}
+
+function looks_like_html(source) {
+    var trimmed = source.replace(/^[ \t\n\r]+/, '');
+    return (trimmed && trimmed.substring(0, 1) === '<');
+}
+
+function escapeHtml(text) {
+    var map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+    };
+
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+function escapeRegExp(str) {
+    return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+}
+
+function conatins(searchString){
+    return function(nodeElem){
+        return nodeElem.innerHTML.indexOf(searchString) > -1;
+    }
 }
 
 })();
