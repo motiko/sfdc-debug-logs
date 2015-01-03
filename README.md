@@ -39,4 +39,4 @@ Contribution & Feature Request
   1. More Themes
   2. Firefox/Safari/Opera Extension
 
-![Let's build it](https://octodex.github.com/images/collabocats.jpg)
+![Let's build it](https://octodex.github.com/images/collabocats.jpg "Let's build it")
