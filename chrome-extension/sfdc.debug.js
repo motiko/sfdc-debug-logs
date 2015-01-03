@@ -9,38 +9,48 @@ var selectedText,
     logEntryToDivTagClass = [{
         logEntry: '|USER_DEBUG',
         divClass: 'debug'
-    },
-    {
+    },{
         logEntry: '|SYSTEM_',
         divClass: 'system systemMethodLog searchable'
-    },
-    {
+    },{
         logEntry: '|SOQL_EXECUTE_',
-        divClass: 'soql searchable'
-    },
-    {
+        divClass: 'soql searchable wrap'
+    },{
+        logEntry: '|SOQL_EXECUTE_END',
+        divClass: 'soql searchable wrap'
+    },{
         logEntry: '|METHOD_',
         divClass: 'method methodLog searchable'
-    },
-    {
+    },{
+        logEntry: '|CONSTRUCTOR_',
+        divClass: 'method methodLog searchable'
+    },{
         logEntry: '|EXCEPTION_',
         divClass: 'err searchable'
-    },
-    {
+    },{
+        logEntry: '|FATAL_ERROR',
+        divClass: 'err searchable'
+    },{
         logEntry: '|CODE_UNIT',
         divClass: 'method searchable'
-    },
-    {
+    },{
         logEntry: '|CALLOUT',
         divClass: 'callout searchable'
-    },
-    {
+    },{
         logEntry: '|VALIDATION_',
         divClass: 'method searchable'
-    },
-        {
+    },{
         logEntry: '|EXECUTION_',
         divClass: 'rest searchable'
+    },{
+        logEntry: '|DML_BEGIN',
+        divClass: 'rest searchable'
+    },{
+        logEntry: '|DML_END',
+        divClass: 'rest searchable'
+    },{
+        logEntry: '|ENTERING_MANAGED_PKG',
+        divClass: 'system systemMethodLog searchable'
     }
     ];
 
@@ -48,7 +58,7 @@ init();
 
 function init(){
     document.body.addEventListener('keyup',keyUpListener);
-    document.body.addEventListener('mouseup',searchSelectedText);
+    //document.body.addEventListener('mouseup',searchSelectedText);
     var codeElement = document.querySelector('pre');
     var debugText = escapeHtml(codeElement.innerText);
     var res = debugText.split('\n').map(addTagsToKnownLines).reduce(toMultilineDivs);
@@ -64,11 +74,12 @@ function init(){
         addSearchHint();
     }
     removeIllegalIdLinks();
-    var userDebugDivs = toArray(document.getElementsByClassName('debug'));
-    userDebugDivs.forEach(addExpnasionButtonsForUserDebugDivs);
-    /*toArray(document.querySelectorAll('.expandUserDebugBtn')).forEach(function(button){
-        button.onclick();
-    });*/
+    var debugElements = document.getElementsByClassName('debug')
+    console.log(debugElements.length);
+    var userDebugDivs = toArray(debugElements);
+    userDebugDivs.forEach(function(debugDiv){
+        setTimeout(addExpnasionButtonsForUserDebugDivs.bind(null,debugDiv),0);
+    });
     addCollapseAllButton();
 }
 
@@ -86,7 +97,7 @@ function addSearchHint(){
     var hintContainer = document.createElement('span');
     hintContainer.id = 'hintContainer';
     var hint = document.createElement('span');
-    hint.innerText = 'Tip: To quick search hold Alt key while selecting text (f - forward, b - back, esc - clear)';
+    hint.innerHTML = 'Tip: To open debug logs press <b>Ctrl+Alt+d</b> (Command+d) from any salesforce page';
     var hideTip = document.createElement('a');
     hideTip.innerText = 'X';
     hideTip.onclick = function(){
@@ -130,10 +141,10 @@ function addDropDown(){
 function addCheckboxes(){
     var showSystemLabel = document.createElement('label');
     showSystemLabel.className = 'toggleHidden';
-    showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" id="showSystem" />Show System Methods</label>';
+    showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" id="showSystem" />Show <u>S</u>ystem Methods</label>';
     var showMethodLog = document.createElement('label');
     showMethodLog.className = 'toggleHidden';
-    showMethodLog.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod"  />Show User Methods</label>';
+    showMethodLog.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod"  />Show <u>U</u>ser Methods</label>';
     addController(showMethodLog);
     addController(showSystemLabel);
     var showUser = document.getElementById('showUserMethod');
@@ -141,42 +152,10 @@ function addCheckboxes(){
     var showsystem = document.getElementById('showSystem');
     showSystem.onchange = toogleHidden('systemMethodLog');
 }
-/*
-function addCheckboxes(){
-    var showSystemContainer = document.createElement('span');
-    showSystemContainer.className = 'checkBoxContainer';
-    var showSystemLabel = document.createElement('label');
-    showSystemLabel.className = 'toggleHidden';
-    showSystemLabel.for = 'showSystem';
-    showSystemLabel.innerText = 'Show System Methods';
-    var showSystemCb = document.createElement('input');
-    showSystemCb.type = 'checkbox';
-    showSystemCb.id = 'showSystem';
-    showSystemContainer.appendChild(showSystemCb);
-    showSystemContainer.appendChild(showSystemLabel);
-    var showUserContainer = document.createElement('span');
-    showUserContainer.className = 'checkBoxContainer';
-    var showUserLabel = document.createElement('label');
-    showUserLabel.className = 'toggleHidden';
-    showUserLabel.for = 'showUserMethod';
-    showUserLabel.innerText = 'Show User Methods';
-    var showUserCb = document.createElement('input');
-    showUserCb.type = 'checkbox';
-    showUserCb.id = 'showUserMethod';
-    showUserCb.checked = 'checked';
-    showUserContainer.appendChild(showUserCb);
-    showUserContainer.appendChild(showUserLabel);
-    addController(showUserContainer);
-    addController(showSystemContainer);
-    var showUser = document.getElementById('showUserMethod');
-    showUser.onchange = toogleHidden('methodLog');
-    var showsystem = document.getElementById('showSystem');
-    showSystem.onchange = toogleHidden('systemMethodLog');
-}*/
 
 function addCollapseAllButton(){
     var button = document.createElement('button');
-    button.innerText = 'Expand All';
+    button.innerHTML = '<u>E</u>xpand All';
     button.onclick = colapseAll;
     button.id = 'collapseAllButton';
     button.className = 'myButton';
@@ -185,14 +164,14 @@ function addCollapseAllButton(){
 
 function colapseAll(){
     toArray(document.querySelectorAll('.expandUserDebugBtn.collapsed')).forEach(function(button){
-        button.onclick();
+        setTimeout(expandUserDebug.bind(button),0);
     });
-    this.innerText = 'Collapse All';
+    this.innerHTML = 'Collaps<u>e</u> All';
     this.onclick = function(){
         toArray(document.querySelectorAll('.expandUserDebugBtn.expanded')).forEach(function(button){
-            button.onclick();
+            setTimeout(button.onclick.bind(button),0);
         });
-        this.innerText = 'Expand All';
+        this.innerHTML = '<u>E</u>xpand All';
         this.onclick = colapseAll;
     }
 }
@@ -213,16 +192,31 @@ function keyUpListener(event){
         currentResult++;
         goToResult(currentResult);
     }
-    if(event.keyCode  == 66){ // 'b'
+    else if(event.keyCode  == 66){ // 'b'
         if(currentResult === undefined || currentResult === 0){
             currentResult = maxResult + 1;
         }
         currentResult--;
         goToResult(currentResult);
     }
-    if(event.keyCode  == 27){ // 'esc'
+    else if(event.keyCode  == 27){ // 'esc'
         removeHighlightingOfSearchResults();
     }
+    else if(event.keyCode  == 85){ // 'u'
+        clickOn(document.querySelector('#showUserMethod'));
+    }
+    else if(event.keyCode  == 83){ // 's'
+        clickOn(document.querySelector('#showSystem'));
+    }
+    else if(event.keyCode  == 69){ // 'e'
+        clickOn(document.querySelector('#collapseAllButton'));
+    }
+}
+
+function clickOn(nodeElement){
+    var event = document.createEvent('MouseEvents');
+    event.initEvent('click', true, true);
+    nodeElement.dispatchEvent(event, true);
 }
 
 function goToResult(resultNum){
@@ -317,12 +311,15 @@ function addExpnasionButtonsForUserDebugDivs(userDebugDiv){
     userDebugDiv.innerHTML = '<span class="debugHeader searchable">' +
             debugParts[0] + '|DEBUG| </span> <div class="debugContent searchable">' +
             debugParts[1] + '</div>';
-    var buttonExpand = document.createElement('button');
-    buttonExpand.onclick = expandUserDebug;
-    buttonExpand.onmouseup = haltEvent;
-    buttonExpand.className = 'expandUserDebugBtn collapsed myButton';
-    buttonExpand.innerText = '+';
-    userDebugDiv.insertBefore(buttonExpand,userDebugDiv.children[0]);
+    var debugText = unescapeHtml(debugParts[1]);
+    if(looksLikeHtml(debugText) || looksLikeSfdcObject(debugText) || isJsonString(debugText)){
+        var buttonExpand = document.createElement('button');
+        buttonExpand.onclick = expandUserDebug;
+        buttonExpand.onmouseup = haltEvent;
+        buttonExpand.className = 'expandUserDebugBtn collapsed myButton';
+        buttonExpand.innerText = '+';
+        userDebugDiv.insertBefore(buttonExpand,userDebugDiv.children[0]);
+    }
 }
 
 function toMultilineDivs(prevVal,curLine,index){
@@ -397,19 +394,24 @@ function toogleHidden(className){
     }
 }
 
-function expandUserDebug(event){
+function expandUserDebug(){
     var debugNode = this.nextElementSibling.nextElementSibling;
     var  oldVal =  debugNode.innerHTML;
-    if(looks_like_html(debugNode.innerText)){
-        debugNode.innerText = html_beautify(debugNode.innerText);
-    }else{
-        debugNode.innerText = js_beautify(sfdcObjectBeautify(debugNode.innerText));
+    var debugNodeinnerText = unescapeHtml(oldVal);//debugNode.innerText;
+    if(looksLikeHtml(debugNodeinnerText)){
+        debugNode.innerText = html_beautify(debugNodeinnerText);
+    }else if(looksLikeSfdcObject(debugNodeinnerText)){
+        debugNode.innerText = js_beautify(sfdcObjectBeautify(debugNodeinnerText));
+    }else if(isJsonString(debugNodeinnerText)){
+        debugNode.innerText = js_beautify(debugNodeinnerText);
     }
-    debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,withLegalId);
-    this.innerText = '-';
+    if(oldVal.search(idRegex) > -1){
+        debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,withLegalId);
+    }
+    this.innerHTML = '-';
     this.classList.add('expanded');
     this.classList.remove('collapsed');
-    this.onclick = function(event){
+    this.onclick = function(){
         debugNode.innerHTML = oldVal;
         this.classList.remove('expanded');
         this.classList.add('collapsed');
@@ -429,18 +431,28 @@ function withLegalId(id){
 }
 
 function sfdcObjectBeautify(string){
-    var regex = /\w+:{(\w+=.+,?\s*)+}/;
-    if(string.match(regex)){
-        return string.replace(/([{| ]\w+)=(.+?)(?=, |},|}\))/g,function(match,p1,p2){
-            return p1 + ': \'' + p2 + '\'';
-        });
-    }
-    return string;
+    string = string.replace(/={/g,':{');
+    return string.replace(/([{| |\[]\w+)=(.+?)(?=, |},|}\)|:{|])/g,function(match,p1,p2){
+        return p1 + ":'" + p2  + "'" ;
+    });
 }
 
-function looks_like_html(source) {
+function looksLikeSfdcObject(string){
+    return string.match(/\w+:{\w+=.+,?\s*}/);
+}
+
+function looksLikeHtml(source) {
     var trimmed = source.replace(/^[ \t\n\r]+/, '');
     return (trimmed && trimmed.substring(0, 1) === '<');
+}
+
+function isJsonString(str) {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
 }
 
 function escapeHtml(text) {
@@ -454,6 +466,12 @@ function escapeHtml(text) {
 
     return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
+
+
+function unescapeHtml(str) {
+    return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, '\'');
+}
+
 
 function escapeRegExp(str) {
     return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");

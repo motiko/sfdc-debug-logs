@@ -19,13 +19,32 @@
 
 .bw {background-color: #ffffff}
 .bw .debug,.bw .debug a {font-weight: bold }
-.bw .soql,.bw .soql a { font-style: italic  }
+.bw .soql,.bw .soql a { font-style: italic; font-weight: 600 }
 .bw .callout,.bw .callout a { font-style: oblique}
 .bw .err,.bw .err a{ color: #f92672 }
+
+.wrap{
+	white-space: pre-wrap;
+	width:95vw;
+}
+
+.bold{
+	font-weight: 900 !important;
+}
+
+#bodyDiv_setup{
+	width:100vw;
+}
 
 #debugText {
 	margin-top: 10px;
 	font-size: 1.6em !important;
+	font-family:'Courier New','Courier',mono;
+}
+
+#debugText div{
+	margin-left: 0.6em;
+	margin-top: 0.1em;
 }
 
 .systemMethodLog{
@@ -33,7 +52,7 @@
 }
 
 .toggleHidden{
-	padding-right: 22px;
+	padding-right: 1.6em;
 	font-size: 1.6em;
 }
 
@@ -66,8 +85,8 @@
 
 
 #hintContainer a{
-	margin-right: 15px;
-	margin-left: 3px;
+	margin-right: 1.2em;
+	margin-left: 0.3em;
 	cursor: pointer;
 	font-weight: bold;
 }
@@ -77,11 +96,14 @@
 	margin-top: 2em;
 	margin-bottom: 1.4em;
 	padding: 4px 8px 4px 8px;
+	width: 8em;
 }
 
 #selectStyleContainer {
 	right: 5em;
 	position: absolute;
+	width:20em;
+	vertical-align: middle;
 }
 
 #selectStyleContainer label{
@@ -92,7 +114,7 @@ select {
     padding:3px;
     margin: 0;
     border-radius:4px;
-    box-shadow: 0 3px 0 #ccc, 0 -1px #fff inset;
+    box-shadow: 0 1px 0 #ccc, 0 -1px #fff inset;
     background: #f8f8f8;
     color:#888;
     border:none;
@@ -131,8 +153,5 @@ select {
 	width: 1.5em;
 	height: 1.5em;
 	font-size:0.8em;
-}
-
-#bodyDiv_setup{
-	width:100vw;
+	margin-right: 0.3em;
 }
