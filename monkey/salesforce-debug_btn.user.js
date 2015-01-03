@@ -11,6 +11,7 @@
 (function(){
 
 var userId;
+
 function inject(fn) {
     var script = document.createElement('script');
     script.setAttribute("type", "application/javascript");
@@ -30,6 +31,8 @@ window.addEventListener("message", function(event) {
         userId = event.data.content;
     }
 });
+
+inject(sendBackUserId);
 
 var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
 var userName = document.getElementById('userNavLabel').innerText;
