@@ -38,7 +38,7 @@ window.addEventListener("message", function(event) {
 inject(sendBackUserId);
 
 Mousetrap.bind(['ctrl+alt+d','command+d'],function(e){
-    GM_openInTab("/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true");
+    GM_openInTab(location.origin + "/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true");
 });
 
 shortcut('s',"/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=SchemaBuilder");
