@@ -1,15 +1,13 @@
 // ==UserScript==
 // @name         Beautify Salesforce Debug View
 // @namespace    SFDC
-// @version      0.1
-// @description
+// @version      0.1.15
+// @description Beautify Salesforce Debug View
 // @author       Moti
 // @match        https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*
-// @grant        none
-// @require file:///c:/sfdc-debug-logs/monkey/beautify.js
-// @require file:///c:/sfdc-debug-logs/monkey/beautify-html.js
-// @require file:///c:/sfdc-debug-logs/monkey/sfdc.debug.js
-// @resource debug_css file:///c:/sfdc-debug-logs/monkey/debug.css
+// @require beautify.js
+// @require beautify-html.js
+// @resource debug_css debug.css
 // @grant    GM_addStyle
 // @grant    GM_getResourceText
 // @run-at document-end
@@ -28,6 +26,7 @@ var selectedText,
     keyPrefixes = [],
     sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2],
     idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g,
+    debugDescRegex = /(\d\d:\d\d:\d\d\.\d{3}\s+\(\d{8}\))\|(\w+)\|/,
     logEntryToDivTagClass = [{
         logEntry: '|USER_DEBUG',
         divClass: 'debug'
@@ -76,14 +75,31 @@ var selectedText,
     }
     ];
 
+
 init();
 
+/*function mapSeries(arr,iterator,callback){
+    callback = callback || function(){};
+    if(!arr.length){
+        callback();
+    }
+    var index = 0;
+    var result = [];
+    var itearate = function(){
+        result[index] = iterator(result[index],);
+    }
+}
+*/
 function init(){
+    console.time('init');
     document.body.addEventListener('keyup',keyUpListener);
     //document.body.addEventListener('mouseup',searchSelectedText);
     var codeElement = document.querySelector('pre');
-    var debugText = escapeHtml(codeElement.innerText);
+    var debugText = escapeHtml(codeElement.textContent);
+    console.time('addTags');
     var res = debugText.split('\n').map(addTagsToKnownLines).reduce(toMultilineDivs);
+
+    console.timeEnd('addTags');
     var codeBlock = document.querySelector('pre');
     codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>';
     document.querySelector('.oLeft').style.display ="none";
@@ -103,6 +119,7 @@ function init(){
         setTimeout(addExpnasionButtonsForUserDebugDivs.bind(null,debugDiv),0);
     });
     addCollapseAllButton();
+    console.timeEnd('init');
 }
 
 function addControllersContainer(){
@@ -121,7 +138,7 @@ function addSearchHint(){
     var hint = document.createElement('span');
     hint.innerHTML = 'Tip: To open debug logs press <b>Ctrl+Alt+d</b> (Command+d) from any salesforce page';
     var hideTip = document.createElement('a');
-    hideTip.innerText = 'X';
+    hideTip.textContent = 'X';
     hideTip.onclick = function(){
         hintContainer.style.display = 'none';
         localStorage.setItem('dontShowSearchHint',true);
@@ -135,7 +152,7 @@ function addDropDown(){
     var selectStyleContainer = document.createElement('span');
     selectStyleContainer.id = 'selectStyleContainer';
     var label = document.createElement('label');
-    label.innerText = 'Pick Style: ';
+    label.textContent = 'Pick Style: ';
     label.for = 'styleSelection';
     var dropDown = document.createElement('select');
     dropDown.id = 'styleSelection';
@@ -143,7 +160,7 @@ function addDropDown(){
     styles.forEach(function(style){
         var opt = document.createElement('option');
         opt.value = style.name;
-        opt.innerText = style.label;
+        opt.textContent = style.label;
         dropDown.appendChild(opt);
     });
     dropDown.onchange = function(event){
@@ -256,7 +273,7 @@ function removeHighlightingOfSearchResults(){
     currentResult = 0;
     maxResult = 0;
     toArray(document.querySelectorAll('.highlightSearchResult') ).forEach(function(span){
-        var highlightedText = span.innerText;
+        var highlightedText = span.textContent;
         var textNode = document.createTextNode(highlightedText);
         span.parentElement.insertBefore(textNode,span);
         span.parentElement.removeChild(span);
@@ -339,7 +356,7 @@ function addExpnasionButtonsForUserDebugDivs(userDebugDiv){
         buttonExpand.onclick = expandUserDebug;
         buttonExpand.onmouseup = haltEvent;
         buttonExpand.className = 'expandUserDebugBtn collapsed myButton';
-        buttonExpand.innerText = '+';
+        buttonExpand.textContent = '+';
         userDebugDiv.insertBefore(buttonExpand,userDebugDiv.children[0]);
     }
 }
@@ -360,13 +377,17 @@ function addTagsToKnownLines(curLine){
     if(curLine.indexOf('Execute Anonymous:') == 0){
         return '<div class="system searchable">' + curLine + '</div>';
     }
-    curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
+    if(curLine.search(idRegex) > -1){
+        curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
+    }
     var resultTag = '';
-    logEntryToDivTagClass.forEach(function(toClassMapping){
-        if(curLine.indexOf(toClassMapping.logEntry) > -1){
-            resultTag = '<div class="' + toClassMapping.divClass + '">' +  curLine + '</div>';
+    var i;
+    for(i=0; i<logEntryToDivTagClass.length ; i++){ //function(toClassMapping){
+        if(curLine.indexOf(logEntryToDivTagClass[i].logEntry) > -1){
+            resultTag = '<div class="' + logEntryToDivTagClass[i].divClass + '">' +  curLine + '</div>';
+            break;
         }
-    })
+    }
     if(resultTag){
         return resultTag;
     }
@@ -421,23 +442,23 @@ function expandUserDebug(){
     var  oldVal =  debugNode.innerHTML;
     var debugNodeinnerText = unescapeHtml(oldVal);//debugNode.innerText;
     if(looksLikeHtml(debugNodeinnerText)){
-        debugNode.innerText = html_beautify(debugNodeinnerText);
+        debugNode.textContent  = html_beautify(debugNodeinnerText);
     }else if(looksLikeSfdcObject(debugNodeinnerText)){
-        debugNode.innerText = js_beautify(sfdcObjectBeautify(debugNodeinnerText));
+        debugNode.textContent  = js_beautify(sfdcObjectBeautify(debugNodeinnerText));
     }else if(isJsonString(debugNodeinnerText)){
-        debugNode.innerText = js_beautify(debugNodeinnerText);
+        debugNode.textContent  = js_beautify(debugNodeinnerText);
     }
     if(oldVal.search(idRegex) > -1){
         debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,withLegalId);
     }
-    this.innerHTML = '-';
+    this.textContent = '-';
     this.classList.add('expanded');
     this.classList.remove('collapsed');
     this.onclick = function(){
         debugNode.innerHTML = oldVal;
         this.classList.remove('expanded');
         this.classList.add('collapsed');
-        this.innerText = '+';
+        this.textContent = '+';
         this.onclick = expandUserDebug;
         this.onmouseup = haltEvent;
     }
