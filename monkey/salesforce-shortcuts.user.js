@@ -7,7 +7,7 @@
 // @match        https://*.force.com/*
 // @match        https://*.salesforce.com/*
 // @require      mousetrap.min.js
-// @grant        none
+// @grant        GM_openInTab
 // ==/UserScript==
 
 
@@ -38,7 +38,7 @@ window.addEventListener("message", function(event) {
 inject(sendBackUserId);
 
 Mousetrap.bind(['ctrl+alt+d','command+d'],function(e){
-    window.open("/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true",'_blank');
+    GM_openInTab("/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true");
 });
 
 shortcut('s',"/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=SchemaBuilder");
