@@ -6,7 +6,7 @@
 // @author       motiko
 // @match        https://*.force.com/*
 // @match        https://*.salesforce.com/*
-// @require      shortcuts.js
+// @require      mousetrap.min.js
 // @grant        none
 // ==/UserScript==
 

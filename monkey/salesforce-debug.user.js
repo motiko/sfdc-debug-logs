@@ -7,7 +7,7 @@
 // @match        https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*
 // @require beautify.js
 // @require beautify-html.js
-// @resource debug_css debug.css
+// @resource debug_css https://raw.githubusercontent.com/motiko/sfdc-debug-logs/master/monkey/debug.css
 // @grant    GM_addStyle
 // @grant    GM_getResourceText
 // @run-at document-end
