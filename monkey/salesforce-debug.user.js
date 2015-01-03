@@ -22,7 +22,6 @@
 var debug_css = GM_getResourceText("debug_css"),
     monkey = true;
 GM_addStyle(debug_css);
-
 //
 var selectedText,
     currentResult,
