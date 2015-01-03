@@ -10,6 +10,8 @@
 // @resource debug_css https://raw.githubusercontent.com/motiko/sfdc-debug-logs/master/monkey/debug.css
 // @grant    GM_addStyle
 // @grant    GM_getResourceText
+// @grant    GM_setValue
+// @grant    GM_getValue
 // @run-at document-end
 // ==/UserScript==
 
@@ -17,8 +19,10 @@
 
 
 // Monkey only
-var debug_css = GM_getResourceText("debug_css");
+var debug_css = GM_getResourceText("debug_css"),
+    monkey = true;
 GM_addStyle(debug_css);
+
 //
 var selectedText,
     currentResult,
@@ -75,6 +79,21 @@ var selectedText,
     }
     ];
 
+function setSetting(key,value){
+    if(monkey){
+        GM_setValue(key,value)
+    }else{
+        localStorage.setItem(key,value);
+    }
+}
+
+function getSetting(key){
+    if(monkey){
+        return GM_getValue(key);
+    }else{
+        return localStorage.getItem(key);
+    }
+}
 
 init();
 
@@ -108,7 +127,7 @@ function init(){
     addControllersContainer();
     addCheckboxes();
     addDropDown();
-    if(!localStorage.getItem('dontShowSearchHint')){
+    if(!getSetting('dontShowSearchHint')){
         addSearchHint();
     }
     removeIllegalIdLinks();
@@ -141,7 +160,7 @@ function addSearchHint(){
     hideTip.textContent = 'X';
     hideTip.onclick = function(){
         hintContainer.style.display = 'none';
-        localStorage.setItem('dontShowSearchHint',true);
+        setSetting('dontShowSearchHint',true);
     }
     hintContainer.appendChild(hideTip);
     hintContainer.appendChild(hint);
@@ -165,12 +184,12 @@ function addDropDown(){
     });
     dropDown.onchange = function(event){
         document.querySelector('#debugText').className = this.value;
-        localStorage.setItem('style',this.value);
+        setSetting('style',this.value);
     }
     selectStyleContainer.appendChild(label);
     selectStyleContainer.appendChild(dropDown);
     addController(selectStyleContainer);
-    var savedStyle = localStorage.getItem('style');
+    var savedStyle = getSetting('style');
     if(savedStyle){
         dropDown.value = savedStyle;
         dropDown.onchange();
