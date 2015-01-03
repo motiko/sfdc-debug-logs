@@ -15,11 +15,11 @@ Key Features
 Keyboard Chortcuts
 ------------------
 
-  *_Ctrl+Alt+d_ - Open Debug Logs + Add current user
-  *_Ctrl+Alt+o_ - Custom objects page
-  *_Ctrl+Alt+u_ - Manage Users
-  *_Ctrl+Alt+i_ - Company Information
-  *_Ctrl+Alt+s_ - Data Schema
+* _Ctrl+Alt+d_ - Open Debug Logs + Add current user
+* _Ctrl+Alt+o_ - Custom objects page
+* _Ctrl+Alt+u_ - Manage Users
+* _Ctrl+Alt+i_ - Company Information
+* _Ctrl+Alt+s_ - Data Schema
 
 Chrome extension installation
 -----------------------------
