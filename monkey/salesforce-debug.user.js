@@ -207,7 +207,7 @@ function addCheckboxes(){
     addController(showSystemLabel);
     var showUser = document.getElementById('showUserMethod');
     showUser.onchange = toogleHidden('methodLog');
-    var showsystem = document.getElementById('showSystem');
+    var showSystem = document.getElementById('showSystem');
     showSystem.onchange = toogleHidden('systemMethodLog');
 }
 

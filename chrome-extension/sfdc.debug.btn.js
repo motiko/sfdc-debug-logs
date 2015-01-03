@@ -115,7 +115,6 @@ function traceUser(event){
     var expirationDate = new Date();
     expirationDate.setTime(expirationDate.getTime() + 1000*60*60*24);
     expirationDate = expirationDate.toJSON();
-    console.log(expirationDate);
     var traceFlag = {
     ApexCode : "Debug",
     ApexProfiling : "Debug",
