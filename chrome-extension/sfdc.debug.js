@@ -1,11 +1,11 @@
 (function(){
-
 var selectedText,
     currentResult,
     maxResult,
     keyPrefixes = [],
     sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2],
     idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g,
+    debugDescRegex = /(\d\d:\d\d:\d\d\.\d{3}\s+\(\d{8}\))\|(\w+)\|/,
     logEntryToDivTagClass = [{
         logEntry: '|USER_DEBUG',
         divClass: 'debug'
@@ -54,14 +54,46 @@ var selectedText,
     }
     ];
 
+function setSetting(key,value){
+    if(typeof GM_setValue === "function"){
+        GM_setValue(key,value)
+    }else{
+        localStorage.setItem(key,value);
+    }
+}
+
+function getSetting(key){
+    if(typeof GM_getValue === "function"){
+        return GM_getValue(key);
+    }else{
+        return localStorage.getItem(key);
+    }
+}
+
 init();
 
+/*function mapSeries(arr,iterator,callback){
+    callback = callback || function(){};
+    if(!arr.length){
+        callback();
+    }
+    var index = 0;
+    var result = [];
+    var itearate = function(){
+        result[index] = iterator(result[index],);
+    }
+}
+*/
 function init(){
+    console.time('init');
     document.body.addEventListener('keyup',keyUpListener);
     //document.body.addEventListener('mouseup',searchSelectedText);
     var codeElement = document.querySelector('pre');
-    var debugText = escapeHtml(codeElement.innerText);
+    var debugText = escapeHtml(codeElement.textContent);
+    console.time('addTags');
     var res = debugText.split('\n').map(addTagsToKnownLines).reduce(toMultilineDivs);
+
+    console.timeEnd('addTags');
     var codeBlock = document.querySelector('pre');
     codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>';
     document.querySelector('.oLeft').style.display ="none";
@@ -70,7 +102,7 @@ function init(){
     addControllersContainer();
     addCheckboxes();
     addDropDown();
-    if(!localStorage.getItem('dontShowSearchHint')){
+    if(!getSetting('dontShowSearchHint')){
         addSearchHint();
     }
     removeIllegalIdLinks();
@@ -81,6 +113,7 @@ function init(){
         setTimeout(addExpnasionButtonsForUserDebugDivs.bind(null,debugDiv),0);
     });
     addCollapseAllButton();
+    console.timeEnd('init');
 }
 
 function addControllersContainer(){
@@ -99,10 +132,10 @@ function addSearchHint(){
     var hint = document.createElement('span');
     hint.innerHTML = 'Tip: To open debug logs press <b>Ctrl+Alt+d</b> (Command+d) from any salesforce page';
     var hideTip = document.createElement('a');
-    hideTip.innerText = 'X';
+    hideTip.textContent = 'X';
     hideTip.onclick = function(){
         hintContainer.style.display = 'none';
-        localStorage.setItem('dontShowSearchHint',true);
+        setSetting('dontShowSearchHint',true);
     }
     hintContainer.appendChild(hideTip);
     hintContainer.appendChild(hint);
@@ -113,7 +146,7 @@ function addDropDown(){
     var selectStyleContainer = document.createElement('span');
     selectStyleContainer.id = 'selectStyleContainer';
     var label = document.createElement('label');
-    label.innerText = 'Pick Style: ';
+    label.textContent = 'Pick Style: ';
     label.for = 'styleSelection';
     var dropDown = document.createElement('select');
     dropDown.id = 'styleSelection';
@@ -121,17 +154,17 @@ function addDropDown(){
     styles.forEach(function(style){
         var opt = document.createElement('option');
         opt.value = style.name;
-        opt.innerText = style.label;
+        opt.textContent = style.label;
         dropDown.appendChild(opt);
     });
     dropDown.onchange = function(event){
         document.querySelector('#debugText').className = this.value;
-        localStorage.setItem('style',this.value);
+        setSetting('style',this.value);
     }
     selectStyleContainer.appendChild(label);
     selectStyleContainer.appendChild(dropDown);
     addController(selectStyleContainer);
-    var savedStyle = localStorage.getItem('style');
+    var savedStyle = getSetting('style');
     if(savedStyle){
         dropDown.value = savedStyle;
         dropDown.onchange();
@@ -185,7 +218,7 @@ function addController(controller){
 }
 
 function keyUpListener(event){
-    if(event.keyCode  == 70){ // 'f'
+    /*if(event.keyCode  == 70){ // 'f'
         if(currentResult === undefined || currentResult === maxResult){
             currentResult = -1;
         }
@@ -199,7 +232,8 @@ function keyUpListener(event){
         currentResult--;
         goToResult(currentResult);
     }
-    else if(event.keyCode  == 27){ // 'esc'
+    else*/
+    if(event.keyCode  == 27){ // 'esc'
         removeHighlightingOfSearchResults();
     }
     else if(event.keyCode  == 85){ // 'u'
@@ -234,7 +268,7 @@ function removeHighlightingOfSearchResults(){
     currentResult = 0;
     maxResult = 0;
     toArray(document.querySelectorAll('.highlightSearchResult') ).forEach(function(span){
-        var highlightedText = span.innerText;
+        var highlightedText = span.textContent;
         var textNode = document.createTextNode(highlightedText);
         span.parentElement.insertBefore(textNode,span);
         span.parentElement.removeChild(span);
@@ -268,7 +302,7 @@ function searchSelectedText(event){
             resultNum++;
             return resultString;
         });
-        div.innerHTML = div.innerHTML.replace(idRegex,withLegalId);
+        div.innerHTML = div.innerHTML.replace(idRegex,withLegalIdLink);
         maxResult = resultNum-1;
     });
     markNearestSearchResult();
@@ -317,7 +351,7 @@ function addExpnasionButtonsForUserDebugDivs(userDebugDiv){
         buttonExpand.onclick = expandUserDebug;
         buttonExpand.onmouseup = haltEvent;
         buttonExpand.className = 'expandUserDebugBtn collapsed myButton';
-        buttonExpand.innerText = '+';
+        buttonExpand.textContent = '+';
         userDebugDiv.insertBefore(buttonExpand,userDebugDiv.children[0]);
     }
 }
@@ -338,13 +372,17 @@ function addTagsToKnownLines(curLine){
     if(curLine.indexOf('Execute Anonymous:') == 0){
         return '<div class="system searchable">' + curLine + '</div>';
     }
-    curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
+    if(curLine.search(idRegex) > -1){
+        curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
+    }
     var resultTag = '';
-    logEntryToDivTagClass.forEach(function(toClassMapping){
-        if(curLine.indexOf(toClassMapping.logEntry) > -1){
-            resultTag = '<div class="' + toClassMapping.divClass + '">' +  curLine + '</div>';
+    var i;
+    for(i=0; i<logEntryToDivTagClass.length ; i++){
+        if(curLine.indexOf(logEntryToDivTagClass[i].logEntry) > -1){
+            resultTag = '<div class="' + logEntryToDivTagClass[i].divClass + '">' +  curLine + '</div>';
+            break;
         }
-    })
+    }
     if(resultTag){
         return resultTag;
     }
@@ -396,32 +434,32 @@ function toogleHidden(className){
 
 function expandUserDebug(){
     var debugNode = this.nextElementSibling.nextElementSibling;
-    var  oldVal =  debugNode.innerHTML;
-    var debugNodeinnerText = unescapeHtml(oldVal);//debugNode.innerText;
+    var  oldHtmlVal =  debugNode.innerHTML;
+    var debugNodeinnerText = debugNode.textContent;
     if(looksLikeHtml(debugNodeinnerText)){
-        debugNode.innerText = html_beautify(debugNodeinnerText);
+        debugNode.textContent  = html_beautify(debugNodeinnerText);
     }else if(looksLikeSfdcObject(debugNodeinnerText)){
-        debugNode.innerText = js_beautify(sfdcObjectBeautify(debugNodeinnerText));
+        debugNode.textContent  = js_beautify(sfdcObjectBeautify(debugNodeinnerText));
     }else if(isJsonString(debugNodeinnerText)){
-        debugNode.innerText = js_beautify(debugNodeinnerText);
+        debugNode.textContent  = js_beautify(debugNodeinnerText);
     }
-    if(oldVal.search(idRegex) > -1){
-        debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,withLegalId);
+    if(debugNodeinnerText.search(idRegex) > -1){
+        debugNode.innerHTML = debugNode.textContent.replace(idRegex,withLegalIdLink);
     }
-    this.innerHTML = '-';
+    this.textContent = '-';
     this.classList.add('expanded');
     this.classList.remove('collapsed');
     this.onclick = function(){
-        debugNode.innerHTML = oldVal;
+        debugNode.innerHTML = oldHtmlVal;
         this.classList.remove('expanded');
         this.classList.add('collapsed');
-        this.innerText = '+';
+        this.textContent = '+';
         this.onclick = expandUserDebug;
         this.onmouseup = haltEvent;
     }
 }
 
-function withLegalId(id){
+function withLegalIdLink(id){
     if(isLegalId(id)){
         return '<a href="/' + id + '" class="idLink">' + id + '</a>';
     }

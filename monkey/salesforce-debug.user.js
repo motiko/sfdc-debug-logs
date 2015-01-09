@@ -19,8 +19,7 @@
 
 
 // Monkey only
-var debug_css = GM_getResourceText("debug_css"),
-    monkey = true;
+var debug_css = GM_getResourceText("debug_css");
 GM_addStyle(debug_css);
 //
 var selectedText,
@@ -79,7 +78,7 @@ var selectedText,
     ];
 
 function setSetting(key,value){
-    if(monkey){
+    if(typeof GM_setValue === "function"){
         GM_setValue(key,value)
     }else{
         localStorage.setItem(key,value);
@@ -87,7 +86,7 @@ function setSetting(key,value){
 }
 
 function getSetting(key){
-    if(monkey){
+    if(typeof GM_getValue === "function"){
         return GM_getValue(key);
     }else{
         return localStorage.getItem(key);
@@ -242,7 +241,7 @@ function addController(controller){
 }
 
 function keyUpListener(event){
-    if(event.keyCode  == 70){ // 'f'
+    /*if(event.keyCode  == 70){ // 'f'
         if(currentResult === undefined || currentResult === maxResult){
             currentResult = -1;
         }
@@ -256,7 +255,8 @@ function keyUpListener(event){
         currentResult--;
         goToResult(currentResult);
     }
-    else if(event.keyCode  == 27){ // 'esc'
+    else*/
+    if(event.keyCode  == 27){ // 'esc'
         removeHighlightingOfSearchResults();
     }
     else if(event.keyCode  == 85){ // 'u'
@@ -325,7 +325,7 @@ function searchSelectedText(event){
             resultNum++;
             return resultString;
         });
-        div.innerHTML = div.innerHTML.replace(idRegex,withLegalId);
+        div.innerHTML = div.innerHTML.replace(idRegex,withLegalIdLink);
         maxResult = resultNum-1;
     });
     markNearestSearchResult();
@@ -400,7 +400,7 @@ function addTagsToKnownLines(curLine){
     }
     var resultTag = '';
     var i;
-    for(i=0; i<logEntryToDivTagClass.length ; i++){ //function(toClassMapping){
+    for(i=0; i<logEntryToDivTagClass.length ; i++){
         if(curLine.indexOf(logEntryToDivTagClass[i].logEntry) > -1){
             resultTag = '<div class="' + logEntryToDivTagClass[i].divClass + '">' +  curLine + '</div>';
             break;
@@ -457,8 +457,8 @@ function toogleHidden(className){
 
 function expandUserDebug(){
     var debugNode = this.nextElementSibling.nextElementSibling;
-    var  oldVal =  debugNode.innerHTML;
-    var debugNodeinnerText = unescapeHtml(oldVal);//debugNode.innerText;
+    var  oldHtmlVal =  debugNode.innerHTML;
+    var debugNodeinnerText = debugNode.textContent;
     if(looksLikeHtml(debugNodeinnerText)){
         debugNode.textContent  = html_beautify(debugNodeinnerText);
     }else if(looksLikeSfdcObject(debugNodeinnerText)){
@@ -466,14 +466,14 @@ function expandUserDebug(){
     }else if(isJsonString(debugNodeinnerText)){
         debugNode.textContent  = js_beautify(debugNodeinnerText);
     }
-    if(oldVal.search(idRegex) > -1){
-        debugNode.innerHTML = debugNode.innerHTML.replace(idRegex,withLegalId);
+    if(debugNodeinnerText.search(idRegex) > -1){
+        debugNode.innerHTML = debugNode.textContent.replace(idRegex,withLegalIdLink);
     }
     this.textContent = '-';
     this.classList.add('expanded');
     this.classList.remove('collapsed');
     this.onclick = function(){
-        debugNode.innerHTML = oldVal;
+        debugNode.innerHTML = oldHtmlVal;
         this.classList.remove('expanded');
         this.classList.add('collapsed');
         this.textContent = '+';
@@ -482,7 +482,7 @@ function expandUserDebug(){
     }
 }
 
-function withLegalId(id){
+function withLegalIdLink(id){
     if(isLegalId(id)){
         return '<a href="/' + id + '" class="idLink">' + id + '</a>';
     }
