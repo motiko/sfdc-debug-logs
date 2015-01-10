@@ -1,7 +1,10 @@
-
 (function(){
 
 var userId;
+var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
+
+initPage();
+
 function inject(fn) {
     var script = document.createElement('script');
     script.setAttribute("type", "application/javascript");
@@ -10,29 +13,48 @@ function inject(fn) {
     document.body.removeChild(script); // clean up
 }
 
-function sendBackUserId(){
-    if(window.UserContext){
-        window.postMessage({type:"userId",content:UserContext.userId},"*");
+function initPage(){
+    getUserId();
+    addDeleteAllBtn();
+    addAddUserBtn();
+    addSearchControllers();
+}
+
+function getUserId(){
+    window.addEventListener("message", function(event) {
+        if(event.data.type === "userId"){
+            userId = event.data.content;
+        }
+    });
+    inject(sendBackUserId);
+    function sendBackUserId(){
+        if(window.UserContext){
+            window.postMessage({type:"userId",content:UserContext.userId},"*");
+        }
     }
 }
 
-window.addEventListener("message", function(event) {
-    if(event.data.type === "userId"){
-        userId = event.data.content;
-    }
-});
+function addAddUserBtn(){
+    var pbButton = document.getElementById("Apex_Trace_List:monitoredUsersForm").querySelector('.pbButton');
+    var addUserButton = document.createElement('input');
+    addUserButton.type = 'button';
+    addUserButton.className = 'btn';
+    addUserButton.value = 'Add Current User';
+    addUserButton.onclick = addCurrentUser;
+    pbButton.appendChild(addUserButton);
+}
 
-var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
-var userName = document.getElementById('userNavLabel').innerText;
-var form = document.getElementById("Apex_Trace_List:monitoredUsersForm");
-var pbButton = form.querySelector('.pbButton');
-var deleteAllContainer = document.getElementById("Apex_Trace_List:traceForm").querySelector('.pbButton');
-var addUserButton = document.createElement('input');
-var realDeleteAll = document.createElement('input');
-realDeleteAll.type = 'button';
-realDeleteAll.className = 'btn';
-realDeleteAll.value = 'Delete All (for real)';
-realDeleteAll.onclick = function(event){
+function addDeleteAllBtn(){
+    var deleteAllContainer = document.getElementById("Apex_Trace_List:traceForm").querySelector('.pbButton');
+    var realDeleteAllBtn = document.createElement('input');
+    realDeleteAllBtn.type = 'button';
+    realDeleteAllBtn.className = 'btn';
+    realDeleteAllBtn.value = 'Delete All (for real)';
+    realDeleteAllBtn.onclick = realDeleteAll
+    deleteAllContainer.appendChild(realDeleteAllBtn);
+}
+
+function realDeleteAll(event){
     event.preventDefault();
     document.body.style.cursor = 'wait';
     var xhr = new XMLHttpRequest();
@@ -64,80 +86,120 @@ realDeleteAll.onclick = function(event){
     xhr.send();
 }
 
-deleteAllContainer.appendChild(realDeleteAll);
-addUserButton.type = 'button';
-addUserButton.className = 'btn';
-addUserButton.value = 'Add Current User';
-
-addUserButton.onclick = addCurrentUser;
-
 function addCurrentUser(event){
     if(event){
         event.preventDefault();
     }
-    var findTracedUser = new XMLHttpRequest();
-    var query = "Select Id From TraceFlag Where TracedEntityId = '" + userId + "'";
-    findTracedUser.open('GET','/services/data/v32.0/tooling/query/?q=' +
-                encodeURIComponent(query));
-    findTracedUser.onload = function(e){
-        console.log(this.responseText);
-        var response = JSON.parse(this.responseText);
-        var oldRecords = response.size;
-        if(oldRecords > 0){
-            var deleteTraceFlags = new XMLHttpRequest();
-            response.records.map(function(record){
-                deleteTraceFlags.open('DELETE',record.attributes.url);
-                deleteTraceFlags.setRequestHeader('Authorization','Bearer ' + sid);
-                deleteTraceFlags.setRequestHeader('Content-Type','application/json');
-                deleteTraceFlags.onload = function(e){
-                    console.log(this.responseText);
-                    oldRecords--;
-                    if(oldRecords == 0){
-                        console.log('all removed;');
-                        traceUser();
-                    }
-                }
-                deleteTraceFlags.send();
+    document.location.assign("/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true");
+}
+
+function addSearchControllers(){
+    var iframe = document.createElement('iframe');
+    iframe.id = 'remember';
+    iframe.name = 'remember';
+    iframe.style.display = 'none';
+    iframe.src = 'about:blank';
+    document.body.appendChild(iframe);
+    var form = document.createElement('form');
+    form.method = 'post';
+    form.target = 'remember';
+    form.action = 'about:blank';
+    form.onsubmit = filterLogByText;
+    var input = document.createElement('input');
+    input.type ='text';
+    input.id = 'FilterByText';
+    input.autocomplete = 'on';
+    input.onkeydown = handleSearchKey;
+    var filter = document.createElement('button');
+    filter.innerText = 'Search';
+    filter.type = 'submit';
+    var clearFilterBtn = document.createElement('button');
+    clearFilterBtn.innerText = 'Clear';
+    clearFilterBtn.onclick = clearFilter;
+    var loadingImage = document.createElement('img');
+    loadingImage.src = '/img/loading.gif';
+    loadingImage.style.display = 'none';
+    loadingImage.id = 'LoadinImage';
+    form.appendChild(input);
+    form.appendChild(filter);
+    form.appendChild(clearFilterBtn);
+    form.appendChild(loadingImage);
+    var logsTitle = document.querySelector('.apexp .pbTitle');
+    logsTitle.appendChild(form);
+}
+
+function handleSearchKey(e){
+    if(e.keyCode == 27){
+        clearFilter(e);
+    }
+}
+
+function clearFilter(e){
+    e.preventDefault();
+    document.getElementById('FilterByText').value = '';
+    resetResults();
+}
+
+function resetResults(){
+    var logTableRows = [].slice.call(document.
+            getElementById('Apex_Trace_List:traceForm:traceTable:thetracetable:tb').children).forEach(function(element){
+                element.style.background = 'white';
             });
-        }else{
-            traceUser();
+}
+
+function filterLogByText(e){
+    resetResults();
+    document.body.style.cursor = 'wait';
+    document.getElementById('LoadinImage').style.display = 'inline';
+    var searchText = document.getElementById('FilterByText').value;
+    var searchRegex = new RegExp(escapeRegExp(searchText),'gi');
+    var logTableRows = [].slice.call(document.getElementById('Apex_Trace_List:traceForm:traceTable:thetracetable:tb').children);
+    var visibleLogRows = logTableRows.map(function(row){
+         var link = row.querySelector('td>a').href; // consider for perfomance: row.children[0].children[0]
+         logIdParam = link.split('?')[1].split('&').filter(function(keyVal){
+            return keyVal.indexOf('apex_log_id=') == 0;
+         });
+         logIdParam = logIdParam[0];
+         return {element :row,
+                id:logIdParam.split('=')[1]};
+    });
+    var queriesLeft = visibleLogRows.length;
+    visibleLogRows.forEach(function(logRow){
+        get('/services/data/v32.0/tooling/sobjects/ApexLog/'+ logRow.id +'/Body').then(function(rawLogContents){
+            queriesLeft--;
+            if(queriesLeft == 0){
+                document.body.style.cursor = 'default';
+                document.getElementById('LoadinImage').style.display = 'none';
+            }
+            if(searchRegex.test(rawLogContents)){
+                logRow.element.style.background = 'rgb(104, 170, 87)';
+            }
+        });
+    });
+}
+
+function get(url){
+    return new Promise(function(fulfill,reject){
+        var request = new XMLHttpRequest();
+        request.open('GET',url);
+        request.onload = function(){
+            if(request.status == 200){
+                fulfill(request.response)
+            }else{
+                reject(Error(request.statusText));
+            }
         }
-    }
-    findTracedUser.setRequestHeader('Authorization','Bearer ' + sid);
-    findTracedUser.setRequestHeader('Content-Type','application/json');
-    findTracedUser.send();
+
+        request.onerror = function(){
+            rejected(Error("Network Error"));
+        }
+        request.setRequestHeader('Authorization','Bearer ' + sid);
+        request.send();
+    })
 }
 
-function traceUser(event){
-     if(event){
-        event.preventDefault();
-    }
-    var expirationDate = new Date();
-    expirationDate.setTime(expirationDate.getTime() + 1000*60*60*24);
-    expirationDate = expirationDate.toJSON();
-    var traceFlag = {
-    ApexCode : "Debug",
-    ApexProfiling : "Debug",
-    Callout : "Debug",
-    Database : "Debug",
-    TracedEntityId : userId,
-    ExpirationDate : expirationDate,
-    System : "Debug",
-    Validation : "Debug",
-    Visualforce : "Debug",
-    Workflow : "Debug"
-    };
-    var traceUserRequest = new XMLHttpRequest();
-    traceUserRequest.open('POST','/services/data/v32.0/tooling/sobjects/TraceFlag',true);
-    traceUserRequest.onload   =  function response(result) {
-      console.log(this.responseText);
-      window.location.href = window.location.href.split('?')[0];
-    };
-    traceUserRequest.setRequestHeader('Authorization','Bearer ' + sid);
-    traceUserRequest.setRequestHeader('Content-Type','application/json');
-    traceUserRequest.send(JSON.stringify(traceFlag));
+function escapeRegExp(str) {
+    return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
 }
-
-pbButton.appendChild(addUserButton);
 
 })();
