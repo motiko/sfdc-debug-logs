@@ -12,6 +12,7 @@
 // @grant    GM_getResourceText
 // @grant    GM_setValue
 // @grant    GM_getValue
+// @grant    GM_xmlhttpRequest
 // @run-at document-end
 // ==/UserScript==
 
@@ -114,8 +115,8 @@ function init(){
     var codeElement = document.querySelector('pre');
     var debugText = escapeHtml(codeElement.textContent);
     console.time('addTags');
-    var res = debugText.split('\n').map(addTagsToKnownLines).reduce(toMultilineDivs);
-
+    var res = debugText.split('\n').map(addTagsToKnownLines)
+    res = res.reduce(toMultilineDivs);
     console.timeEnd('addTags');
     var codeBlock = document.querySelector('pre');
     codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>';
@@ -383,10 +384,10 @@ function toMultilineDivs(prevVal,curLine,index){
     if(index == 1){ // handling first line
         return '<div class="rest">' + prevVal + '</div>' + curLine ;
     }
-    else if(curLine.lastIndexOf('</div>') ==  curLine.length - '</div>'.length){ // current line ends with <div> tag all good
+    else if(curLine.lastIndexOf('</div>') ==  curLine.length - '</div>'.length && curLine.length - '</div>'.length != -1){ // current line ends with <div> tag all good
         return prevVal + curLine;
     }
-    else{ // expanding <div> to mutliline (e.g. LIMIT_USAGE_FOR_NS is multiline and cant recognise each line separately)
+    else{ // expanding <div> to mutliline (e.g. LIMIT_USAGE_FOR_NS is multiline and cant recognise each line separately or USER_DEBUG with /n)
         return prevVal.substr(0,prevVal.length - '</div>'.length) + '\n' + curLine + '</div>';
     }
 }
@@ -421,10 +422,8 @@ function haltEvent(event){
 }
 
 function removeIllegalIdLinks(){
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET','/services/data/v29.0/sobjects');
-    xhr.onload = function(event){
-        var sobjects = JSON.parse(this.responseText).sobjects;
+    request('/services/data/v29.0/sobjects').then(function(response){
+        var sobjects = JSON.parse(response).sobjects;
         keyPrefixes = sobjects.filter(function(sobj){
             return (sobj.keyPrefix != undefined);
         }).map(function(sobjectDescribe){
@@ -437,9 +436,7 @@ function removeIllegalIdLinks(){
                 link.className = 'disableClick';
             }
         });
-    }
-    xhr.setRequestHeader('Authorization','Bearer ' + sid);
-    xhr.send();
+    });
 }
 
 function isLegalId(id){
@@ -542,6 +539,47 @@ function conatins(searchString){
     return function(nodeElem){
         return nodeElem.innerHTML.indexOf(searchString) > -1;
     }
+}
+
+function request(url,method){
+    method = method || 'GET';
+    if(typeof GM_xmlhttpRequest === "function"){
+        return new Promise(function(fulfill,reject){
+            GM_xmlhttpRequest({
+                method:method,
+                url:url,
+                headers:{
+                    Authorization:'Bearer ' + sid
+                },
+                onload:function(response){
+                    if( response.status.toString().indexOf('2') == 0){
+                        fulfill(response.response)
+                    }else{
+                        reject(Error(response.statusText));
+                    }
+                },
+                onerror:function(response){
+                    rejected(Error("Network Error"));
+                }
+            });
+        });
+    }
+    return new Promise(function(fulfill,reject){
+        var xhr = new XMLHttpRequest();
+        xhr.open(method,url);
+        xhr.onload = function(){
+            if( xhr.status.toString().indexOf('2') == 0){
+                fulfill(xhr.response)
+            }else{
+                reject(Error(xhr.statusText));
+            }
+        }
+        xhr.onerror = function(){
+            rejected(Error("Network Error"));
+        }
+        xhr.setRequestHeader('Authorization','Bearer ' + sid);
+        xhr.send();
+    });
 }
 
 })();
