@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Beautify Salesforce Debug View
 // @namespace    SFDC
-// @version      0.1.15
+// @version      0.2.1
 // @description Beautify Salesforce Debug View
 // @author       Moti
 // @match        https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*
