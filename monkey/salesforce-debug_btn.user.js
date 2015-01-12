@@ -104,7 +104,7 @@ function addSearchControllers(){
     var form = document.createElement('form');
     form.method = 'post';
     form.target = 'remember';
-    form.action = 'about:blank';
+    form.action = '/';
     form.onsubmit = filterLogByText;
     var input = document.createElement('input');
     input.type ='text';
@@ -112,10 +112,10 @@ function addSearchControllers(){
     input.autocomplete = 'on';
     input.onkeydown = handleSearchKey;
     var filter = document.createElement('button');
-    filter.innerText = 'Search';
+    filter.textContent = 'Search';
     filter.type = 'submit';
     var clearFilterBtn = document.createElement('button');
-    clearFilterBtn.innerText = 'Clear';
+    clearFilterBtn.textContent = 'Clear';
     clearFilterBtn.onclick = clearFilter;
     var loadingImage = document.createElement('img');
     loadingImage.src = '/img/loading.gif';

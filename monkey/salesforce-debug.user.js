@@ -318,7 +318,7 @@ function searchSelectedText(event){
     var resultNum =0 ;
     searchableElements.filter(notHidden).filter(conatins(selectedText)).forEach(function(div){
         var regExp = new RegExp(escapeRegExp(selectedText),'gi');
-        div.innerHTML = div.innerText.replace(regExp,function(match){
+        div.innerHTML = div.textContent.replace(regExp,function(match){
             var resultString = '<a name="result' + resultNum
             + '" class="searchResultAnchor" data-number="'
             + resultNum + '"></a><span class="highlightSearchResult" data-number="' + resultNum + '">'
@@ -432,7 +432,7 @@ function removeIllegalIdLinks(){
         keyPrefixes.push('03d') // validation rule
         var idLinks = document.getElementsByClassName('idLink');
         toArray(idLinks).forEach(function(link){
-            if(!isLegalId(link.innerText)){
+            if(!isLegalId(link.textContent)){
                 link.className = 'disableClick';
             }
         });
@@ -455,15 +455,15 @@ function toogleHidden(className){
 function expandUserDebug(){
     var debugNode = this.nextElementSibling.nextElementSibling;
     var  oldHtmlVal =  debugNode.innerHTML;
-    var debugNodeinnerText = debugNode.textContent;
-    if(looksLikeHtml(debugNodeinnerText)){
-        debugNode.textContent  = html_beautify(debugNodeinnerText);
-    }else if(looksLikeSfdcObject(debugNodeinnerText)){
-        debugNode.textContent  = js_beautify(sfdcObjectBeautify(debugNodeinnerText));
-    }else if(isJsonString(debugNodeinnerText)){
-        debugNode.textContent  = js_beautify(debugNodeinnerText);
+    var debugNodeText = debugNode.textContent;
+    if(looksLikeHtml(debugNodeText)){
+        debugNode.textContent  = html_beautify(debugNodeText);
+    }else if(looksLikeSfdcObject(debugNodeText)){
+        debugNode.textContent  = js_beautify(sfdcObjectBeautify(debugNodeText));
+    }else if(isJsonString(debugNodeText)){
+        debugNode.textContent  = js_beautify(debugNodeText);
     }
-    if(debugNodeinnerText.search(idRegex) > -1){
+    if(debugNodeText.search(idRegex) > -1){
         debugNode.innerHTML = debugNode.textContent.replace(idRegex,withLegalIdLink);
     }
     this.textContent = '-';
