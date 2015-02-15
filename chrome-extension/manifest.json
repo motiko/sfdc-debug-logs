@@ -10,7 +10,8 @@
     "content_scripts": [
         {
             "css": [
-                "debug.css"
+                "debug.css",
+                "emojione.min.css"
             ],
             "matches": [
                 "https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*"
@@ -18,6 +19,7 @@
             "js": [
                 "beautify.js",
                 "beautify-html.js",
+                "emojione.min.js",
                 "sfdc.debug.js"
             ],
             "run_at": "document_end"

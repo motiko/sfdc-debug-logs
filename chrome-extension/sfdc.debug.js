@@ -95,7 +95,10 @@ function init(){
 
     console.timeEnd('addTags');
     var codeBlock = document.querySelector('pre');
-    codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>';
+
+    var output = emojione.shortnameToImage(res); // see all suppported code here: http://www.emoji.codes
+    
+    codeBlock.innerHTML = '<div class="monokai" id="debugText">' + output + '</div>';
     document.querySelector('.oLeft').style.display ="none";
     var oRight = document.querySelector('.oRight');
     oRight.insertBefore(codeBlock,oRight.firstChild);
