@@ -56,7 +56,7 @@ var selectedText,
 
 function setSetting(key,value){
     if(typeof GM_setValue === "function"){
-        GM_setValue(key,value)
+        GM_setValue(key,value);
     }else{
         localStorage.setItem(key,value);
     }
@@ -85,20 +85,17 @@ init();
 }
 */
 function init(){
-    console.time('init');
-    document.body.addEventListener('keyup',keyUpListener);
+    document.body.addEventListener('keydown',keyDownListener);
     //document.body.addEventListener('mouseup',searchSelectedText);
     var codeElement = document.querySelector('pre');
     var debugText = escapeHtml(codeElement.textContent);
-    console.time('addTags');
+    //console.time('addTags');
     var res = debugText.split('\n').map(addTagsToKnownLines).reduce(toMultilineDivs);
-
-    console.timeEnd('addTags');
+    //console.timeEnd('addTags');
     var codeBlock = document.querySelector('pre');
 
-    var output = emojione.shortnameToImage(res); // see all suppported code here: http://www.emoji.codes
-    
-    codeBlock.innerHTML = '<div class="monokai" id="debugText">' + output + '</div>';
+
+    codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>';
     document.querySelector('.oLeft').style.display ="none";
     var oRight = document.querySelector('.oRight');
     oRight.insertBefore(codeBlock,oRight.firstChild);
@@ -109,14 +106,12 @@ function init(){
         addSearchHint();
     }
     removeIllegalIdLinks();
-    var debugElements = document.getElementsByClassName('debug')
-    console.log(debugElements.length);
+    var debugElements = document.getElementsByClassName('debug');
     var userDebugDivs = toArray(debugElements);
     userDebugDivs.forEach(function(debugDiv){
         setTimeout(addExpnasionButtonsForUserDebugDivs.bind(null,debugDiv),0);
     });
     addCollapseAllButton();
-    console.timeEnd('init');
 }
 
 function addControllersContainer(){
@@ -139,7 +134,7 @@ function addSearchHint(){
     hideTip.onclick = function(){
         hintContainer.style.display = 'none';
         setSetting('dontShowSearchHint',true);
-    }
+    };
     hintContainer.appendChild(hideTip);
     hintContainer.appendChild(hint);
     addToTop(hintContainer);
@@ -163,7 +158,7 @@ function addDropDown(){
     dropDown.onchange = function(event){
         document.querySelector('#debugText').className = this.value;
         setSetting('style',this.value);
-    }
+    };
     selectStyleContainer.appendChild(label);
     selectStyleContainer.appendChild(dropDown);
     addController(selectStyleContainer);
@@ -209,7 +204,7 @@ function colapseAll(){
         });
         this.innerHTML = '<u>E</u>xpand All';
         this.onclick = colapseAll;
-    }
+    };
 }
 
 function addToTop(nodeElement){
@@ -220,7 +215,9 @@ function addController(controller){
     document.querySelector('#controllersContainer').appendChild(controller);
 }
 
-function keyUpListener(event){
+
+
+function keyDownListener(event){
     /*if(event.keyCode  == 70){ // 'f'
         if(currentResult === undefined || currentResult === maxResult){
             currentResult = -1;
@@ -250,6 +247,20 @@ function keyUpListener(event){
     }
 }
 
+function inject(fn) {
+    var script = document.createElement('script');
+    script.setAttribute("type", "application/javascript");
+    script.textContent = '(' + fn + ')();';
+    document.body.appendChild(script); // run the script
+    document.body.removeChild(script); // clean up
+}
+
+function sendBackUserId(){
+    if(window.UserContext){
+        window.postMessage({type:"userId",content:UserContext.userId},"*");
+    }
+}
+
 function clickOn(nodeElement){
     var event = document.createEvent('MouseEvents');
     event.initEvent('click', true, true);
@@ -258,8 +269,8 @@ function clickOn(nodeElement){
 
 function goToResult(resultNum){
     document.location.replace('#result' + resultNum);
-    document.body.addEventListener('keyup',keyUpListener);
-    var previouslySelectdElement = document.querySelector('.currentResult')
+    //document.body.addEventListener('keydown',keyUpListener);
+    var previouslySelectdElement = document.querySelector('.currentResult');
     if(previouslySelectdElement){
         previouslySelectdElement.classList.remove('currentResult');
     }
@@ -298,10 +309,10 @@ function searchSelectedText(event){
     searchableElements.filter(notHidden).filter(conatins(selectedText)).forEach(function(div){
         var regExp = new RegExp(escapeRegExp(selectedText),'gi');
         div.innerHTML = div.innerText.replace(regExp,function(match){
-            var resultString = '<a name="result' + resultNum
-            + '" class="searchResultAnchor" data-number="'
-            + resultNum + '"></a><span class="highlightSearchResult" data-number="' + resultNum + '">'
-            + match +'</span>';
+            var resultString = '<a name="result' + resultNum +
+             '" class="searchResultAnchor" data-number="' +
+             resultNum + '"></a><span class="highlightSearchResult" data-number="' + resultNum + '">' +
+             match +'</span>';
             resultNum++;
             return resultString;
         });
@@ -339,10 +350,6 @@ function isVisibleElement(element){
     return element.getBoundingClientRect().top >= 0;
 }
 
-function highlightResults(resultNum){
-    return
-}
-
 function addExpnasionButtonsForUserDebugDivs(userDebugDiv){
     var debugParts = userDebugDiv.innerHTML.split('|DEBUG|');
     userDebugDiv.innerHTML = '<span class="debugHeader searchable">' +
@@ -372,7 +379,7 @@ function toMultilineDivs(prevVal,curLine,index){
 }
 
 function addTagsToKnownLines(curLine){
-    if(curLine.indexOf('Execute Anonymous:') == 0){
+    if(curLine.indexOf('Execute Anonymous:') === 0){
         return '<div class="system searchable">' + curLine + '</div>';
     }
     if(curLine.search(idRegex) > -1){
@@ -406,18 +413,18 @@ function removeIllegalIdLinks(){
     xhr.onload = function(event){
         var sobjects = JSON.parse(this.responseText).sobjects;
         keyPrefixes = sobjects.filter(function(sobj){
-            return (sobj.keyPrefix != undefined);
+            return (sobj.keyPrefix !== undefined);
         }).map(function(sobjectDescribe){
             return sobjectDescribe.keyPrefix;
         });
-        keyPrefixes.push('03d') // validation rule
+        keyPrefixes.push('03d');// validation rule
         var idLinks = document.getElementsByClassName('idLink');
         toArray(idLinks).forEach(function(link){
             if(!isLegalId(link.innerText)){
                 link.className = 'disableClick';
             }
         });
-    }
+    };
     xhr.setRequestHeader('Authorization','Bearer ' + sid);
     xhr.send();
 }
@@ -432,7 +439,7 @@ function toogleHidden(className){
         systemLogs.forEach(function(systemLog){
             systemLog.style.display = event.srcElement.checked ? 'block' : 'none';
         });
-    }
+    };
 }
 
 function expandUserDebug(){
@@ -459,7 +466,7 @@ function expandUserDebug(){
         this.textContent = '+';
         this.onclick = expandUserDebug;
         this.onmouseup = haltEvent;
-    }
+    };
 }
 
 function withLegalIdLink(id){
@@ -521,7 +528,7 @@ function escapeRegExp(str) {
 function conatins(searchString){
     return function(nodeElem){
         return nodeElem.innerHTML.indexOf(searchString) > -1;
-    }
+    };
 }
 
 })();

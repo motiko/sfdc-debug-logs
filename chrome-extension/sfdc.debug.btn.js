@@ -50,7 +50,7 @@ function addDeleteAllBtn(){
     realDeleteAllBtn.type = 'button';
     realDeleteAllBtn.className = 'btn';
     realDeleteAllBtn.value = 'Delete All (for real)';
-    realDeleteAllBtn.onclick = realDeleteAll
+    realDeleteAllBtn.onclick = realDeleteAll;
     deleteAllContainer.appendChild(realDeleteAllBtn);
 }
 
@@ -72,16 +72,16 @@ function realDeleteAll(event){
             deleteLogs.setRequestHeader('Authorization','Bearer ' + sid);
             deleteLogs.onload = function(){
                 logsCounter--;
-            }
+            };
             deleteLogs.send();
         });
         setInterval(function(){
-            if(logsCounter == 0){
+            if(logsCounter === 0){
                 document.body.style.cursor = 'deafult';
                 window.location.href = window.location.href;
             }
         },1000);
-    }
+    };
     xhr.setRequestHeader('Authorization','Bearer ' + sid);
     xhr.send();
 }
@@ -157,7 +157,7 @@ function filterLogByText(e){
     var visibleLogRows = logTableRows.map(function(row){
          var link = row.querySelector('td>a').href; // consider for perfomance: row.children[0].children[0]
          logIdParam = link.split('?')[1].split('&').filter(function(keyVal){
-            return keyVal.indexOf('apex_log_id=') == 0;
+            return keyVal.indexOf('apex_log_id=') === 0;
          });
          logIdParam = logIdParam[0];
          return {element :row,
@@ -167,7 +167,7 @@ function filterLogByText(e){
     visibleLogRows.forEach(function(logRow){
         get('/services/data/v32.0/tooling/sobjects/ApexLog/'+ logRow.id +'/Body').then(function(rawLogContents){
             queriesLeft--;
-            if(queriesLeft == 0){
+            if(queriesLeft === 0){
                 document.body.style.cursor = 'default';
                 document.getElementById('LoadinImage').style.display = 'none';
             }
@@ -184,18 +184,18 @@ function get(url){
         request.open('GET',url);
         request.onload = function(){
             if(request.status == 200){
-                fulfill(request.response)
+                fulfill(request.response);
             }else{
                 reject(Error(request.statusText));
             }
-        }
+        };
 
         request.onerror = function(){
             rejected(Error("Network Error"));
-        }
+        };
         request.setRequestHeader('Authorization','Bearer ' + sid);
         request.send();
-    })
+    });
 }
 
 function escapeRegExp(str) {

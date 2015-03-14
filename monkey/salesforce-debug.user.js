@@ -80,7 +80,7 @@ var selectedText,
 
 function setSetting(key,value){
     if(typeof GM_setValue === "function"){
-        GM_setValue(key,value)
+        GM_setValue(key,value);
     }else{
         localStorage.setItem(key,value);
     }
@@ -115,7 +115,7 @@ function init(){
     var codeElement = document.querySelector('pre');
     var debugText = escapeHtml(codeElement.textContent);
     console.time('addTags');
-    var res = debugText.split('\n').map(addTagsToKnownLines)
+    var res = debugText.split('\n').map(addTagsToKnownLines);
     res = res.reduce(toMultilineDivs);
     console.timeEnd('addTags');
     var codeBlock = document.querySelector('pre');
@@ -130,7 +130,7 @@ function init(){
         addSearchHint();
     }
     removeIllegalIdLinks();
-    var debugElements = document.getElementsByClassName('debug')
+    var debugElements = document.getElementsByClassName('debug');
     console.log(debugElements.length);
     var userDebugDivs = toArray(debugElements);
     userDebugDivs.forEach(function(debugDiv){
@@ -160,7 +160,7 @@ function addSearchHint(){
     hideTip.onclick = function(){
         hintContainer.style.display = 'none';
         setSetting('dontShowSearchHint',true);
-    }
+    };
     hintContainer.appendChild(hideTip);
     hintContainer.appendChild(hint);
     addToTop(hintContainer);
@@ -184,7 +184,7 @@ function addDropDown(){
     dropDown.onchange = function(event){
         document.querySelector('#debugText').className = this.value;
         setSetting('style',this.value);
-    }
+    };
     selectStyleContainer.appendChild(label);
     selectStyleContainer.appendChild(dropDown);
     addController(selectStyleContainer);
@@ -230,7 +230,7 @@ function colapseAll(){
         });
         this.innerHTML = '<u>E</u>xpand All';
         this.onclick = colapseAll;
-    }
+    };
 }
 
 function addToTop(nodeElement){
@@ -280,7 +280,7 @@ function clickOn(nodeElement){
 function goToResult(resultNum){
     document.location.replace('#result' + resultNum);
     document.body.addEventListener('keyup',keyUpListener);
-    var previouslySelectdElement = document.querySelector('.currentResult')
+    var previouslySelectdElement = document.querySelector('.currentResult');
     if(previouslySelectdElement){
         previouslySelectdElement.classList.remove('currentResult');
     }
@@ -319,10 +319,10 @@ function searchSelectedText(event){
     searchableElements.filter(notHidden).filter(conatins(selectedText)).forEach(function(div){
         var regExp = new RegExp(escapeRegExp(selectedText),'gi');
         div.innerHTML = div.textContent.replace(regExp,function(match){
-            var resultString = '<a name="result' + resultNum
-            + '" class="searchResultAnchor" data-number="'
-            + resultNum + '"></a><span class="highlightSearchResult" data-number="' + resultNum + '">'
-            + match +'</span>';
+            var resultString = '<a name="result' + resultNum +
+             '" class="searchResultAnchor" data-number="' +
+             resultNum + '"></a><span class="highlightSearchResult" data-number="' + resultNum + '">' +
+             match +'</span>';
             resultNum++;
             return resultString;
         });
@@ -360,10 +360,6 @@ function isVisibleElement(element){
     return element.getBoundingClientRect().top >= 0;
 }
 
-function highlightResults(resultNum){
-    return
-}
-
 function addExpnasionButtonsForUserDebugDivs(userDebugDiv){
     var debugParts = userDebugDiv.innerHTML.split('|DEBUG|');
     userDebugDiv.innerHTML = '<span class="debugHeader searchable">' +
@@ -393,7 +389,7 @@ function toMultilineDivs(prevVal,curLine,index){
 }
 
 function addTagsToKnownLines(curLine){
-    if(curLine.indexOf('Execute Anonymous:') == 0){
+    if(curLine.indexOf('Execute Anonymous:') === 0){
         return '<div class="system searchable">' + curLine + '</div>';
     }
     if(curLine.search(idRegex) > -1){
@@ -425,11 +421,11 @@ function removeIllegalIdLinks(){
     request('/services/data/v29.0/sobjects').then(function(response){
         var sobjects = JSON.parse(response).sobjects;
         keyPrefixes = sobjects.filter(function(sobj){
-            return (sobj.keyPrefix != undefined);
+            return (sobj.keyPrefix !== undefined);
         }).map(function(sobjectDescribe){
             return sobjectDescribe.keyPrefix;
         });
-        keyPrefixes.push('03d') // validation rule
+        keyPrefixes.push('03d'); // validation rule
         var idLinks = document.getElementsByClassName('idLink');
         toArray(idLinks).forEach(function(link){
             if(!isLegalId(link.textContent)){
@@ -449,7 +445,7 @@ function toogleHidden(className){
         systemLogs.forEach(function(systemLog){
             systemLog.style.display = event.srcElement.checked ? 'block' : 'none';
         });
-    }
+    };
 }
 
 function expandUserDebug(){
@@ -476,7 +472,7 @@ function expandUserDebug(){
         this.textContent = '+';
         this.onclick = expandUserDebug;
         this.onmouseup = haltEvent;
-    }
+    };
 }
 
 function withLegalIdLink(id){
@@ -538,7 +534,7 @@ function escapeRegExp(str) {
 function conatins(searchString){
     return function(nodeElem){
         return nodeElem.innerHTML.indexOf(searchString) > -1;
-    }
+    };
 }
 
 function request(url,method){
@@ -552,8 +548,8 @@ function request(url,method){
                     Authorization:'Bearer ' + sid
                 },
                 onload:function(response){
-                    if( response.status.toString().indexOf('2') == 0){
-                        fulfill(response.response)
+                    if( response.status.toString().indexOf('2') === 0){
+                        fulfill(response.response);
                     }else{
                         reject(Error(response.statusText));
                     }
@@ -568,15 +564,15 @@ function request(url,method){
         var xhr = new XMLHttpRequest();
         xhr.open(method,url);
         xhr.onload = function(){
-            if( xhr.status.toString().indexOf('2') == 0){
-                fulfill(xhr.response)
+            if( xhr.status.toString().indexOf('2') === 0){
+                fulfill(xhr.response);
             }else{
                 reject(Error(xhr.statusText));
             }
-        }
+        };
         xhr.onerror = function(){
             rejected(Error("Network Error"));
-        }
+        };
         xhr.setRequestHeader('Authorization','Bearer ' + sid);
         xhr.send();
     });

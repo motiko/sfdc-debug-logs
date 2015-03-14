@@ -9,12 +9,8 @@
 // @require      mousetrap.min.js
 // @grant        GM_openInTab
 // ==/UserScript==
-
-
-
 (function(){
 
-var userId;
 function inject(fn) {
     var script = document.createElement('script');
     script.setAttribute("type", "application/javascript");
@@ -29,27 +25,45 @@ function sendBackUserId(){
     }
 }
 
+function sendBackOrgId(){
+    if(document.cookie.indexOf('oid=') > -1){
+        window.postMessage({type:"orgId",content:document.cookie.substr(document.cookie.indexOf('oid=')+4,15)},"*");
+    }
+}
+
 window.addEventListener("message", function(event) {
+    var userId,orgId;
     if(event.data.type === "userId"){
         userId = event.data.content;
+        shortcut('d',"/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true");
+    }
+    if(event.data.type === "orgId"){
+        orgId = event.data.content;
+        shortcut('i','/' + orgId);
     }
 });
 
 inject(sendBackUserId);
-
-Mousetrap.bind(['ctrl+alt+d','command+d'],function(e){
-    GM_openInTab(location.origin + "/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true");
-});
+inject(sendBackOrgId);
 
 shortcut('s',"/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=SchemaBuilder");
-shortcut('u',"/005?setupid=ManageUsers");
 shortcut('o',"/p/setup/custent/CustomObjectsPage");
+shortcut('u',"/005?setupid=ManageUsers");
+shortcut('p',"/setup/ui/profilelist.jsp?setupid=Profiles");
+shortcut('c',"/01p");
 
 
 function shortcut(char,url){
-    Mousetrap.bind(['ctrl+alt+' + char,'command+' + char],function(e){
+    Mousetrap.bind(['alt+shift+' + char],function(e){
         document.location.assign(url);
      });
+    Mousetrap.bind(['shift+' + char],function(e){
+        if(typeof GM_openInTab == 'function'){
+            GM_openInTab(location.origin + url);
+        }else{
+             window.open(url,'_blank');
+        }
+    });
 }
 
 })();

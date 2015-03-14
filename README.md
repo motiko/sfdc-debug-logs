@@ -15,11 +15,14 @@ Key Features
 Keyboard Chortcuts
 ------------------
 
-* _Ctrl+Alt+d_ - Open Debug Logs + Add current user
-* _Ctrl+Alt+o_ - Custom objects page
-* _Ctrl+Alt+u_ - Manage Users
-* _Ctrl+Alt+i_ - Company Information
-* _Ctrl+Alt+s_ - Data Schema
+* _Alt+Shift+d_ - Open Debug Logs + Add current user
+* _Alt+Shift+o_ - Custom objects page
+* _Alt+Shift+u_ - Manage Users
+* _Alt+Shift+c_ - Apex Classes
+* _Alt+Shift+i_ - Company Information
+* _Alt+Shift+s_ - Data Schema
+
+Ommit the Alt key to open in new tab. (e.g _Shift+d_)
 
 Chrome extension installation
 -----------------------------
@@ -37,6 +40,7 @@ Contribution & Feature Request
 -----------------------------
 
   1. More Themes
-  2. Firefox/Safari/Opera Extension
+
+
 
 ![Let's build it](https://octodex.github.com/images/collabocats.jpg "Let's build it")

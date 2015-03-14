@@ -1,6 +1,6 @@
 {
     "name": "Apex Debugger",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "manifest_version": 2,
     "author": "Moti Korets",
     "icons": { "16": "16.png",
@@ -10,16 +10,15 @@
     "content_scripts": [
         {
             "css": [
-                "debug.css",
-                "emojione.min.css"
+                "debug.css"
             ],
             "matches": [
                 "https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*"
             ],
             "js": [
+                "mousetrap.min.js",
                 "beautify.js",
                 "beautify-html.js",
-                "emojione.min.js",
                 "sfdc.debug.js"
             ],
             "run_at": "document_end"
@@ -44,6 +43,15 @@
             "js": [
                 "mousetrap.min.js",
                 "shortcuts.js"
+            ],
+            "run_at": "document_end"
+        },
+        {
+            "matches": [
+                "https://*.salesforce.com/01p*"
+            ],
+            "js": [
+                "sfdc.classes.js"
             ],
             "run_at": "document_end"
         }

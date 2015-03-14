@@ -61,7 +61,7 @@ function addDeleteAllBtn(){
     realDeleteAllBtn.type = 'button';
     realDeleteAllBtn.className = 'btn';
     realDeleteAllBtn.value = 'Delete All (for real)';
-    realDeleteAllBtn.onclick = realDeleteAll
+    realDeleteAllBtn.onclick = realDeleteAll;
     deleteAllContainer.appendChild(realDeleteAllBtn);
 }
 
@@ -78,7 +78,7 @@ function realDeleteAll(event){
         logIds.map(function(id){
             request('/services/data/v32.0/tooling/sobjects/ApexLog/' + id,'DELETE').then(function(){
                 logsCounter--;
-                if(logsCounter == 0){
+                if(logsCounter === 0){
                     document.body.style.cursor = 'deafult';
                     window.location.href = window.location.href;
                 }
@@ -110,6 +110,7 @@ function addSearchControllers(){
     input.type ='text';
     input.id = 'FilterByText';
     input.autocomplete = 'on';
+    input.placeholder = 'Search latest logs..';
     input.onkeydown = handleSearchKey;
     var filter = document.createElement('button');
     filter.textContent = 'Search';
@@ -158,7 +159,7 @@ function filterLogByText(e){
     var visibleLogRows = logTableRows.map(function(row){
          var link = row.querySelector('td>a').href; // consider for perfomance: row.children[0].children[0]
          logIdParam = link.split('?')[1].split('&').filter(function(keyVal){
-            return keyVal.indexOf('apex_log_id=') == 0;
+            return keyVal.indexOf('apex_log_id=') === 0;
          });
          logIdParam = logIdParam[0];
          return {element :row,
@@ -168,7 +169,7 @@ function filterLogByText(e){
     visibleLogRows.forEach(function(logRow){
         request('/services/data/v32.0/tooling/sobjects/ApexLog/'+ logRow.id +'/Body').then(function(rawLogContents){
             queriesLeft--;
-            if(queriesLeft == 0){
+            if(queriesLeft === 0){
                 document.body.style.cursor = 'default';
                 document.getElementById('LoadinImage').style.display = 'none';
             }
@@ -190,8 +191,8 @@ function request(url,method){
                     Authorization:'Bearer ' + sid
                 },
                 onload:function(response){
-                    if( response.status.toString().indexOf('2') == 0){
-                        fulfill(response.response)
+                    if( response.status.toString().indexOf('2') === 0){
+                        fulfill(response.response);
                     }else{
                         reject(Error(response.statusText));
                     }
@@ -205,16 +206,16 @@ function request(url,method){
     return new Promise(function(fulfill,reject){
         var xhr = new XMLHttpRequest();
         xhr.open(method,url);
-        request.onload = function(){
-            if( xhr.status.toString().indexOf('2') == 0){
-                fulfill(xhr.response)
+        xhr.onload = function(){
+            if( xhr.status.toString().indexOf('2') === 0){
+                fulfill(xhr.response);
             }else{
                 reject(Error(xhr.statusText));
             }
-        }
+        };
         xhr.onerror = function(){
             rejected(Error("Network Error"));
-        }
+        };
         xhr.setRequestHeader('Authorization','Bearer ' + sid);
         xhr.send();
     });
