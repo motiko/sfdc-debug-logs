@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Salesforce Debug Log Buttons
 // @namespace    SFDC
-// @version      0.2.1
+// @version      0.2.2
 // @description  Add Salesforce Debug Log Buttons
 // @author       motiko
 // @match       https://*.salesforce.com/setup/ui/listApexTraces.apexp*
@@ -188,7 +188,8 @@ function request(url,method){
                 method:method,
                 url:url,
                 headers:{
-                    Authorization:'Bearer ' + sid
+                    Authorization:'Bearer ' + sid,
+                    Accept:'*/*'
                 },
                 onload:function(response){
                     if( response.status.toString().indexOf('2') === 0){

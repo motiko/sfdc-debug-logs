@@ -18,6 +18,7 @@ Keyboard Chortcuts
 * _Alt+Shift+d_ - Open Debug Logs + Add current user
 * _Alt+Shift+o_ - Custom objects page
 * _Alt+Shift+u_ - Manage Users
+* _Alt+Shift+p_ - Manage Profiles
 * _Alt+Shift+c_ - Apex Classes
 * _Alt+Shift+i_ - Company Information
 * _Alt+Shift+s_ - Data Schema

@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Beautify Salesforce Debug View
 // @namespace    SFDC
-// @version      0.2.1
+// @version      0.2.2
 // @description Beautify Salesforce Debug View
-// @author       Moti
+// @author       motiko
 // @match        https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*
 // @require beautify.js
 // @require beautify-html.js
@@ -545,7 +545,8 @@ function request(url,method){
                 method:method,
                 url:url,
                 headers:{
-                    Authorization:'Bearer ' + sid
+                    Authorization:'Bearer ' + sid,
+                    Accept:'*/*'
                 },
                 onload:function(response){
                     if( response.status.toString().indexOf('2') === 0){

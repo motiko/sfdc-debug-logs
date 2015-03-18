@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Manage classes log level
 // @namespace    SFDC
-// @version      0.2.1
+// @version      0.2.2
 // @description Beautify Salesforce Debug View
-// @author       Moti
+// @author       motiko
 // @match        https://*.salesforce.com/01p*
 // @grant    GM_setValue
 // @grant    GM_getValue
@@ -129,7 +129,8 @@ function request(url,method,body,contentType){
                 url:url,
                 headers:{
                     Authorization:'Bearer ' + sid,
-                    'Content-Type': contentType
+                    'Content-Type': contentType,
+                    Accept:'*/*'
                 },
                 onload:function(response){
                     if( response.status.toString().indexOf('2') === 0){

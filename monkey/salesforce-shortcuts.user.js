@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shortcuts
-// @namespace    http://your.homepage/
-// @version      0.2.1
+// @namespace    SFDC
+// @version      0.2.2
 // @description  Salesforce keyboard shortcuts
 // @author       motiko
 // @match        https://*.force.com/*
