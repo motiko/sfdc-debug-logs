@@ -1,4 +1,7 @@
 (function(){
+var sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/);
+var sid = sidCookie ? sidCookie[2] : false;
+
 
 function inject(fn) {
     var script = document.createElement('script');
@@ -47,11 +50,81 @@ function shortcut(char,url){
         document.location.assign(url);
      });
     Mousetrap.bind(['shift+' + char],function(e){
-        if(typeof GM_openInTab == 'function'){
-            GM_openInTab(location.origin + url);
-        }else{
-             window.open(url,'_blank');
+        openInNewTab(url);
+    });
+}
+
+function openInNewTab(url){
+    if(typeof GM_openInTab == 'function'){
+        GM_openInTab(location.origin + url);
+    }else{
+         window.open(url,'_blank');
+    }
+}
+
+Mousetrap.bind(['alt+shift+l'],function(e){
+    openLastLog();
+});
+Mousetrap.bind(['shift+l'],function(e){
+    openLastLog(true);
+});
+
+function openLastLog(inNewTab){
+    if(!sid){
+        return;
+    }
+    request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent('SELECT Id,LastModifiedDate,StartTime,Status,SystemModstamp FROM ApexLog ORDER BY LastModifiedDate DESC Limit 1')).then(function(result){
+        var reponseObj = JSON.parse(result);
+        if(reponseObj.records && reponseObj.records.length > 0){
+            var url = '/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=' + reponseObj.records[0].Id;
+            if(inNewTab){
+                openInNewTab(url);
+            }else{
+                document.location.assign(url);
+            }
         }
+    });
+}
+
+function request(url,method){
+    method = method || 'GET';
+    if(typeof GM_xmlhttpRequest === "function"){
+        return new Promise(function(fulfill,reject){
+            GM_xmlhttpRequest({
+                method:method,
+                url:url,
+                headers:{
+                    Authorization:'Bearer ' + sid,
+                    Accept:'*/*'
+                },
+                onload:function(response){
+                    if( response.status.toString().indexOf('2') === 0){
+                        fulfill(response.response);
+                    }else{
+                        reject(Error(response.statusText));
+                    }
+                },
+                onerror:function(response){
+                    rejected(Error("Network Error"));
+                }
+            });
+        });
+    }
+    return new Promise(function(fulfill,reject){
+        var xhr = new XMLHttpRequest();
+        xhr.open(method,url);
+        xhr.onload = function(){
+            if( xhr.status.toString().indexOf('2') === 0){
+                fulfill(xhr.response);
+            }else{
+                reject(Error(xhr.statusText));
+            }
+        };
+        xhr.onerror = function(){
+            rejected(Error("Network Error"));
+        };
+        xhr.setRequestHeader('Authorization','Bearer ' + sid);
+        xhr.send();
     });
 }
 

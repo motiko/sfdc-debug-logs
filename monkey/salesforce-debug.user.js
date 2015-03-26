@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Beautify Salesforce Debug View
 // @namespace    SFDC
-// @version      0.2.2
+// @version      0.2.3
 // @description Beautify Salesforce Debug View
 // @author       motiko
 // @match        https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*
@@ -18,11 +18,18 @@
 
 (function(){
 
+if(typeof GM_getResourceText === "function"){
+    var debug_css = GM_getResourceText("debug_css");
+    var debug_css_local = GM_getResourceText("debug_css_local");
+    if(debug_css_local){
+        GM_addStyle(debug_css_local);
+    }
+    else{
+        GM_addStyle(debug_css);
+    }
 
-// Monkey only
-var debug_css = GM_getResourceText("debug_css");
-GM_addStyle(debug_css);
-//
+}
+
 var selectedText,
     currentResult,
     maxResult,
@@ -126,7 +133,7 @@ function init(){
     addControllersContainer();
     addCheckboxes();
     addDropDown();
-    if(!getSetting('dontShowSearchHint')){
+    if(!getSetting('dontShowHint')){
         addSearchHint();
     }
     removeIllegalIdLinks();
@@ -151,15 +158,21 @@ function toArray(elemntList){
 }
 
 function addSearchHint(){
-    var hintContainer = document.createElement('span');
+    var hintContainer = document.createElement('div');
     hintContainer.id = 'hintContainer';
     var hint = document.createElement('span');
-    hint.innerHTML = 'Tip: To open debug logs press <b>Ctrl+Alt+d</b> (Command+d) from any salesforce page';
-    var hideTip = document.createElement('a');
+    hint.innerHTML = ['<h4>Dear user,</h4><br/>',
+        '<h7>Please note we changed keyboard shortcuts for your convenience.</h7> ',
+        '<ul><li><b>Alt+Shift+d</b> - open debug logs </li>',
+        '<li><b>Shift+d</b> - open debug logs in new tab </li></ul>',
+        '<p> For full list of keyboard shortcuts please visit our <a href="https://github.com/motiko/sfdc-debug-logs">Github page</a></p>'].join('');
+    var hideTip = document.createElement('button');
     hideTip.textContent = 'X';
+    hideTip.title = 'Close';
+    hideTip.className = 'closeButton';
     hideTip.onclick = function(){
         hintContainer.style.display = 'none';
-        setSetting('dontShowSearchHint',true);
+        setSetting('dontShowHint',true);
     };
     hintContainer.appendChild(hideTip);
     hintContainer.appendChild(hint);
@@ -199,15 +212,27 @@ function addCheckboxes(){
     var showSystemLabel = document.createElement('label');
     showSystemLabel.className = 'toggleHidden';
     showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" id="showSystem" />Show <u>S</u>ystem Methods</label>';
-    var showMethodLog = document.createElement('label');
-    showMethodLog.className = 'toggleHidden';
-    showMethodLog.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod"  />Show <u>U</u>ser Methods</label>';
-    addController(showMethodLog);
+    var showMethodLogLabel = document.createElement('label');
+    showMethodLogLabel.className = 'toggleHidden';
+    showMethodLogLabel.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod"  />Show <u>U</u>ser Methods</label>';
+    var showTimeStamp = document.createElement('label');
+    showTimeStamp.className = 'toggleHidden';
+    showTimeStamp.innerHTML = '<input type="checkbox" name="checkbox"  id="showTimestamps"  />Show <u>T</u>imestamps</label>';
+    addController(showMethodLogLabel);
     addController(showSystemLabel);
-    var showUser = document.getElementById('showUserMethod');
-    showUser.onchange = toogleHidden('methodLog');
-    var showSystem = document.getElementById('showSystem');
-    showSystem.onchange = toogleHidden('systemMethodLog');
+    addController(showTimeStamp);
+    document.getElementById('showTimestamps').checked = JSON.parse(getSetting('showTimeStamp'));
+    document.getElementById('showTimestamps').onchange = toggleTimestamp;
+    document.getElementById('showUserMethod').onchange = toogleHidden('methodLog');
+    document.getElementById('showSystem').onchange = toogleHidden('systemMethodLog');
+
+}
+
+function toggleTimestamp(){
+    var oldValue = JSON.parse(getSetting('showTimeStamp'));
+    debugger;
+    setSetting('showTimeStamp',!oldValue);
+    document.location.reload();
 }
 
 function addCollapseAllButton(){
@@ -268,6 +293,9 @@ function keyUpListener(event){
     }
     else if(event.keyCode  == 69){ // 'e'
         clickOn(document.querySelector('#collapseAllButton'));
+    }
+    else if(event.keyCode  == 84){ // 't'
+        clickOn(document.querySelector('#showTimestamps'));
     }
 }
 
@@ -395,11 +423,17 @@ function addTagsToKnownLines(curLine){
     if(curLine.search(idRegex) > -1){
         curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
     }
+    var timeStampIndex = curLine.indexOf('|');
+    var cutLine;
+    if(timeStampIndex > -1){
+        cutLine = curLine.substr(timeStampIndex + 1);
+    }
     var resultTag = '';
     var i;
     for(i=0; i<logEntryToDivTagClass.length ; i++){
         if(curLine.indexOf(logEntryToDivTagClass[i].logEntry) > -1){
-            resultTag = '<div class="' + logEntryToDivTagClass[i].divClass + '">' +  curLine + '</div>';
+            resultTag = '<div class="' + logEntryToDivTagClass[i].divClass + '">' +
+            (JSON.parse(getSetting('showTimeStamp')) ? curLine : cutLine) + '</div>';
             break;
         }
     }
@@ -578,5 +612,4 @@ function request(url,method){
         xhr.send();
     });
 }
-
 })();

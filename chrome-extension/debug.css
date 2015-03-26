@@ -24,36 +24,36 @@
 .bw .err,.bw .err a{ color: #f92672 }
 
 .wrap{
-	white-space: pre-wrap;
-	width:95vw;
+    white-space: pre-wrap;
+    width:95vw;
 }
 
 .bold{
-	font-weight: 900 !important;
+    font-weight: 900 !important;
 }
 
 #bodyDiv_setup{
-	width:100vw;
+    width:100vw;
 }
 
 #debugText {
-	margin-top: 10px;
-	font-size: 1.6em !important;
-	font-family: 'Source Code Pro','Courier New','Courier',mono;
+    margin-top: 10px;
+    font-size: 1.6em !important;
+    font-family:'Courier New','Courier',mono;
 }
 
 #debugText div{
-	margin-left: 0.6em;
-	margin-top: 0.1em;
+    margin-left: 0.6em;
+    margin-top: 0.1em;
 }
 
 .systemMethodLog{
-	display:none;
+    display:none;
 }
 
 .toggleHidden{
-	padding-right: 1.6em;
-	font-size: 1.6em;
+    padding-right: 1.6em;
+    font-size: 1.6em;
 }
 
 .disableClick{
@@ -62,52 +62,64 @@
 }
 
 .highlightSearchResult{
-	border-style:inset;
+    border-style:inset;
 }
 
 .currentResult{
-	border-style:outset;
+    border-style:outset;
 }
 
 #controllersContainer{
-	margin-bottom: 1.4em;
+    margin-bottom: 1.4em;
 }
 
 #hintContainer {
-	background: hsl(55,100%,80%);
-	width: 50%;
-	border: 1px solid;
-	margin-top: 0.8em;
-	margin-bottom: 0.8em;
-	margin-left: 0.4em;
-	padding: 0.5em;
+    background: hsl(55,100%,80%);
+    width: 50%;
+    border: 1px solid;
+    margin-top: 0.8em;
+    margin-bottom: 0.8em;
+    margin-left: 0.4em;
+    padding: 0.5em;
+    font-size: 1.6em;
 }
 
 
-#hintContainer a{
-	margin-right: 1.2em;
-	margin-left: 0.3em;
-	cursor: pointer;
-	font-weight: bold;
+#hintContainer .closeButton{
+    margin: 0em 0em 0.5em 0ex;
+    cursor: pointer;
+    font-weight: bold;
 }
+
+#hintContainer ul,#hintContainer p{
+    margin : 0px 0px;
+    padding : 0px 0px;;
+}
+#hintContainer h4{
+    margin-left: 4em;
+}
+
+
+
+
 
 #collapseAllButton{
-	display: block;
-	margin-top: 2em;
-	margin-bottom: 1.4em;
-	padding: 4px 8px 4px 8px;
-	width: 8em;
+    display: block;
+    margin-top: 2em;
+    margin-bottom: 1.4em;
+    padding: 4px 8px 4px 8px;
+    width: 8em;
 }
 
 #selectStyleContainer {
-	right: 5em;
-	position: absolute;
-	width:20em;
-	vertical-align: middle;
+    right: 5em;
+    position: absolute;
+    width:20em;
+    vertical-align: middle;
 }
 
 #selectStyleContainer label{
-	font-size: 1.6em;
+    font-size: 1.6em;
 }
 
 select {
@@ -150,8 +162,8 @@ select {
 }
 
 .expandUserDebugBtn{
-	width: 1.5em;
-	height: 1.5em;
-	font-size:0.8em;
-	margin-right: 0.3em;
+    width: 1.5em;
+    height: 1.5em;
+    font-size:0.8em;
+    margin-right: 0.3em;
 }

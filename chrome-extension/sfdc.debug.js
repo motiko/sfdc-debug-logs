@@ -1,4 +1,17 @@
 (function(){
+
+if(typeof GM_getResourceText === "function"){
+    var debug_css = GM_getResourceText("debug_css");
+    var debug_css_local = GM_getResourceText("debug_css_local");
+    if(debug_css_local){
+        GM_addStyle(debug_css_local);
+    }
+    else{
+        GM_addStyle(debug_css);
+    }
+
+}
+
 var selectedText,
     currentResult,
     maxResult,
@@ -85,16 +98,16 @@ init();
 }
 */
 function init(){
-    document.body.addEventListener('keydown',keyDownListener);
+    console.time('init');
+    document.body.addEventListener('keyup',keyUpListener);
     //document.body.addEventListener('mouseup',searchSelectedText);
     var codeElement = document.querySelector('pre');
     var debugText = escapeHtml(codeElement.textContent);
-    //console.time('addTags');
-    var res = debugText.split('\n').map(addTagsToKnownLines).reduce(toMultilineDivs);
-    //console.timeEnd('addTags');
+    console.time('addTags');
+    var res = debugText.split('\n').map(addTagsToKnownLines);
+    res = res.reduce(toMultilineDivs);
+    console.timeEnd('addTags');
     var codeBlock = document.querySelector('pre');
-
-
     codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>';
     document.querySelector('.oLeft').style.display ="none";
     var oRight = document.querySelector('.oRight');
@@ -102,16 +115,18 @@ function init(){
     addControllersContainer();
     addCheckboxes();
     addDropDown();
-    if(!getSetting('dontShowSearchHint')){
+    if(!getSetting('dontShowHint')){
         addSearchHint();
     }
     removeIllegalIdLinks();
     var debugElements = document.getElementsByClassName('debug');
+    console.log(debugElements.length);
     var userDebugDivs = toArray(debugElements);
     userDebugDivs.forEach(function(debugDiv){
         setTimeout(addExpnasionButtonsForUserDebugDivs.bind(null,debugDiv),0);
     });
     addCollapseAllButton();
+    console.timeEnd('init');
 }
 
 function addControllersContainer(){
@@ -125,15 +140,21 @@ function toArray(elemntList){
 }
 
 function addSearchHint(){
-    var hintContainer = document.createElement('span');
+    var hintContainer = document.createElement('div');
     hintContainer.id = 'hintContainer';
     var hint = document.createElement('span');
-    hint.innerHTML = 'Tip: To open debug logs press <b>Ctrl+Alt+d</b> (Command+d) from any salesforce page';
-    var hideTip = document.createElement('a');
+    hint.innerHTML = ['<h4>Dear user,</h4><br/>',
+        '<h7>Please note we changed keyboard shortcuts for your convenience.</h7> ',
+        '<ul><li><b>Alt+Shift+d</b> - open debug logs </li>',
+        '<li><b>Shift+d</b> - open debug logs in new tab </li></ul>',
+        '<p> For full list of keyboard shortcuts please visit our <a href="https://github.com/motiko/sfdc-debug-logs">Github page</a></p>'].join('');
+    var hideTip = document.createElement('button');
     hideTip.textContent = 'X';
+    hideTip.title = 'Close';
+    hideTip.className = 'closeButton';
     hideTip.onclick = function(){
         hintContainer.style.display = 'none';
-        setSetting('dontShowSearchHint',true);
+        setSetting('dontShowHint',true);
     };
     hintContainer.appendChild(hideTip);
     hintContainer.appendChild(hint);
@@ -173,15 +194,27 @@ function addCheckboxes(){
     var showSystemLabel = document.createElement('label');
     showSystemLabel.className = 'toggleHidden';
     showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" id="showSystem" />Show <u>S</u>ystem Methods</label>';
-    var showMethodLog = document.createElement('label');
-    showMethodLog.className = 'toggleHidden';
-    showMethodLog.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod"  />Show <u>U</u>ser Methods</label>';
-    addController(showMethodLog);
+    var showMethodLogLabel = document.createElement('label');
+    showMethodLogLabel.className = 'toggleHidden';
+    showMethodLogLabel.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod"  />Show <u>U</u>ser Methods</label>';
+    var showTimeStamp = document.createElement('label');
+    showTimeStamp.className = 'toggleHidden';
+    showTimeStamp.innerHTML = '<input type="checkbox" name="checkbox"  id="showTimestamps"  />Show <u>T</u>imestamps</label>';
+    addController(showMethodLogLabel);
     addController(showSystemLabel);
-    var showUser = document.getElementById('showUserMethod');
-    showUser.onchange = toogleHidden('methodLog');
-    var showSystem = document.getElementById('showSystem');
-    showSystem.onchange = toogleHidden('systemMethodLog');
+    addController(showTimeStamp);
+    document.getElementById('showTimestamps').checked = JSON.parse(getSetting('showTimeStamp'));
+    document.getElementById('showTimestamps').onchange = toggleTimestamp;
+    document.getElementById('showUserMethod').onchange = toogleHidden('methodLog');
+    document.getElementById('showSystem').onchange = toogleHidden('systemMethodLog');
+
+}
+
+function toggleTimestamp(){
+    var oldValue = JSON.parse(getSetting('showTimeStamp'));
+    debugger;
+    setSetting('showTimeStamp',!oldValue);
+    document.location.reload();
 }
 
 function addCollapseAllButton(){
@@ -215,9 +248,7 @@ function addController(controller){
     document.querySelector('#controllersContainer').appendChild(controller);
 }
 
-
-
-function keyDownListener(event){
+function keyUpListener(event){
     /*if(event.keyCode  == 70){ // 'f'
         if(currentResult === undefined || currentResult === maxResult){
             currentResult = -1;
@@ -245,19 +276,8 @@ function keyDownListener(event){
     else if(event.keyCode  == 69){ // 'e'
         clickOn(document.querySelector('#collapseAllButton'));
     }
-}
-
-function inject(fn) {
-    var script = document.createElement('script');
-    script.setAttribute("type", "application/javascript");
-    script.textContent = '(' + fn + ')();';
-    document.body.appendChild(script); // run the script
-    document.body.removeChild(script); // clean up
-}
-
-function sendBackUserId(){
-    if(window.UserContext){
-        window.postMessage({type:"userId",content:UserContext.userId},"*");
+    else if(event.keyCode  == 84){ // 't'
+        clickOn(document.querySelector('#showTimestamps'));
     }
 }
 
@@ -269,7 +289,7 @@ function clickOn(nodeElement){
 
 function goToResult(resultNum){
     document.location.replace('#result' + resultNum);
-    //document.body.addEventListener('keydown',keyUpListener);
+    document.body.addEventListener('keyup',keyUpListener);
     var previouslySelectdElement = document.querySelector('.currentResult');
     if(previouslySelectdElement){
         previouslySelectdElement.classList.remove('currentResult');
@@ -308,7 +328,7 @@ function searchSelectedText(event){
     var resultNum =0 ;
     searchableElements.filter(notHidden).filter(conatins(selectedText)).forEach(function(div){
         var regExp = new RegExp(escapeRegExp(selectedText),'gi');
-        div.innerHTML = div.innerText.replace(regExp,function(match){
+        div.innerHTML = div.textContent.replace(regExp,function(match){
             var resultString = '<a name="result' + resultNum +
              '" class="searchResultAnchor" data-number="' +
              resultNum + '"></a><span class="highlightSearchResult" data-number="' + resultNum + '">' +
@@ -370,10 +390,10 @@ function toMultilineDivs(prevVal,curLine,index){
     if(index == 1){ // handling first line
         return '<div class="rest">' + prevVal + '</div>' + curLine ;
     }
-    else if(curLine.lastIndexOf('</div>') ==  curLine.length - '</div>'.length){ // current line ends with <div> tag all good
+    else if(curLine.lastIndexOf('</div>') ==  curLine.length - '</div>'.length && curLine.length - '</div>'.length != -1){ // current line ends with <div> tag all good
         return prevVal + curLine;
     }
-    else{ // expanding <div> to mutliline (e.g. LIMIT_USAGE_FOR_NS is multiline and cant recognise each line separately)
+    else{ // expanding <div> to mutliline (e.g. LIMIT_USAGE_FOR_NS is multiline and cant recognise each line separately or USER_DEBUG with /n)
         return prevVal.substr(0,prevVal.length - '</div>'.length) + '\n' + curLine + '</div>';
     }
 }
@@ -385,11 +405,17 @@ function addTagsToKnownLines(curLine){
     if(curLine.search(idRegex) > -1){
         curLine = curLine.replace(idRegex,'<a href="/$&" class="idLink">$&</a>');
     }
+    var timeStampIndex = curLine.indexOf('|');
+    var cutLine;
+    if(timeStampIndex > -1){
+        cutLine = curLine.substr(timeStampIndex + 1);
+    }
     var resultTag = '';
     var i;
     for(i=0; i<logEntryToDivTagClass.length ; i++){
         if(curLine.indexOf(logEntryToDivTagClass[i].logEntry) > -1){
-            resultTag = '<div class="' + logEntryToDivTagClass[i].divClass + '">' +  curLine + '</div>';
+            resultTag = '<div class="' + logEntryToDivTagClass[i].divClass + '">' +
+            (JSON.parse(getSetting('showTimeStamp')) ? curLine : cutLine) + '</div>';
             break;
         }
     }
@@ -408,25 +434,21 @@ function haltEvent(event){
 }
 
 function removeIllegalIdLinks(){
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET','/services/data/v29.0/sobjects');
-    xhr.onload = function(event){
-        var sobjects = JSON.parse(this.responseText).sobjects;
+    request('/services/data/v29.0/sobjects').then(function(response){
+        var sobjects = JSON.parse(response).sobjects;
         keyPrefixes = sobjects.filter(function(sobj){
             return (sobj.keyPrefix !== undefined);
         }).map(function(sobjectDescribe){
             return sobjectDescribe.keyPrefix;
         });
-        keyPrefixes.push('03d');// validation rule
+        keyPrefixes.push('03d'); // validation rule
         var idLinks = document.getElementsByClassName('idLink');
         toArray(idLinks).forEach(function(link){
-            if(!isLegalId(link.innerText)){
+            if(!isLegalId(link.textContent)){
                 link.className = 'disableClick';
             }
         });
-    };
-    xhr.setRequestHeader('Authorization','Bearer ' + sid);
-    xhr.send();
+    });
 }
 
 function isLegalId(id){
@@ -445,15 +467,15 @@ function toogleHidden(className){
 function expandUserDebug(){
     var debugNode = this.nextElementSibling.nextElementSibling;
     var  oldHtmlVal =  debugNode.innerHTML;
-    var debugNodeinnerText = debugNode.textContent;
-    if(looksLikeHtml(debugNodeinnerText)){
-        debugNode.textContent  = html_beautify(debugNodeinnerText);
-    }else if(looksLikeSfdcObject(debugNodeinnerText)){
-        debugNode.textContent  = js_beautify(sfdcObjectBeautify(debugNodeinnerText));
-    }else if(isJsonString(debugNodeinnerText)){
-        debugNode.textContent  = js_beautify(debugNodeinnerText);
+    var debugNodeText = debugNode.textContent;
+    if(looksLikeHtml(debugNodeText)){
+        debugNode.textContent  = html_beautify(debugNodeText);
+    }else if(looksLikeSfdcObject(debugNodeText)){
+        debugNode.textContent  = js_beautify(sfdcObjectBeautify(debugNodeText));
+    }else if(isJsonString(debugNodeText)){
+        debugNode.textContent  = js_beautify(debugNodeText);
     }
-    if(debugNodeinnerText.search(idRegex) > -1){
+    if(debugNodeText.search(idRegex) > -1){
         debugNode.innerHTML = debugNode.textContent.replace(idRegex,withLegalIdLink);
     }
     this.textContent = '-';
@@ -531,4 +553,45 @@ function conatins(searchString){
     };
 }
 
+function request(url,method){
+    method = method || 'GET';
+    if(typeof GM_xmlhttpRequest === "function"){
+        return new Promise(function(fulfill,reject){
+            GM_xmlhttpRequest({
+                method:method,
+                url:url,
+                headers:{
+                    Authorization:'Bearer ' + sid,
+                    Accept:'*/*'
+                },
+                onload:function(response){
+                    if( response.status.toString().indexOf('2') === 0){
+                        fulfill(response.response);
+                    }else{
+                        reject(Error(response.statusText));
+                    }
+                },
+                onerror:function(response){
+                    rejected(Error("Network Error"));
+                }
+            });
+        });
+    }
+    return new Promise(function(fulfill,reject){
+        var xhr = new XMLHttpRequest();
+        xhr.open(method,url);
+        xhr.onload = function(){
+            if( xhr.status.toString().indexOf('2') === 0){
+                fulfill(xhr.response);
+            }else{
+                reject(Error(xhr.statusText));
+            }
+        };
+        xhr.onerror = function(){
+            rejected(Error("Network Error"));
+        };
+        xhr.setRequestHeader('Authorization','Bearer ' + sid);
+        xhr.send();
+    });
+}
 })();

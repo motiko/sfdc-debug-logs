@@ -16,6 +16,7 @@ Keyboard Chortcuts
 ------------------
 
 * _Alt+Shift+d_ - Open Debug Logs + Add current user
+* _Alt+Shift+l_ - Open last debug log
 * _Alt+Shift+o_ - Custom objects page
 * _Alt+Shift+u_ - Manage Users
 * _Alt+Shift+p_ - Manage Profiles
