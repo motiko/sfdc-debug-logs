@@ -11,7 +11,7 @@ Key Features
   * Indent User Debug (sObject, List, XML or JSON)
   * Delete all logs (all of'em).
   * Add current User.
-
+  * Keyboard shortcuts from any Salesforce page
 Keyboard Chortcuts
 ------------------
 
