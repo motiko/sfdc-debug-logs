@@ -12,6 +12,7 @@ Key Features
   * Delete all logs (all of'em).
   * Add current User.
   * Keyboard shortcuts from any Salesforce page
+
 Keyboard Chortcuts
 ------------------
 
