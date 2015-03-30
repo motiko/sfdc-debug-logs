@@ -27,25 +27,37 @@ window.addEventListener("message", function(event) {
     var userId,orgId;
     if(event.data.type === "userId"){
         userId = event.data.content;
-        shortcut('d',"/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true");
+        shortcutUrl('d',"/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true");
     }
     if(event.data.type === "orgId"){
         orgId = event.data.content;
-        shortcut('i','/' + orgId);
+        shortcutUrl('i','/' + orgId);
     }
 });
 
 inject(sendBackUserId);
 inject(sendBackOrgId);
 
-shortcut('s',"/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=SchemaBuilder");
-shortcut('o',"/p/setup/custent/CustomObjectsPage");
-shortcut('u',"/005?setupid=ManageUsers");
-shortcut('p',"/setup/ui/profilelist.jsp?setupid=Profiles");
-shortcut('c',"/01p");
+shortcutUrl('s',"/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=SchemaBuilder");
+shortcutUrl('o',"/p/setup/custent/CustomObjectsPage");
+shortcutUrl('u',"/005?setupid=ManageUsers");
+shortcutUrl('p',"/setup/ui/profilelist.jsp?setupid=Profiles");
+shortcutUrl('c',"/01p");
+shortcutMethod('l',openLastLog);
+Mousetrap.bind('e',editObject);
+Mousetrap.bind('s',saveObject);
+
+function shortcutMethod(char,method){
+    Mousetrap.bind(['alt+shift+' + char],function(e){
+        method();
+    });
+    Mousetrap.bind(['shift+' + char],function(e){
+        method(true);
+    });
+}
 
 
-function shortcut(char,url){
+function shortcutUrl(char,url){
     Mousetrap.bind(['alt+shift+' + char],function(e){
         document.location.assign(url);
      });
@@ -62,12 +74,20 @@ function openInNewTab(url){
     }
 }
 
-Mousetrap.bind(['alt+shift+l'],function(e){
-    openLastLog();
-});
-Mousetrap.bind(['shift+l'],function(e){
-    openLastLog(true);
-});
+function editObject(){
+    var editBtn = document.querySelector("input[name='edit']");
+    if(editBtn){
+        editBtn.click();
+    }
+}
+
+function saveObject(){
+    var saveBtn = document.querySelector("input[name='save']");
+    if(saveBtn){
+        saveBtn.click();
+    }
+}
+
 
 function openLastLog(inNewTab){
     if(!sid){
