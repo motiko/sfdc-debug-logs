@@ -1,3 +1,4 @@
+
 (function(){
 
 if(typeof GM_getResourceText === "function"){
@@ -114,7 +115,7 @@ function init(){
     oRight.insertBefore(codeBlock,oRight.firstChild);
     addControllersContainer();
     addCheckboxes();
-    addDropDown();
+    addDropDowns();
     if(!getSetting('dontShowHint')){
         addSearchHint();
     }
@@ -161,7 +162,48 @@ function addSearchHint(){
     addToTop(hintContainer);
 }
 
-function addDropDown(){
+function addDropDowns(){
+    addController(generateStyleSelect());
+    addController(generateFontSelect());
+    var savedStyle = getSetting('style');
+    if(savedStyle){
+        var styleSelection = document.querySelector('#styleSelection');
+        styleSelection.value = savedStyle;
+        styleSelection.onchange();
+    }
+    var savedFontSize = getSetting('fontSize');
+    var fontSize = savedFontSize || 18;
+    debugger;
+    var fontSizeSelection = document.querySelector('#fontSelection');
+    fontSizeSelection.value = fontSize;
+    fontSizeSelection.onchange();
+}
+
+function generateFontSelect(){
+    var selectStyleContainer = document.createElement('span');
+    selectStyleContainer.id = 'selectFontContainer';
+    var label = document.createElement('label');
+    label.textContent = 'Font Size:';
+    label.for = 'fontSelection';
+    var dropDown = document.createElement('select');
+    dropDown.id = 'fontSelection';
+    var size;
+    for(size=12;size<29;size++){
+        var opt = document.createElement('option');
+        opt.value = size;
+        opt.textContent = size;
+        dropDown.appendChild(opt);
+    }
+    dropDown.onchange = function(event){
+        document.querySelector('#debugText').style.fontSize = this.value + 'px';
+        setSetting('fontSize',this.value);
+    };
+    selectStyleContainer.appendChild(label);
+    selectStyleContainer.appendChild(dropDown);
+    return selectStyleContainer;
+}
+
+function generateStyleSelect(){
     var selectStyleContainer = document.createElement('span');
     selectStyleContainer.id = 'selectStyleContainer';
     var label = document.createElement('label');
@@ -182,12 +224,7 @@ function addDropDown(){
     };
     selectStyleContainer.appendChild(label);
     selectStyleContainer.appendChild(dropDown);
-    addController(selectStyleContainer);
-    var savedStyle = getSetting('style');
-    if(savedStyle){
-        dropDown.value = savedStyle;
-        dropDown.onchange();
-    }
+    return selectStyleContainer;
 }
 
 function addCheckboxes(){
@@ -212,7 +249,6 @@ function addCheckboxes(){
 
 function toggleTimestamp(){
     var oldValue = JSON.parse(getSetting('showTimeStamp'));
-    debugger;
     setSetting('showTimeStamp',!oldValue);
     document.location.reload();
 }
