@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Beautify Salesforce Debug View
 // @namespace    SFDC
-// @version      0.2.5
+// @version      0.2.6
 // @description Beautify Salesforce Debug View
 // @author       motiko
 // @match        https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*
@@ -95,6 +95,8 @@ function setSetting(key,value){
 
 function getSetting(key){
     if(typeof GM_getValue === "function"){
+        if(GM_getValue(key) === undefined)
+            return false;
         return GM_getValue(key);
     }else{
         return localStorage.getItem(key);
