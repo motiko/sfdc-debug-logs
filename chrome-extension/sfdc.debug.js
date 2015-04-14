@@ -1,4 +1,3 @@
-
 (function(){
 
 if(typeof GM_getResourceText === "function"){
@@ -78,6 +77,8 @@ function setSetting(key,value){
 
 function getSetting(key){
     if(typeof GM_getValue === "function"){
+        if(GM_getValue(key) === undefined)
+            return false;
         return GM_getValue(key);
     }else{
         return localStorage.getItem(key);
@@ -173,7 +174,6 @@ function addDropDowns(){
     }
     var savedFontSize = getSetting('fontSize');
     var fontSize = savedFontSize || 18;
-    debugger;
     var fontSizeSelection = document.querySelector('#fontSelection');
     fontSizeSelection.value = fontSize;
     fontSizeSelection.onchange();
@@ -362,7 +362,7 @@ function searchSelectedText(event){
     selectedText = escapeHtml(selectedText);
     var searchableElements = toArray(document.querySelectorAll('#debugText .searchable') );
     var resultNum =0 ;
-    searchableElements.filter(notHidden).filter(conatins(selectedText)).forEach(function(div){
+    searchableElements.filter(notHidden).filter(contains(selectedText)).forEach(function(div){
         var regExp = new RegExp(escapeRegExp(selectedText),'gi');
         div.innerHTML = div.textContent.replace(regExp,function(match){
             var resultString = '<a name="result' + resultNum +
@@ -407,10 +407,13 @@ function isVisibleElement(element){
 }
 
 function addExpnasionButtonsForUserDebugDivs(userDebugDiv){
-    var debugParts = userDebugDiv.innerHTML.split('|DEBUG|');
+    var debugLevel = userDebugDiv.innerHTML.match(/\[\d+\](\|[A-Z]+\|)/);
+    if(!debugLevel) return;
+    debugLevel = debugLevel[1];
+    var debugParts = userDebugDiv.innerHTML.split(debugLevel);
     userDebugDiv.innerHTML = '<span class="debugHeader searchable">' +
-            debugParts[0] + '|DEBUG| </span> <div class="debugContent searchable">' +
-            debugParts[1] + '</div>';
+            debugParts[0] +  debugLevel +'</span> <span class="debugContent searchable">' +
+            debugParts[1] + '</span>';
     var debugText = unescapeHtml(debugParts[1]);
     if(looksLikeHtml(debugText) || looksLikeSfdcObject(debugText) || isJsonString(debugText)){
         var buttonExpand = document.createElement('button');
@@ -583,7 +586,7 @@ function escapeRegExp(str) {
     return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
 }
 
-function conatins(searchString){
+function contains(searchString){
     return function(nodeElem){
         return nodeElem.innerHTML.indexOf(searchString) > -1;
     };

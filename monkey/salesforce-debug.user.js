@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Beautify Salesforce Debug View
 // @namespace    SFDC
-// @version      0.2.6
+// @version      0.2.7
 // @description Beautify Salesforce Debug View
 // @author       motiko
 // @match        https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*
@@ -425,10 +425,13 @@ function isVisibleElement(element){
 }
 
 function addExpnasionButtonsForUserDebugDivs(userDebugDiv){
-    var debugParts = userDebugDiv.innerHTML.split('|DEBUG|');
+    var debugLevel = userDebugDiv.innerHTML.match(/\[\d+\](\|[A-Z]+\|)/);
+    if(!debugLevel) return;
+    debugLevel = debugLevel[1];
+    var debugParts = userDebugDiv.innerHTML.split(debugLevel);
     userDebugDiv.innerHTML = '<span class="debugHeader searchable">' +
-            debugParts[0] + '|DEBUG| </span> <div class="debugContent searchable">' +
-            debugParts[1] + '</div>';
+            debugParts[0] +  debugLevel +'</span> <span class="debugContent searchable">' +
+            debugParts[1] + '</span>';
     var debugText = unescapeHtml(debugParts[1]);
     if(looksLikeHtml(debugText) || looksLikeSfdcObject(debugText) || isJsonString(debugText)){
         var buttonExpand = document.createElement('button');
