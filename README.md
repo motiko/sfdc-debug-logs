@@ -39,11 +39,6 @@ https://openuserjs.org/users/motiko/scripts
 
 Install all of them
 
-Contribution & Feature Request
------------------------------
-
-  1. More Themes
-
 
 
 ![Let's build it](https://octodex.github.com/images/collabocats.jpg "Let's build it")
