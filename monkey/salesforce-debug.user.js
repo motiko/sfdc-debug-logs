@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Beautify Salesforce Debug View
 // @namespace    SFDC
-// @version      0.2.7
+// @version      0.2.8
 // @description Beautify Salesforce Debug View
 // @author       motiko
 // @match        https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*
@@ -20,14 +20,11 @@
 
 if(typeof GM_getResourceText === "function"){
     var debug_css = GM_getResourceText("debug_css");
-    var debug_css_local = GM_getResourceText("debug_css_local");
-    if(debug_css_local){
+    GM_addStyle(debug_css);
+    /*try{
+        var debug_css_local = GM_getResourceText("debug_css_local");
         GM_addStyle(debug_css_local);
-    }
-    else{
-        GM_addStyle(debug_css);
-    }
-
+    }catch(e){}*/
 }
 
 var selectedText,
