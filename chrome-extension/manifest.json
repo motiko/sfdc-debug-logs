@@ -1,6 +1,6 @@
 {
     "name": "Apex Debugger",
-    "version": "0.2.6",
+    "version": "0.2.7",
     "manifest_version": 2,
     "author": "Moti Korets",
     "icons": { "16": "16.png",
@@ -49,6 +49,15 @@
             ],
             "js": [
                 "sfdc.classes.js"
+            ],
+            "run_at": "document_end"
+        },
+        {
+            "matches": [
+                "https://*.salesforce.com/05G*"
+            ],
+            "js": [
+                "sfdc.net.access.js"
             ],
             "run_at": "document_end"
         }

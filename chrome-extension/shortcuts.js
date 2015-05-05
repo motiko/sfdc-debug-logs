@@ -43,6 +43,7 @@ shortcutUrl('o',"/p/setup/custent/CustomObjectsPage");
 shortcutUrl('u',"/005?setupid=ManageUsers");
 shortcutUrl('p',"/setup/ui/profilelist.jsp?setupid=Profiles");
 shortcutUrl('c',"/01p");
+shortcutUrl('a',"/05G");
 shortcutMethod('l',openLastLog);
 Mousetrap.bind('e',editObject);
 Mousetrap.bind('s',saveObject);
