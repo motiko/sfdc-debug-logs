@@ -118,7 +118,7 @@ function init(){
     addCheckboxes();
     addDropDowns();
     if(!getSetting('dontShowHint')){
-        addSearchHint();
+        //addSearchHint();
     }
     removeIllegalIdLinks();
     var debugElements = document.getElementsByClassName('debug');
