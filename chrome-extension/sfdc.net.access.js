@@ -1,3 +1,4 @@
+// Big thank you to Ray Dehler which inspired this script - http://raydehler.com/cloud/clod/enable-all-trusted-ip-ranges-for-a-salesforce-org.html
 (function(){
 
 var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2],

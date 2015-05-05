@@ -3,7 +3,7 @@
 // @namespace    SFDC
 // @version      0.0.1
 // @description  Prevent verification code nagging
-// @author       motiko
+// @author       motiko inspired by Ray Dehler - http://raydehler.com/cloud/clod/enable-all-trusted-ip-ranges-for-a-salesforce-org.html
 // @match        https://*.salesforce.com/05G*
 // @grant GM_xmlhttpRequest
 // @run-at document-end
