@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Beautify Salesforce Debug View
 // @namespace    SFDC
-// @version      0.2.8
+// @version      0.2.9
 // @description Beautify Salesforce Debug View
 // @author       motiko
 // @match        https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*
@@ -21,10 +21,12 @@
 if(typeof GM_getResourceText === "function"){
     var debug_css = GM_getResourceText("debug_css");
     GM_addStyle(debug_css);
-    /*try{
+    /*
+    try{
         var debug_css_local = GM_getResourceText("debug_css_local");
         GM_addStyle(debug_css_local);
-    }catch(e){}*/
+    }catch(e){}
+     */
 }
 
 var selectedText,
@@ -102,48 +104,31 @@ function getSetting(key){
 
 init();
 
-/*function mapSeries(arr,iterator,callback){
-    callback = callback || function(){};
-    if(!arr.length){
-        callback();
-    }
-    var index = 0;
-    var result = [];
-    var itearate = function(){
-        result[index] = iterator(result[index],);
-    }
-}
-*/
 function init(){
-    console.time('init');
     document.body.addEventListener('keyup',keyUpListener);
     //document.body.addEventListener('mouseup',searchSelectedText);
     var codeElement = document.querySelector('pre');
     var debugText = escapeHtml(codeElement.textContent);
-    console.time('addTags');
     var res = debugText.split('\n').map(addTagsToKnownLines);
     res = res.reduce(toMultilineDivs);
-    console.timeEnd('addTags');
     var codeBlock = document.querySelector('pre');
     codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>';
     document.querySelector('.oLeft').style.display ="none";
     var oRight = document.querySelector('.oRight');
     oRight.insertBefore(codeBlock,oRight.firstChild);
     addControllersContainer();
-    addCheckboxes();
     addDropDowns();
-    if(!getSetting('dontShowHint')){
+    /*if(!getSetting('dontShowHint')){
         addSearchHint();
-    }
+    }*/
     removeIllegalIdLinks();
     var debugElements = document.getElementsByClassName('debug');
-    console.log(debugElements.length);
     var userDebugDivs = toArray(debugElements);
     userDebugDivs.forEach(function(debugDiv){
         setTimeout(addExpnasionButtonsForUserDebugDivs.bind(null,debugDiv),0);
     });
     addCollapseAllButton();
-    console.timeEnd('init');
+    addCheckboxes();
 }
 
 function addControllersContainer(){
@@ -245,21 +230,20 @@ function generateStyleSelect(){
 function addCheckboxes(){
     var showSystemLabel = document.createElement('label');
     showSystemLabel.className = 'toggleHidden';
-    showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" id="showSystem" />Show <u>S</u>ystem Methods</label>';
+    showSystemLabel.innerHTML = '<input type="checkbox" name="checkbox" id="showSystem"/>Show <u>S</u>ystem Methods</label>';
     var showMethodLogLabel = document.createElement('label');
     showMethodLogLabel.className = 'toggleHidden';
-    showMethodLogLabel.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod"  />Show <u>U</u>ser Methods</label>';
+    showMethodLogLabel.innerHTML = '<input type="checkbox" name="checkbox" checked="checked" id="showUserMethod" />Show <u>U</u>ser Methods</label>';
     var showTimeStamp = document.createElement('label');
     showTimeStamp.className = 'toggleHidden';
-    showTimeStamp.innerHTML = '<input type="checkbox" name="checkbox"  id="showTimestamps"  />Show <u>T</u>imestamps</label>';
-    addController(showMethodLogLabel);
-    addController(showSystemLabel);
-    addController(showTimeStamp);
+    showTimeStamp.innerHTML = '<input type="checkbox" name="checkbox" id="showTimestamps"/>Show <u>T</u>imestamps</label>';
+    addToTop(showMethodLogLabel);
+    addToTop(showSystemLabel);
+    addToTop(showTimeStamp);
     document.getElementById('showTimestamps').checked = JSON.parse(getSetting('showTimeStamp'));
     document.getElementById('showTimestamps').onchange = toggleTimestamp;
     document.getElementById('showUserMethod').onchange = toogleHidden('methodLog');
     document.getElementById('showSystem').onchange = toogleHidden('systemMethodLog');
-
 }
 
 function toggleTimestamp(){

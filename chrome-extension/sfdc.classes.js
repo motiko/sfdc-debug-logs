@@ -7,20 +7,42 @@ addCheckboxes();
 addButton();
 
 function addButton(){
-    var seeAllClasses = document.createElement('input');
-    seeAllClasses.value = 'See All Classes';
-    seeAllClasses.className = 'btn';
-    seeAllClasses.type = 'button';
-    seeAllClasses.onclick = function(){
-        if(location.search.indexOf('rowsperpage=') > -1){
-            window.location.search = 'setupid=ApexClasses&' + encodeURIComponent('all_classes_page:theTemplate:classList:rowsperpage') + '=3500';
-        }
-        else{
-            window.location.search += '&' + encodeURIComponent('all_classes_page:theTemplate:classList:rowsperpage') + '=3500';
-        }
-    };
-    document.getElementById('all_classes_page:theTemplate:theForm').querySelector('td').appendChild(seeAllClasses);
+    var classesRowsPerPageParameter = 'all_classes_page:theTemplate:classList:rowsperpage',
+        triggersRowsPerPageParameter = 'all_triggers_page:theTemplate:j_id41:rowsperpage';
+
+
+    if(document.getElementById('all_classes_page:theTemplate:theForm')){
+        var seeAllClasses = document.createElement('input');
+        seeAllClasses.value = 'See All Classes';
+        seeAllClasses.className = 'btn';
+        seeAllClasses.type = 'button';
+        seeAllClasses.onclick = function(){
+            if(location.search.indexOf('rowsperpage=') > -1){
+                window.location.search = 'setupid=ApexClasses&' + encodeURIComponent(classesRowsPerPageParameter) + '=3500';
+            }
+            else{
+                window.location.search += '&' + encodeURIComponent(classesRowsPerPageParameter) + '=3500';
+            }
+        };
+        document.getElementById('all_classes_page:theTemplate:theForm').querySelector('td').appendChild(seeAllClasses);
+    }
+    if(document.querySelector('input[value="Developer Console"]')){
+        var seeAllTriggers = document.createElement('input');
+        seeAllTriggers.value = 'See All Trigger';
+        seeAllTriggers.className = 'btn';
+        seeAllTriggers.type = 'button';
+        seeAllTriggers.onclick = function(){
+            if(location.search.indexOf('rowsperpage=') > -1){
+                window.location.search = 'setupid=ApexClasses&' + encodeURIComponent(triggersRowsPerPageParameter) + '=3500';
+            }
+            else{
+                window.location.search += '&' + encodeURIComponent(triggersRowsPerPageParameter) + '=3500';
+            }
+        };
+        document.querySelector('input[value="Developer Console"]').parentNode.appendChild(seeAllTriggers);
+    }
 }
+
 
 function addHeader(){
     var header = document.createElement('th');
@@ -65,7 +87,7 @@ function addCheckboxes(){
 function addCheckbox(row,cell){
     var clone = cell.cloneNode(true);
     var classLink = row.querySelector('th>a').href;
-    var classId = classLink.slice(classLink.lastIndexOf('/01p')+1);
+    var classId = classLink.slice(classLink.lastIndexOf('/01')+1);
     var isChecked = row.querySelector('td>img').title === "Checked";
     clone.firstChild.dataset.classId = classId;
     clone.firstChild.onclick = toggleTraceFlag;
@@ -81,7 +103,8 @@ function toggleTraceFlag(event){
     checkbox.parentNode.children[1].style.display = 'inline';
     noLog.TracedEntityId = classId;
     if(dontLog){
-        request('/services/data/v32.0/tooling/sobjects/TraceFlag/','POST',JSON.stringify(noLog),'application/json').then(function(){
+        request('/services/data/v32.0/tooling/sobjects/TraceFlag/','POST',JSON.stringify(noLog),'application/json').then(function(result){
+            console.log(result);
             checkbox.parentNode.children[1].style.display = 'none';
         },function(){
             checkbox.parentNode.children[1].style.display = 'none';
@@ -116,7 +139,8 @@ function request(url,method,body,contentType){
                 url:url,
                 headers:{
                     Authorization:'Bearer ' + sid,
-                    'Content-Type': contentType
+                    'Content-Type': contentType,
+                    Accept:'*/*'
                 },
                 onload:function(response){
                     if( response.status.toString().indexOf('2') === 0){
@@ -134,6 +158,7 @@ function request(url,method,body,contentType){
     return new Promise(function(fulfill,reject){
         var xhr = new XMLHttpRequest();
         xhr.open(method,url);
+        //xhr.setBody(body);
         xhr.onload = function(){
             if( xhr.status.toString().indexOf('2') === 0){
                 fulfill(xhr.response);
@@ -144,7 +169,6 @@ function request(url,method,body,contentType){
         xhr.onerror = function(){
             reject(Error("Network Error"));
         };
-
         xhr.setRequestHeader('Authorization','Bearer ' + sid);
         xhr.setRequestHeader('Content-Type',contentType);
         xhr.send(body);

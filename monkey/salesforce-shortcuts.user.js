@@ -9,6 +9,8 @@
 // @require      mousetrap.min.js
 // @grant        GM_openInTab
 // ==/UserScript==
+
+
 (function(){
 var sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/);
 var sid = sidCookie ? sidCookie[2] : false;
@@ -53,8 +55,9 @@ shortcutUrl('s',"/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=S
 shortcutUrl('o',"/p/setup/custent/CustomObjectsPage");
 shortcutUrl('u',"/005?setupid=ManageUsers");
 shortcutUrl('p',"/setup/ui/profilelist.jsp?setupid=Profiles");
-shortcutUrl('c',"/01p");
+shortcutUrl('c',"/01p?all_classes_page%3AtheTemplate%3AclassList%3Arowsperpage=3500");
 shortcutUrl('a',"/05G");
+shortcutUrl('t',"/setup/build/allTriggers.apexp?all_triggers_page%3AtheTemplate%3Aj_id41%3Arowsperpage=3000");
 shortcutMethod('l',openLastLog);
 Mousetrap.bind('e',editObject);
 Mousetrap.bind('s',saveObject);
