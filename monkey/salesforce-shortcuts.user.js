@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shortcuts
 // @namespace    SFDC
-// @version      0.2.4
+// @version      0.3.0
 // @description  Salesforce keyboard shortcuts
 // @author       motiko
 // @match        https://*.force.com/*
@@ -26,66 +26,66 @@ function inject(fn) {
 
 function sendBackUserId(){
     if(window.UserContext){
-        window.postMessage({type:"userId",content:UserContext.userId},"*");
+        window.postMessage({type: "userId", content: UserContext.userId}, "*");
     }
 }
 
 function sendBackOrgId(){
     if(document.cookie.indexOf('oid=') > -1){
-        window.postMessage({type:"orgId",content:document.cookie.substr(document.cookie.indexOf('oid=')+4,15)},"*");
+        window.postMessage({type: "orgId", content: document.cookie.substr(document.cookie.indexOf('oid=') + 4, 15)}, "*");
     }
 }
 
 window.addEventListener("message", function(event) {
-    var userId,orgId;
+    var userId, orgId;
     if(event.data.type === "userId"){
         userId = event.data.content;
-        shortcutUrl('d',"/setup/ui/listApexTraces.apexp?user_id="+ userId+"&user_logging=true");
+        shortcutUrl('d', "/setup/ui/listApexTraces.apexp?user_id=" + userId + "&user_logging=true");
     }
     if(event.data.type === "orgId"){
         orgId = event.data.content;
-        shortcutUrl('i','/' + orgId);
+        shortcutUrl('i', '/' + orgId);
     }
 });
 
 inject(sendBackUserId);
 inject(sendBackOrgId);
 
-shortcutUrl('s',"/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=SchemaBuilder");
-shortcutUrl('o',"/p/setup/custent/CustomObjectsPage");
-shortcutUrl('u',"/005?setupid=ManageUsers");
-shortcutUrl('p',"/setup/ui/profilelist.jsp?setupid=Profiles");
-shortcutUrl('c',"/01p?all_classes_page%3AtheTemplate%3AclassList%3Arowsperpage=3500");
-shortcutUrl('a',"/05G");
-shortcutUrl('t',"/setup/build/allTriggers.apexp?all_triggers_page%3AtheTemplate%3Aj_id41%3Arowsperpage=3000");
-shortcutMethod('l',openLastLog);
-Mousetrap.bind('e',editObject);
-Mousetrap.bind('s',saveObject);
+shortcutUrl('s', "/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=SchemaBuilder");
+shortcutUrl('o', "/p/setup/custent/CustomObjectsPage");
+shortcutUrl('u', "/005?setupid=ManageUsers");
+shortcutUrl('p', "/setup/ui/profilelist.jsp?setupid=Profiles");
+shortcutUrl('c', "/01p?all_classes_page%3AtheTemplate%3AclassList%3Arowsperpage=3500");
+shortcutUrl('a', "/05G");
+shortcutUrl('t', "/setup/build/allTriggers.apexp?all_triggers_page%3AtheTemplate%3Aj_id41%3Arowsperpage=3000");
+shortcutMethod('l', openLastLog);
+Mousetrap.bind('e', editObject);
+Mousetrap.bind('s', saveObject);
 
-function shortcutMethod(char,method){
-    Mousetrap.bind(['alt+shift+' + char],function(e){
+function shortcutMethod(char, method){
+    Mousetrap.bind(['alt+shift+' + char], function(){
         method();
     });
-    Mousetrap.bind(['shift+' + char],function(e){
+    Mousetrap.bind(['shift+' + char], function(){
         method(true);
     });
 }
 
 
-function shortcutUrl(char,url){
-    Mousetrap.bind(['alt+shift+' + char],function(e){
+function shortcutUrl(char, url){
+    Mousetrap.bind(['alt+shift+' + char], function(){
         document.location.assign(url);
      });
-    Mousetrap.bind(['shift+' + char],function(e){
+    Mousetrap.bind(['shift+' + char], function(){
         openInNewTab(url);
     });
 }
 
 function openInNewTab(url){
-    if(typeof GM_openInTab == 'function'){
+    if(typeof GM_openInTab === 'function'){
         GM_openInTab(location.origin + url);
     }else{
-         window.open(url,'_blank');
+         window.open(url, '_blank');
     }
 }
 
@@ -121,33 +121,33 @@ function openLastLog(inNewTab){
     });
 }
 
-function request(url,method){
+function request(url, method){
     method = method || 'GET';
     if(typeof GM_xmlhttpRequest === "function"){
-        return new Promise(function(fulfill,reject){
+        return new Promise(function(fulfill, reject){
             GM_xmlhttpRequest({
-                method:method,
-                url:url,
-                headers:{
-                    Authorization:'Bearer ' + sid,
-                    Accept:'*/*'
+                method: method,
+                url: url,
+                headers: {
+                    Authorization: 'Bearer ' + sid,
+                    Accept: '*/*'
                 },
-                onload:function(response){
+                onload: function(response){
                     if( response.status.toString().indexOf('2') === 0){
                         fulfill(response.response);
                     }else{
                         reject(Error(response.statusText));
                     }
                 },
-                onerror:function(response){
-                    rejected(Error("Network Error"));
+                onerror: function(){
+                    reject(Error("Network Error"));
                 }
             });
         });
     }
-    return new Promise(function(fulfill,reject){
+    return new Promise(function(fulfill, reject){
         var xhr = new XMLHttpRequest();
-        xhr.open(method,url);
+        xhr.open(method, url);
         xhr.onload = function(){
             if( xhr.status.toString().indexOf('2') === 0){
                 fulfill(xhr.response);
@@ -156,9 +156,9 @@ function request(url,method){
             }
         };
         xhr.onerror = function(){
-            rejected(Error("Network Error"));
+            reject(Error("Network Error"));
         };
-        xhr.setRequestHeader('Authorization','Bearer ' + sid);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + sid);
         xhr.send();
     });
 }

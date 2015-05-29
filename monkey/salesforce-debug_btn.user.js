@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Add Salesforce Debug Log Buttons
 // @namespace    SFDC
-// @version      0.2.2
+// @version      0.3.0
 // @description  Add Salesforce Debug Log Buttons
 // @author       motiko
 // @match       https://*.salesforce.com/setup/ui/listApexTraces.apexp*
 // @grant GM_xmlhttpRequest
 // @run-at document-end
 // ==/UserScript==
-/*eslint new-cap:0, no-debugger:1*/
+/*eslint new-cap:0*/
 /*global GM_xmlhttpRequest*/
 (function(){
 
@@ -16,8 +16,10 @@ var userId;
 var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
 
 const LOGS_TABLE_ID = 'Apex_Trace_List:traceForm:traceTable:thetracetable:tb';
+const LOGS_TABLE_ID_ESCAPED = LOGS_TABLE_ID.replace(/:/g, '\\:');
 const USERS_TABLE_ID = 'Apex_Trace_List:monitoredUsersForm';
-//var showLogs = 50;
+var showLogsNum = 50;
+var tableElement = document.getElementById(LOGS_TABLE_ID);
 
 
 
@@ -34,7 +36,7 @@ function initPage(){
     addDeleteAllBtn();
     removeOldDeleteBtn();
     addAddUserBtn();
-    addRefreshButton();
+    addReloadControllers();
     addSearchControllers();
 }
 
@@ -71,13 +73,37 @@ function addAddUserBtn(){
     pbButton.appendChild(addUserButton);
 }
 
-function addRefreshButton(){
-    var refreshButton = document.createElement('input');
-    refreshButton.type = 'button';
-    refreshButton.className = 'btn';
-    refreshButton.value = 'Refresh';
-    refreshButton.onclick = reload;
-    document.getElementById("Apex_Trace_List:traceForm").querySelector('.pbButton').appendChild(refreshButton);
+function addReloadControllers(){
+    var reloadIntervalId;
+    loadLogs().then(function(){
+        reloadIntervalId = setInterval(loadNewLogs, 3000);
+    });
+    setInterval(function(){
+        request("/setup/ui/listApexTraces.apexp?user_id=" + userId
+                + "&user_logging=true");
+    }, 30000);
+    document.getElementById('Apex_Trace_List:traceForm:traceTableNextPrev').style.display = 'none';
+    document.getElementById('Apex_Trace_List:traceForm:traceTable').querySelector('.mainTitle').style.display = 'none';
+    var autoReloadLabel = document.createElement('label');
+    autoReloadLabel.style.float = 'right';
+    autoReloadLabel.style.paddingLeft = '5px';
+    autoReloadLabel.innerHTML = '<input type="checkbox" name="checkbox" id="autoReload" checked/>Auto Reload';
+    autoReloadLabel.firstElementChild.onchange = function(){
+        if(this.checked){
+            reloadIntervalId = setInterval(loadNewLogs, 1000);
+        }else{
+            clearInterval(reloadIntervalId);
+        }
+    };
+    var numOfLogsLabel = document.createElement('label');
+    numOfLogsLabel.style.float = 'right';
+    numOfLogsLabel.innerHTML = `Logs per Page:&nbsp;<input type="number" min="10" max="1000" value="${showLogsNum}" >`;
+    numOfLogsLabel.firstElementChild.onchange = function(){
+        showLogsNum = this.value;
+        loadLogs();
+    };
+    document.getElementById("Apex_Trace_List:traceForm").querySelector('.pbButton').appendChild(autoReloadLabel);
+    document.getElementById("Apex_Trace_List:traceForm").querySelector('.pbButton').appendChild(numOfLogsLabel);
 }
 
 function addDeleteAllBtn(){
@@ -112,8 +138,8 @@ function realDeleteAll(event){
 }
 
 function loadedLogIds(){
-    var table = toArray(document.getElementById(LOGS_TABLE_ID).children);
-    return table.map(function(tr){
+    var trs = toArray(document.getElementById(LOGS_TABLE_ID).children);
+    return trs.map(function(tr){
         var td = tr.firstElementChild;
         var a = td.firstElementChild;
         var params = a.href.split('=');
@@ -129,63 +155,127 @@ function getMonitoredUsers(){
     }).join(',');
 }
 
-function reload(event){
-    if(event){
-         event.preventDefault();
-    }
-    var monitoredUsers = getMonitoredUsers();
+function loadNewLogs(){
+    console.log(2);
     var oldLogIds = loadedLogIds();
-    var selectQuery = ['Select LogUser.Name,Application,DurationMilliseconds,Id,LastModifiedDate,Location,LogLength,LogUserId,',
-                      `Operation,Request,StartTime,Status,SystemModstamp From ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY LastModifiedDate DESC LIMIT 50`].join('');
-    clearTable();
-    request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent(selectQuery))
-        .then(function(result){
-            var latestLogs = JSON.parse(result);
-            latestLogs.records.reverse().forEach(function(rec){
-                var table = document.getElementById(LOGS_TABLE_ID);
-                var tr = createLogTrElement(rec);
-                if(table.firstChild){
-                    table.insertBefore(tr, table.firstChild);
-                }else{
-                    table.appendChild(tr);
-                }
-
-            });
-        }).then(function(){
-            var newLogIds = loadedLogIds();
-            var deltaLogIds = newLogIds.filter(function(logId){
-                return oldLogIds.indexOf(logId) === -1;
-            });
-            setTimeout(function(){
-                changeBackgroundForLogs(newLogIds, 'skyblue');
-                setTimeout(function(){
-                    changeBackgroundForLogs(newLogIds, 'white');
-                }, 2000);
-            }, 0);
-            console.log(deltaLogIds);
+    requestLogs().then(function(logs){
+        console.log('oldLogIds length :' + oldLogIds.length);
+        console.log('oldLogIds :' + oldLogIds);
+        console.log('logIds :' + logs.map( function(log){
+            return log.Id;
+        }) );
+        var deltaLogs = logs.filter(function(log){
+            return oldLogIds.indexOf(log.Id) === -1;
         });
-}
+        console.log('delatlogs length :' + deltaLogs.length);
 
-function changeBackgroundForLogs(logIds, color){
-    logIds.forEach(function(logId){
-        var tr = document.querySelector(`tr[data-id="${logId}"]`);
-        tr.style.backgroundColor = color;
+        var deltaLogTrs = deltaLogs.map(logRecordToTr);
+        deltaLogTrs.forEach(addToTable);
+        animateTrsAddition(deltaLogTrs);
+        removeOldLogs();
     });
 }
 
-function createLogTrElement(logObj){
+function removeOldLogs(){
+    var oldTrs = toArray(document.querySelectorAll(`#${LOGS_TABLE_ID_ESCAPED} tr:nth-child(n+${parseInt(showLogsNum, 10) + 1})`));
+    animateTrsRemoval(oldTrs);
+    setTimeout(function(){
+        [].map.call(oldTrs, function(tr){
+            try{
+                tableElement.removeChild(tr);
+            }catch(e){
+                console.log('race?');
+            }
+        });
+    }, 1000);
+}
+
+
+function loadLogs(event){
+    if(event){
+        event.preventDefault();
+    }
+    clearTable();
+    return requestLogs().then(function(logs){
+        console.log(1);
+        logs.reverse().map(logRecordToTr).forEach(addToTable);
+    });
+}
+
+function addToTable(tr){
+    if(tableElement.firstChild){
+        tableElement.insertBefore(tr, tableElement.firstChild);
+    }else{
+        tableElement.appendChild(tr);
+    }
+}
+
+function requestLogs(){
+    var monitoredUsers = getMonitoredUsers();
+    var selectQuery = ['Select LogUser.Name,Application,DurationMilliseconds,Id,LastModifiedDate,Location,LogLength,LogUserId,',
+                      `Operation,Request,StartTime,Status,SystemModstamp From ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY LastModifiedDate DESC LIMIT ${showLogsNum}`].join('');
+    return request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent(selectQuery))
+        .then(function(rawResult){
+            return JSON.parse(rawResult).records;
+        }).catch(function(err){
+            console.log(err);
+        });
+}
+
+function animateTrsRemoval(trs){
+    trs.forEach(function(tr){
+        [].map.call(tr.children, function(td){
+            td.className = '';
+            td.style.padding = '0px';
+        });
+        tr.style.fontSize = '0px';
+        tr.style.padding = '0px !important';
+        tr.style.height = '0px';
+    });
+}
+
+function animateTrsAddition(trs){
+    prepareTransition(trs);
+    setTimeout(function makeTransition(){
+        trs.forEach(function(tr){
+          tr.style.height = '23px';
+        });
+    }, 0);
+    setTimeout(function finishTransition(){
+        trs.forEach(function(tr){
+          tr.style.fontSize = '12px';
+          [].map.call(tr.children, function(td, i){
+              td.className = i === 0 ? 'dataCell  actionColumn' : 'dataCell';
+              td.style.padding = '';
+          });
+        });
+    }, 1000);
+}
+
+function prepareTransition(logTrs){
+  logTrs.forEach(function(tr){
+        tr.style.fontSize = '0px';
+        tr.style.padding = '0px !important';
+        tr.style.height = '0px';
+        [].map.call(tr.children, function(td){
+            td.className = '';
+            td.style.padding = '0px';
+        });
+    });
+}
+
+function logRecordToTr(logObj){
     var tr = document.createElement('tr');
+    tr.style.webkitTransition = 'all 1000ms';
+    tr.style.mozTransition = 'all 1000ms';
+    tr.style.transition = 'all 1000ms';
+    tr.style.height = '23px';
     tr.onfocus = "if (window.hiOn){hiOn(this);}";
     tr.dataset.id = logObj.Id;
-    tr.style.webkitTransition = 'background 1500ms ease-in';
-    tr.style.mozTransition = 'background 1500ms ease-in';
-    tr.style.transition = 'background 1500ms ease-in';
     var startTime = new Date(Date.parse(logObj.StartTime)).toLocaleString();
     tr.innerHTML = `<td class="dataCell  actionColumn" colspan="1">
-        <a href="/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${logObj.Id}" class="actionLink">View</a>
-        &nbsp;|&nbsp;<a href="/servlet/servlet.FileDownload?file=${logObj.Id}" class="actionLink">Download</a>&nbsp;|&nbsp;
-        <a class="actionLink deleteActionLink" href="#" >Delete</a>
-        </td><td class="dataCell" colspan="1"><a  href="/{logObj.LogUserId}" class="actionLink">${logObj.LogUser.Name}</a></td>
+        <a href="/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${logObj.Id}" class="actionLink">View</a>&nbsp;|&nbsp;<a href="/servlet/servlet.FileDownload?file=${logObj.Id}" class="actionLink">Download</a>&nbsp;|&nbsp;<a class="actionLink deleteActionLink" href="#" >Delete</a></td>
+        <td class="dataCell" colspan="1"><a  href="/{logObj.LogUserId}" class="actionLink">${logObj.LogUser.Name}</a></td>
         <td class="dataCell" colspan="1">${logObj.Request}</td>
         <td class="dataCell" colspan="1">${logObj.Application}</td>
         <td class="dataCell" colspan="1">${logObj.Operation}</td>
@@ -218,7 +308,7 @@ function addSearchControllers(){
     form.method = 'post';
     form.target = 'remember';
     form.action = '/';
-    form.onsubmit = filterLogByText;
+    form.onsubmit = searchLogs;
     var input = document.createElement('input');
     input.type = 'text';
     input.id = 'FilterByText';
@@ -266,7 +356,8 @@ function toArray(nodeElements){
     return [].slice.call(nodeElements);
 }
 
-function filterLogByText(){
+function searchLogs(){
+    document.getElementById('autoReload').checked = false;
     resetResults();
     document.body.style.cursor = 'wait';
     document.getElementById('LoadinImage').style.display = 'inline';
@@ -286,23 +377,25 @@ function filterLogByText(){
         return { element: row,
                 id: logIdParam.split('=')[1]};
     }).filter(function(e){return e; });
-    var queriesLeft = visibleLogRows.length;
-    visibleLogRows.forEach(function(logRow){
-        request('/services/data/v32.0/tooling/sobjects/ApexLog/' +
-                logRow.id + '/Body').then(function(rawLogContents){
-            queriesLeft--;
-            if(queriesLeft === 0){
-                document.body.style.cursor = 'default';
-                document.getElementById('LoadinImage').style.display = 'none';
-            }
+    var promises = visibleLogRows.map(function(logRow){
+        return request('/services/data/v32.0/tooling/sobjects/ApexLog/' +
+                logRow.id + '/Body')
+                .then(function(rawLogContents){
             if(searchRegex.test(rawLogContents)){
                 logRow.element.style.background = 'rgb(104, 170, 87)';
+                return true;
             }
-        }, function(err){
+            return false;
+        }).catch(function(err){
             console.log(err);
             document.body.style.cursor = 'default';
             document.getElementById('LoadinImage').style.display = 'none';
         });
+    });
+    Promise.all(promises).then(function(){
+        document.body.style.cursor = 'default';
+        document.getElementById('LoadinImage').style.display = 'none';
+        document.getElementById('autoReload').checked = true;
     });
 }
 
@@ -325,7 +418,7 @@ function request(url, method){
                     }
                 },
                 onerror: function(){
-                    rejected(Error("Network Error"));
+                    reject(Error("Network Error"));
                 }
             });
         });
@@ -341,7 +434,7 @@ function request(url, method){
             }
         };
         xhr.onerror = function(){
-            rejected(Error("Network Error"));
+            reject(Error("Network Error"));
         };
         xhr.setRequestHeader('Authorization', 'Bearer ' + sid);
         xhr.send();
