@@ -1,11 +1,13 @@
 Apex Debugger
 ===============
 
-Browser extension to debug salesforce code.
+Browser extension to debug salesforce code. (Chrome/Firefox)
 
 Key Features
 ------------
 
+  * Search in logs
+  * Auto loading new logs 
   * Improved view of logs (select from available themes).
   * Click any Id to go to Object (Class, Trigger, Validation Rule e.t.c).
   * Indent User Debug (sObject, List, XML or JSON)
