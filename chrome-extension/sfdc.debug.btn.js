@@ -1,3 +1,4 @@
+/*eslint new-cap:0*/
 /*global GM_xmlhttpRequest*/
 (function(){
 
@@ -64,9 +65,7 @@ function addAddUserBtn(){
 
 function addReloadControllers(){
     var reloadIntervalId;
-    loadLogs().then(function(){
-        reloadIntervalId = setInterval(loadNewLogs, 3000);
-    });
+    loadLogs()
     setInterval(function(){
         request("/setup/ui/listApexTraces.apexp?user_id=" + userId
                 + "&user_logging=true");
@@ -76,10 +75,10 @@ function addReloadControllers(){
     var autoReloadLabel = document.createElement('label');
     autoReloadLabel.style.float = 'right';
     autoReloadLabel.style.paddingLeft = '5px';
-    autoReloadLabel.innerHTML = '<input type="checkbox" name="checkbox" id="autoReload" checked/>Auto Reload';
+    autoReloadLabel.innerHTML = '<input type="checkbox" name="checkbox" id="autoReload" />Auto Reload';
     autoReloadLabel.firstElementChild.onchange = function(){
         if(this.checked){
-            reloadIntervalId = setInterval(loadNewLogs, 1000);
+            reloadIntervalId = setInterval(loadNewLogs, 5000);
         }else{
             clearInterval(reloadIntervalId);
         }
@@ -103,6 +102,12 @@ function addDeleteAllBtn(){
     realDeleteAllBtn.value = 'Delete All (for real)';
     realDeleteAllBtn.onclick = realDeleteAll;
     deleteAllContainer.appendChild(realDeleteAllBtn);
+    var loadNewLogsBtn = document.createElement('input');
+    loadNewLogsBtn.type = 'button';
+    loadNewLogsBtn.className = 'btn';
+    loadNewLogsBtn.value = 'Load New Logs';
+    loadNewLogsBtn.onclick = loadNewLogs;
+    deleteAllContainer.appendChild(loadNewLogsBtn);
 }
 
 function realDeleteAll(event){
@@ -145,19 +150,11 @@ function getMonitoredUsers(){
 }
 
 function loadNewLogs(){
-    console.log(2);
     var oldLogIds = loadedLogIds();
     requestLogs().then(function(logs){
-        console.log('oldLogIds length :' + oldLogIds.length);
-        console.log('oldLogIds :' + oldLogIds);
-        console.log('logIds :' + logs.map( function(log){
-            return log.Id;
-        }) );
         var deltaLogs = logs.filter(function(log){
             return oldLogIds.indexOf(log.Id) === -1;
         });
-        console.log('delatlogs length :' + deltaLogs.length);
-
         var deltaLogTrs = deltaLogs.map(logRecordToTr);
         deltaLogTrs.forEach(addToTable);
         animateTrsAddition(deltaLogTrs);
