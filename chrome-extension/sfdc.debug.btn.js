@@ -70,12 +70,15 @@ function addReloadControllers(){
         request("/setup/ui/listApexTraces.apexp?user_id=" + userId
                 + "&user_logging=true");
     }, 30000);
-    document.getElementById('Apex_Trace_List:traceForm:traceTableNextPrev').style.display = 'none';
-    document.getElementById('Apex_Trace_List:traceForm:traceTable').querySelector('.mainTitle').style.display = 'none';
+    document.getElementById('Apex_Trace_List:traceForm:traceTableNextPrev')
+      .style.display = 'none';
+    document.getElementById('Apex_Trace_List:traceForm:traceTable')
+      .querySelector('.mainTitle').style.display = 'none';
     var autoReloadLabel = document.createElement('label');
     autoReloadLabel.style.float = 'right';
     autoReloadLabel.style.paddingLeft = '5px';
-    autoReloadLabel.innerHTML = '<input type="checkbox" name="checkbox" id="autoReload" />Auto Reload';
+    autoReloadLabel.innerHTML = '<input type="checkbox" name="checkbox"' + 
+      'id="autoReload" />Auto Reload';
     autoReloadLabel.firstElementChild.onchange = function(){
         if(this.checked){
             reloadIntervalId = setInterval(loadNewLogs, 5000);
@@ -85,17 +88,21 @@ function addReloadControllers(){
     };
     var numOfLogsLabel = document.createElement('label');
     numOfLogsLabel.style.float = 'right';
-    numOfLogsLabel.innerHTML = `Logs per Page:&nbsp;<input type="number" min="10" max="1000" value="${showLogsNum}" >`;
+    numOfLogsLabel.innerHTML = `Logs per Page:&nbsp;` +
+      `<input type="number" min="10" max="1000" value="${showLogsNum}" >`;
     numOfLogsLabel.firstElementChild.onchange = function(){
         showLogsNum = this.value;
         loadLogs();
     };
-    document.getElementById("Apex_Trace_List:traceForm").querySelector('.pbButton').appendChild(autoReloadLabel);
-    document.getElementById("Apex_Trace_List:traceForm").querySelector('.pbButton').appendChild(numOfLogsLabel);
+    document.getElementById("Apex_Trace_List:traceForm")
+      .querySelector('.pbButton').appendChild(autoReloadLabel);
+    document.getElementById("Apex_Trace_List:traceForm")
+      .querySelector('.pbButton').appendChild(numOfLogsLabel);
 }
 
 function addDeleteAllBtn(){
-    var deleteAllContainer = document.getElementById("Apex_Trace_List:traceForm").querySelector('.pbButton');
+    var deleteAllContainer = document.getElementById("Apex_Trace_List:traceForm")
+      .querySelector('.pbButton');
     var realDeleteAllBtn = document.createElement('input');
     realDeleteAllBtn.type = 'button';
     realDeleteAllBtn.className = 'btn';
@@ -113,14 +120,17 @@ function addDeleteAllBtn(){
 function realDeleteAll(event){
     event.preventDefault();
     document.body.style.cursor = 'wait';
-    request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent('Select Id From ApexLog')).then(function(result){
-        var reponseObjects = JSON.parse(result);
-        var logIds = reponseObjects.records.map(function(logObj){
+    request('/services/data/v32.0/tooling/query/?q='
+        + encodeURIComponent('Select Id From ApexLog'))
+        .then(function(result){
+            var reponseObjects = JSON.parse(result);
+            var logIds = reponseObjects.records.map(function(logObj){
             return logObj.Id;
         });
         var logsCounter = logIds.length;
         logIds.map(function(id){
-            request('/services/data/v32.0/tooling/sobjects/ApexLog/' + id, 'DELETE').then(function(){
+            request('/services/data/v32.0/tooling/sobjects/ApexLog/' + id, 'DELETE')
+              .then(function(){
                 logsCounter--;
                 if(logsCounter === 0){
                     document.body.style.cursor = 'deafult';
@@ -199,7 +209,7 @@ function addToTable(tr){
 function requestLogs(){
     var monitoredUsers = getMonitoredUsers();
     var selectQuery = ['Select LogUser.Name,Application,DurationMilliseconds,Id,LastModifiedDate,Location,LogLength,LogUserId,',
-                      `Operation,Request,StartTime,Status,SystemModstamp From ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY LastModifiedDate DESC LIMIT ${showLogsNum}`].join('');
+                      `Operation,Request,StartTime,Status,SystemModstamp From ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY LastModifiedDate ASC LIMIT ${showLogsNum}`].join('');
     return request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent(selectQuery))
         .then(function(rawResult){
             return JSON.parse(rawResult).records;
