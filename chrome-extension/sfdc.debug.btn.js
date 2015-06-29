@@ -194,7 +194,7 @@ function loadLogs(event){
     clearTable();
     return requestLogs().then(function(logs){
         console.log(1);
-        logs.reverse().map(logRecordToTr).forEach(addToTable);
+        logs.map(logRecordToTr).forEach(addToTable);
     });
 }
 
