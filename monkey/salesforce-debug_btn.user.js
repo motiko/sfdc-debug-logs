@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Salesforce Debug Log Buttons
 // @namespace    SFDC
-// @version      0.3.1
+// @version      0.3.3
 // @description  Add Salesforce Debug Log Buttons
 // @author       motiko
 // @match       https://*.salesforce.com/setup/ui/listApexTraces.apexp*
@@ -34,7 +34,7 @@ function inject(fn) {
 function initPage(){
     getUserId();
     addDeleteAllBtn();
-    removeOldDeleteBtn();
+    //removeOldDeleteBtn();
     addAddUserBtn();
     addReloadControllers();
     addSearchControllers();
@@ -75,37 +75,33 @@ function addAddUserBtn(){
 
 function addReloadControllers(){
     var reloadIntervalId;
-    loadLogs()
-    setInterval(function(){
-        request("/setup/ui/listApexTraces.apexp?user_id=" + userId
-                + "&user_logging=true");
-    }, 30000);
+    //loadLogs()
     document.getElementById('Apex_Trace_List:traceForm:traceTableNextPrev')
       .style.display = 'none';
     document.getElementById('Apex_Trace_List:traceForm:traceTable')
       .querySelector('.mainTitle').style.display = 'none';
-    var autoReloadLabel = document.createElement('label');
-    autoReloadLabel.style.float = 'right';
-    autoReloadLabel.style.paddingLeft = '5px';
-    autoReloadLabel.innerHTML = '<input type="checkbox" name="checkbox"' + 
-      'id="autoReload" />Auto Reload';
-    autoReloadLabel.firstElementChild.onchange = function(){
-        if(this.checked){
-            reloadIntervalId = setInterval(loadNewLogs, 5000);
-        }else{
-            clearInterval(reloadIntervalId);
-        }
-    };
+//    var autoReloadLabel = document.createElement('label');
+//    autoReloadLabel.style.float = 'right';
+//    autoReloadLabel.style.paddingLeft = '5px';
+//    autoReloadLabel.innerHTML = '<input type="checkbox" name="checkbox"' + 
+//      'id="autoReload" />Auto Reload';
+//    autoReloadLabel.firstElementChild.onchange = function(){
+//        if(this.checked){
+//            reloadIntervalId = setInterval(loadNewLogs, 5000);
+//        }else{
+//            clearInterval(reloadIntervalId);
+//        }
+//    };
     var numOfLogsLabel = document.createElement('label');
     numOfLogsLabel.style.float = 'right';
-    numOfLogsLabel.innerHTML = `Logs per Page:&nbsp;` +
-      `<input type="number" min="10" max="1000" value="${showLogsNum}" >`;
+    numOfLogsLabel.innerHTML = `Maximum logs per Page:&nbsp;` +
+      `<input type="number" min="25" max="1000" step="25" value="${showLogsNum}" >`;
     numOfLogsLabel.firstElementChild.onchange = function(){
         showLogsNum = this.value;
         loadLogs();
     };
-    document.getElementById("Apex_Trace_List:traceForm")
-      .querySelector('.pbButton').appendChild(autoReloadLabel);
+//    document.getElementById("Apex_Trace_List:traceForm")
+//      .querySelector('.pbButton').appendChild(autoReloadLabel);
     document.getElementById("Apex_Trace_List:traceForm")
       .querySelector('.pbButton').appendChild(numOfLogsLabel);
 }
@@ -135,20 +131,19 @@ function realDeleteAll(event){
         .then(function(result){
             var reponseObjects = JSON.parse(result);
             var logIds = reponseObjects.records.map(function(logObj){
-            return logObj.Id;
-        });
-        var logsCounter = logIds.length;
-        logIds.map(function(id){
-            request('/services/data/v32.0/tooling/sobjects/ApexLog/' + id, 'DELETE')
-              .then(function(){
-                logsCounter--;
-                if(logsCounter === 0){
-                    document.body.style.cursor = 'deafult';
-                    window.location.href = window.location.href;
-                }
+                        return logObj.Id;
+                    });
+            var logsCounter = logIds.length;
+            if(logsCounter > 10){
+                if(!confirm('This willl consume more than 1000 API calls. Proceed ?')) return;
+            }
+            Promise.all(logIds.map(function(id){
+                return request('/services/data/v32.0/tooling/sobjects/ApexLog/' + id, 'DELETE');
+            })).then(function(){
+                document.body.style.cursor = 'deafult';
+                window.location.href = window.location.href;
             });
         });
-    });
 }
 
 function loadedLogIds(){
@@ -204,7 +199,7 @@ function loadLogs(event){
     clearTable();
     return requestLogs().then(function(logs){
         console.log(1);
-        logs.reverse().map(logRecordToTr).forEach(addToTable);
+        logs.map(logRecordToTr).forEach(addToTable);
     });
 }
 
@@ -363,7 +358,6 @@ function toArray(nodeElements){
 }
 
 function searchLogs(){
-    document.getElementById('autoReload').checked = false;
     resetResults();
     document.body.style.cursor = 'wait';
     document.getElementById('LoadinImage').style.display = 'inline';
@@ -401,7 +395,6 @@ function searchLogs(){
     Promise.all(promises).then(function(){
         document.body.style.cursor = 'default';
         document.getElementById('LoadinImage').style.display = 'none';
-        document.getElementById('autoReload').checked = true;
     });
 }
 

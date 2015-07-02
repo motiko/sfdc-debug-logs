@@ -1,6 +1,6 @@
 {
     "name": "Apex Debugger",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "manifest_version": 2,
     "author": "Moti Korets",
     "icons": { "16": "16.png",
