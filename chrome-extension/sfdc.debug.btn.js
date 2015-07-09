@@ -2,6 +2,8 @@
 /*global GM_xmlhttpRequest*/
 (function(){
 
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
 var userId;
 var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
 
@@ -24,7 +26,7 @@ function inject(fn) {
 function initPage(){
     getUserId();
     addDeleteAllBtn();
-    //removeOldDeleteBtn();
+    removeOldDeleteBtn();
     addAddUserBtn();
     addReloadControllers();
     addSearchControllers();
@@ -64,7 +66,6 @@ function addAddUserBtn(){
 }
 
 function addReloadControllers(){
-    var reloadIntervalId;
     //loadLogs()
     document.getElementById('Apex_Trace_List:traceForm:traceTableNextPrev')
       .style.display = 'none';
@@ -73,7 +74,7 @@ function addReloadControllers(){
 //    var autoReloadLabel = document.createElement('label');
 //    autoReloadLabel.style.float = 'right';
 //    autoReloadLabel.style.paddingLeft = '5px';
-//    autoReloadLabel.innerHTML = '<input type="checkbox" name="checkbox"' + 
+//    autoReloadLabel.innerHTML = '<input type="checkbox" name="checkbox"' +
 //      'id="autoReload" />Auto Reload';
 //    autoReloadLabel.firstElementChild.onchange = function(){
 //        if(this.checked){
@@ -116,25 +117,41 @@ function addDeleteAllBtn(){
 function realDeleteAll(event){
     event.preventDefault();
     document.body.style.cursor = 'wait';
+
     request('/services/data/v32.0/tooling/query/?q='
-        + encodeURIComponent('Select Id From ApexLog'))
+            + encodeURIComponent('Select Id From ApexLog'))
         .then(function(result){
             var reponseObjects = JSON.parse(result);
-            var logIds = reponseObjects.records.map(function(logObj){
-                        return logObj.Id;
+            var logIdsCsv = reponseObjects.records.map(function(logObj){
+                        return `"${logObj.Id}"`;
+                    }).reduce(function(sum, id){
+                        return sum + '\n' + id;
+                    }, '"Id"');
+            console.log(logIdsCsv);
+            return createJob('ApexLog', 'delete').then(function(jobId){
+                console.log('jobId: ' + jobId);
+                createBatch(jobId, logIdsCsv).then(function(batchId){
+                    console.log('batchId: ' + batchId);
+                    pollBatchStatus(jobId, batchId).then(function(){
+                        location.reload();
                     });
-            var logsCounter = logIds.length;
-            if(logsCounter > 10){
-                if(!confirm('This willl consume more than 1000 API calls. Proceed ?')) return;
-            }
-            Promise.all(logIds.map(function(id){
-                return request('/services/data/v32.0/tooling/sobjects/ApexLog/' + id, 'DELETE');
-            })).then(function(){
-                document.body.style.cursor = 'deafult';
-                window.location.href = window.location.href;
+                });
+
             });
         });
 }
+//          var logsCounter = logIds.length;
+//          if(logsCounter > 1000){
+//              if(!confirm('This willl consume more than 1000 API calls. Proceed ?')) return;
+//          }
+//          Promise.all(logIds.map(function(id){
+//              return request('/services/data/v32.0/tooling/sobjects/ApexLog/' + id, 'DELETE');
+//          })).then(function(){
+//              document.body.style.cursor = 'deafult';
+//              window.location.href = window.location.href;
+//          });
+//      });
+
 
 function loadedLogIds(){
     var trs = toArray(document.getElementById(LOGS_TABLE_ID).children);
@@ -203,8 +220,11 @@ function addToTable(tr){
 
 function requestLogs(){
     var monitoredUsers = getMonitoredUsers();
-    var selectQuery = ['Select LogUser.Name,Application,DurationMilliseconds,Id,LastModifiedDate,Location,LogLength,LogUserId,',
-                      `Operation,Request,StartTime,Status,SystemModstamp From ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY LastModifiedDate ASC LIMIT ${showLogsNum}`].join('');
+    var selectQuery = [`SELECT LogUser.Name,Application,DurationMilliseconds,`,
+                      `Id,LastModifiedDate,Location,LogLength,LogUserId,`,
+                      `Operation,Request,StartTime,Status,SystemModstamp From `,
+                      `ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY `,
+                        `LastModifiedDate ASC LIMIT ${showLogsNum}`].join('');
     return request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent(selectQuery))
         .then(function(rawResult){
             return JSON.parse(rawResult).records;
@@ -257,9 +277,9 @@ function prepareTransition(logTrs){
 
 function logRecordToTr(logObj){
     var tr = document.createElement('tr');
-    tr.style.webkitTransition = 'all 1000ms';
-    tr.style.mozTransition = 'all 1000ms';
-    tr.style.transition = 'all 1000ms';
+    tr.style.webkitTransition = 'all 500ms';
+    tr.style.mozTransition = 'all 500ms';
+    tr.style.transition = 'all 500ms';
     tr.style.height = '23px';
     tr.onfocus = "if (window.hiOn){hiOn(this);}";
     tr.dataset.id = logObj.Id;
@@ -385,6 +405,103 @@ function searchLogs(){
     Promise.all(promises).then(function(){
         document.body.style.cursor = 'default';
         document.getElementById('LoadinImage').style.display = 'none';
+    });
+}
+
+function createJob(objectName, operation){
+    var queryJob = `<?xml version="1.0" encoding="UTF-8"?>
+     <jobInfo xmlns="http://www.force.com/2009/06/asyncapi/dataload">
+          <operation>${operation}</operation>
+          <object>${objectName}</object>
+          <concurrencyMode>Parallel</concurrencyMode>
+          <contentType>CSV</contentType>
+     </jobInfo>`;
+    console.log(queryJob);
+    return bulkRequest('/services/async/34.0/job', 'POST',
+            {'Content-Type': 'application/xml'},
+            queryJob ).then(function(response){
+                   return response.match(/<id>(.*)<\/id>/)[1];
+               });
+}
+
+function pollBatchStatus(jobId, batchId){
+    return new Promise(function(resolve, reject){
+    var intervalId = setInterval(function(){
+            checkBatchStatus(jobId, batchId).then(function(state){
+                console.log(state);
+                if(state === "Completed"){
+                    resolve(state);
+                    clearInterval(intervalId);
+                }
+                if(state === "Error" || state === "Not Processed"){
+                    reject(state);
+                    clearInterval(intervalId);
+                }
+
+            });
+
+        }, 1000);
+    });
+}
+
+function checkBatchStatus(jobId, batchId){
+    console.log(`/services/async/34.0/job/${jobId}/batch/${batchId}`);
+    return bulkRequest(`/services/async/34.0/job/${jobId}/batch/${batchId}`)
+        .then(function(resultXml){
+            return resultXml.match(/<state>(.*)<\/state>/)[1];
+        });
+}
+
+function createBatch(jobId, csv){
+    return bulkRequest(`/services/async/34.0/job/${jobId}/batch`, 'POST',
+            {'Content-Type': 'text/csv; charset=UTF-8'},
+            csv ).then(function(response){
+                   return response.match(/<id>(.*)<\/id>/)[1];
+               });
+}
+
+function bulkRequest(url, method, headers, body){
+    method = method || 'GET';
+    if(typeof GM_xmlhttpRequest === "function"){
+        return new Promise(function(fulfill, reject){
+            GM_xmlhttpRequest({
+                method: method,
+                url: url,
+                headers: _extends({}, headers, {
+                        'X-SFDC-Session': sid
+                    }),
+                data: body,
+                onload: function(response){
+                    if( response.status.toString().indexOf('2') === 0){
+                        fulfill(response.response);
+                    }else{
+                        reject(Error(response.statusText));
+                    }
+                },
+                onerror: function(){
+                    reject(Error("Network Error"));
+                }
+            });
+        });
+    }
+    return new Promise(function(fulfill, reject){
+        var xhr = new XMLHttpRequest();
+        xhr.open(method, url);
+        xhr.onload = function(){
+            if( xhr.status.toString().indexOf('2') === 0){
+                fulfill(xhr.response);
+            }else{
+                reject(Error(xhr.statusText));
+            }
+        };
+        xhr.onerror = function(){
+            reject(Error("Network Error"));
+        };
+        xhr.setRequestHeader('X-SFDC-Session', sid);
+        for(var header in headers){
+            xhr.setRequestHeader(header, headers[header]);
+        }
+        xhr.send(body);
     });
 }
 
