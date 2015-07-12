@@ -3,3 +3,4 @@ chromeApp
 *.pem
 fonts/
 mm.log
+.DS_store

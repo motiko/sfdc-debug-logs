@@ -103,7 +103,7 @@ function addDeleteAllBtn(){
     var realDeleteAllBtn = document.createElement('input');
     realDeleteAllBtn.type = 'button';
     realDeleteAllBtn.className = 'btn';
-    realDeleteAllBtn.value = 'Delete All (for real)';
+    realDeleteAllBtn.value = 'Delete All ';
     realDeleteAllBtn.onclick = realDeleteAll;
     deleteAllContainer.appendChild(realDeleteAllBtn);
     var loadNewLogsBtn = document.createElement('input');
@@ -127,11 +127,8 @@ function realDeleteAll(event){
                     }).reduce(function(sum, id){
                         return sum + '\n' + id;
                     }, '"Id"');
-            console.log(logIdsCsv);
             return createJob('ApexLog', 'delete').then(function(jobId){
-                console.log('jobId: ' + jobId);
                 createBatch(jobId, logIdsCsv).then(function(batchId){
-                    console.log('batchId: ' + batchId);
                     pollBatchStatus(jobId, batchId).then(function(){
                         location.reload();
                     });
@@ -205,7 +202,6 @@ function loadLogs(event){
     }
     clearTable();
     return requestLogs().then(function(logs){
-        console.log(1);
         logs.map(logRecordToTr).forEach(addToTable);
     });
 }
@@ -416,7 +412,6 @@ function createJob(objectName, operation){
           <concurrencyMode>Parallel</concurrencyMode>
           <contentType>CSV</contentType>
      </jobInfo>`;
-    console.log(queryJob);
     return bulkRequest('/services/async/34.0/job', 'POST',
             {'Content-Type': 'application/xml'},
             queryJob ).then(function(response){
@@ -445,7 +440,6 @@ function pollBatchStatus(jobId, batchId){
 }
 
 function checkBatchStatus(jobId, batchId){
-    console.log(`/services/async/34.0/job/${jobId}/batch/${batchId}`);
     return bulkRequest(`/services/async/34.0/job/${jobId}/batch/${batchId}`)
         .then(function(resultXml){
             return resultXml.match(/<state>(.*)<\/state>/)[1];
