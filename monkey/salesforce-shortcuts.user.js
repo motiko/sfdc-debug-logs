@@ -58,6 +58,8 @@ shortcutUrl('p', "/setup/ui/profilelist.jsp?setupid=Profiles");
 shortcutUrl('c', "/01p?all_classes_page%3AtheTemplate%3AclassList%3Arowsperpage=3500");
 shortcutUrl('a', "/05G");
 shortcutUrl('t', "/setup/build/allTriggers.apexp?all_triggers_page%3AtheTemplate%3Aj_id41%3Arowsperpage=3000");
+shortcutUrl('q', "/changemgmt/listOutboundChangeSet.apexp?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DDeploy&setupid=OutboundChangeSet");
+shortcutUrl('z', "/changemgmt/listInboundChangeSet.apexp?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DDeploy&setupid=InboundChangeSet");
 shortcutMethod('l', openLastLog);
 Mousetrap.bind('e', editObject);
 Mousetrap.bind('s', saveObject);
@@ -84,8 +86,10 @@ function shortcutUrl(char, url){
 function openInNewTab(url){
     if(typeof GM_openInTab === 'function'){
         GM_openInTab(location.origin + url);
+    }else if(typeof chrome !== "undefined"){
+        chrome.runtime.sendMessage({url: `${location.protocol}//${location.host}${url}`, command: "openTab"});
     }else{
-         window.open(url, '_blank');
+        window.open(url, '_blank');
     }
 }
 

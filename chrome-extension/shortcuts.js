@@ -74,8 +74,10 @@ function shortcutUrl(char, url){
 function openInNewTab(url){
     if(typeof GM_openInTab === 'function'){
         GM_openInTab(location.origin + url);
+    }else if(typeof chrome !== "undefined"){
+        chrome.runtime.sendMessage({url: `${location.protocol}//${location.host}${url}`, command: "openTab"});
     }else{
-         window.open(url, '_blank');
+        window.open(url, '_blank');
     }
 }
 

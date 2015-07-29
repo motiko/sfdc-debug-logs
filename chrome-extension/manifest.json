@@ -1,12 +1,15 @@
 {
     "name": "Apex Debugger",
-    "version": "0.3.7",
+    "version": "0.3.9",
     "manifest_version": 2,
     "author": "Moti Korets",
     "icons": { "16": "16.png",
            "48": "48.png",
           "128": "128.png" },
     "description": "Debug Salesforce apex code with ease",
+    "background":{
+        "scripts": ["background.js"]
+    },
     "content_scripts": [
         {
             "css": [
