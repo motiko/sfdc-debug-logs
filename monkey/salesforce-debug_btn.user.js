@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Salesforce Debug Log Buttons
 // @namespace    SFDC
-// @version      0.3.3
+// @version      0.3.4
 // @description  Add Salesforce Debug Log Buttons
 // @author       motiko
 // @match       https://*.salesforce.com/setup/ui/listApexTraces.apexp*
