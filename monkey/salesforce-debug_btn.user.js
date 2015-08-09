@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Add Salesforce Debug Log Buttons
 // @namespace    SFDC
-// @version      0.3.4
+// @version      0.3.5
 // @description  Add Salesforce Debug Log Buttons
 // @author       motiko
 // @match       https://*.salesforce.com/setup/ui/listApexTraces.apexp*
@@ -35,8 +35,8 @@ function inject(fn) {
 
 function initPage(){
     getUserId();
-    addDeleteAllBtn();
     removeOldDeleteBtn();
+    addDeleteAllBtn();
     addAddUserBtn();
     addReloadControllers();
     addSearchControllers();
