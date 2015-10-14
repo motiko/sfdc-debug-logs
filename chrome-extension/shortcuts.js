@@ -28,7 +28,7 @@ window.addEventListener("message", function(event) {
     var userId, orgId;
     if(event.data.type === "userId"){
         userId = event.data.content;
-        shortcutUrl('d', "/setup/ui/listApexTraces.apexp?user_id=" + userId + "&user_logging=true");
+        shortcutUrl('d', "/setup/ui/listApexTraces.apexp");
     }
     if(event.data.type === "orgId"){
         orgId = event.data.content;
