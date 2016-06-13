@@ -66,23 +66,10 @@ function addAddUserBtn(){
 }
 
 function addReloadControllers(){
-    //loadLogs()
     document.getElementById('Apex_Trace_List:traceForm:traceTableNextPrev')
       .style.display = 'none';
     document.getElementById('Apex_Trace_List:traceForm:traceTable')
       .querySelector('.mainTitle').style.display = 'none';
-//    var autoReloadLabel = document.createElement('label');
-//    autoReloadLabel.style.float = 'right';
-//    autoReloadLabel.style.paddingLeft = '5px';
-//    autoReloadLabel.innerHTML = '<input type="checkbox" name="checkbox"' +
-//      'id="autoReload" />Auto Reload';
-//    autoReloadLabel.firstElementChild.onchange = function(){
-//        if(this.checked){
-//            reloadIntervalId = setInterval(loadNewLogs, 5000);
-//        }else{
-//            clearInterval(reloadIntervalId);
-//        }
-//    };
     var numOfLogsLabel = document.createElement('label');
     numOfLogsLabel.style.float = 'right';
     numOfLogsLabel.innerHTML = `Maximum logs per Page:&nbsp;` +
@@ -91,8 +78,6 @@ function addReloadControllers(){
         showLogsNum = this.value;
         loadLogs();
     };
-//    document.getElementById("Apex_Trace_List:traceForm")
-//      .querySelector('.pbButton').appendChild(autoReloadLabel);
     document.getElementById("Apex_Trace_List:traceForm")
       .querySelector('.pbButton').appendChild(numOfLogsLabel);
 }
@@ -137,17 +122,6 @@ function realDeleteAll(event){
             });
         });
 }
-//          var logsCounter = logIds.length;
-//          if(logsCounter > 1000){
-//              if(!confirm('This willl consume more than 1000 API calls. Proceed ?')) return;
-//          }
-//          Promise.all(logIds.map(function(id){
-//              return request('/services/data/v32.0/tooling/sobjects/ApexLog/' + id, 'DELETE');
-//          })).then(function(){
-//              document.body.style.cursor = 'deafult';
-//              window.location.href = window.location.href;
-//          });
-//      });
 
 
 function loadedLogIds(){
@@ -298,10 +272,32 @@ function clearTable(){
 }
 
 function addCurrentUser(event){
-    if(event){
-        event.preventDefault();
-    }
-    document.location.assign("/setup/ui/listApexTraces.apexp?user_id=" + userId + "&user_logging=true");
+    if(event) event.preventDefault();
+    const logLevelName = "ApexDebugger"
+    const headers = {"Content-Type": 'application/json; charset=UTF-8', "Authorization": 'Bearer ' + sid,
+        "Accept": "*/*"}
+    const query = encodeURI("Select Id From DebugLevel Where DeveloperName = '" + logLevelName + "'")  
+    var debugLevelPayload =  {DeveloperName: logLevelName,MasterLabel: logLevelName,
+      Workflow: 'DEBUG', Validation: 'DEBUG', Callout: 'DEBUG',
+        ApexCode: 'DEBUG', ApexProfiling: 'DEBUG', Visualforce: 'DEBUG',
+        System: 'DEBUG', Database: 'DEBUG'}
+    return fetch(`/services/data/v36.0/tooling/query?q=${query}`,{headers})
+      .then(res => res.json())
+      .then(existingDebugLevel => {
+          if(existingDebugLevel.records.length > 0){
+            return existingDebugLevel.records[0].Id
+          }else{
+            return fetch('/services/data/v36.0/tooling/sobjects/DebugLevel',{ method: 'POST',
+                  headers, 
+                  body: JSON.stringify(debugLevelPayload)}).then(res => res.json().then( result => result.id))
+          }
+      }).then(dlId => {
+          var payload = {TracedEntityId: userId, DebugLevelId: dlId, LogType: 'USER_DEBUG'};
+          fetch('/services/data/v36.0/tooling/sobjects/TraceFlag/',{method:'POST',
+                headers: headers,body: JSON.stringify(payload)}).then(function(res){
+                  res.json().then(r => console.log(r))
+                })
+      })
 }
 
 function addSearchControllers(){
