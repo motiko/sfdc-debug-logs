@@ -1,3 +1,23 @@
+//
+//                       _oo0oo_
+//                      o8888888o
+//                      88" . "88
+//                      (| -_- |)
+//                      0\  =  /0
+//                    ___/`---'\___
+//                  .' \\|     |// '.
+//                 / \\|||  :  |||// \
+//                / _||||| -:- |||||- \
+//               |   | \\\  -  /// |   |
+//               | \_|  ''\---/''  |_/ |
+//               \  .-\__  '-'  ___/-. /
+//             ___'. .'  /--.--\  `. .'___
+//          ."" '<  `.___\_<|>_/___.' >' "".
+//         | | :  `- \`.;`\ _ /`;.`/ - ` : | |
+//         \  \ `_.   \_ __\ /__ _/   .-` /  /
+//     =====`-.____`.___ \_____/___.-`___.-'=====
+//                       `=---='
+//
 
 (function(){
 var sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/);
@@ -42,7 +62,7 @@ inject(sendBackOrgId);
 shortcutUrl('s', "/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=SchemaBuilder");
 shortcutUrl('o', "/p/setup/custent/CustomObjectsPage");
 shortcutUrl('u', "/005?setupid=ManageUsers");
-shortcutUrl('p', "/setup/ui/profilelist.jsp?setupid=Profiles");
+shortcutUrl('p', "/00e?setupid=EnhancedProfiles");
 shortcutUrl('c', "/01p?all_classes_page%3AtheTemplate%3AclassList%3Arowsperpage=3500");
 shortcutUrl('a', "/05G");
 shortcutUrl('t', "/setup/build/allTriggers.apexp?all_triggers_page%3AtheTemplate%3Aj_id41%3Arowsperpage=3000");
@@ -67,6 +87,10 @@ function shortcutUrl(char, url){
         document.location.assign(url);
      });
     Mousetrap.bind(['shift+' + char], function(){
+        if( document.activeElement.nodeName == "OBJECT" && 
+            document.activeElement.data.indexOf('.swf') > -1){
+          return;
+        }
         openInNewTab(url);
     });
 }
