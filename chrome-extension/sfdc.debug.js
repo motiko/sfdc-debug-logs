@@ -3,12 +3,6 @@
 if(typeof GM_getResourceText === "function"){
     var debug_css = GM_getResourceText("debug_css");
     GM_addStyle(debug_css);
-    /*
-    try{
-        var debug_css_local = GM_getResourceText("debug_css_local");
-        GM_addStyle(debug_css_local);
-    }catch(e){}
-     */
 }
 
 var selectedText,
@@ -201,6 +195,7 @@ function generateStyleSelect(){
         dropDown.appendChild(opt);
     });
     dropDown.onchange = function(event){
+        logEvent('changeStyle')
         document.querySelector('#debugText').className = this.value;
         setSetting('style',this.value);
     };
@@ -229,6 +224,7 @@ function addCheckboxes(){
 }
 
 function toggleTimestamp(){
+    logEvent(toggleTimestamp)
     var oldValue = JSON.parse(getSetting('showTimeStamp'));
     setSetting('showTimeStamp',!oldValue);
     document.location.reload();
@@ -244,6 +240,7 @@ function addCollapseAllButton(){
 }
 
 function colapseAll(){
+    logEvent('colapseAll')
     toArray(document.querySelectorAll('.expandUserDebugBtn.collapsed')).forEach(function(button){
         setTimeout(expandUserDebug.bind(button),0);
     });
@@ -485,6 +482,7 @@ function toogleHidden(className){
 }
 
 function expandUserDebug(){
+    logEvent('expandUserDebug')
     var debugNode = this.nextElementSibling.nextElementSibling;
     var  oldHtmlVal =  debugNode.innerHTML;
     var debugNodeText = debugNode.textContent;
@@ -572,6 +570,14 @@ function contains(searchString){
         return nodeElem.innerHTML.indexOf(searchString) > -1;
     };
 }
+
+function logEvent(eventName){
+  if(typeof chrome !== "undefined"){
+    let eventParams = ['_trackEvent', 'LogView', eventName]
+    chrome.runtime.sendMessage({command: "ga", params: eventParams});
+  }
+}
+
 
 function request(url,method){
     method = method || 'GET';

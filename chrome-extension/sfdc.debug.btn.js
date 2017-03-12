@@ -100,6 +100,7 @@ function addDeleteAllBtn(){
 }
 
 function realDeleteAll(event){
+    logEvent('realDeleteAll')
     event.preventDefault();
     document.body.style.cursor = 'wait';
 
@@ -143,6 +144,7 @@ function getMonitoredUsers(){
 }
 
 function loadNewLogs(){
+    logEvent('loadNewLogs')
     var oldLogIds = loadedLogIds();
     requestLogs().then(function(logs){
         var deltaLogs = logs.filter(function(log){
@@ -272,6 +274,7 @@ function clearTable(){
 }
 
 function addCurrentUser(event){
+    logEvent('addCurrentUser')
     if(event) event.preventDefault();
     const logLevelName = "ApexDebugger"
     const headers = {"Content-Type": 'application/json; charset=UTF-8', "Authorization": 'Bearer ' + sid,
@@ -360,6 +363,7 @@ function toArray(nodeElements){
 }
 
 function searchLogs(){
+    logEvent('searchLogs')
     resetResults();
     document.body.style.cursor = 'wait';
     document.getElementById('LoadinImage').style.display = 'inline';
@@ -493,6 +497,13 @@ function bulkRequest(url, method, headers, body){
         }
         xhr.send(body);
     });
+}
+
+function logEvent(eventName){
+  if(typeof chrome !== "undefined"){
+    let eventParams = ['_trackEvent', 'LogsList', eventName]
+    chrome.runtime.sendMessage({command: "ga", params: eventParams});
+  }
 }
 
 function request(url, method){

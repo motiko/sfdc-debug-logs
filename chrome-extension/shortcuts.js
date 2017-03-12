@@ -83,6 +83,7 @@ function shortcutMethod(char, method){
 
 
 function shortcutUrl(char, url){
+    logEvent('shortcutUrl')
     Mousetrap.bind(['alt+shift+' + char], function(){
         document.location.assign(url);
      });
@@ -106,6 +107,7 @@ function openInNewTab(url){
 }
 
 function editObject(){
+    logEvent('editObject')
     var editBtn = document.querySelector("input[name='edit']");
     if(editBtn){
         editBtn.click();
@@ -113,6 +115,7 @@ function editObject(){
 }
 
 function saveObject(){
+    logEvent('editObject')
     var saveBtn = document.querySelector("input[name='save']");
     if(saveBtn){
         saveBtn.click();
@@ -121,6 +124,7 @@ function saveObject(){
 
 
 function openLastLog(inNewTab){
+    logEvent('openLastLog')
     if(!sid){
         return;
     }
@@ -135,6 +139,13 @@ function openLastLog(inNewTab){
             }
         }
     });
+}
+
+function logEvent(eventName){
+  if(typeof chrome !== "undefined"){
+    let eventParams = ['_trackEvent', 'Shortcut', eventName]
+    chrome.runtime.sendMessage({command: "ga", params: eventParams});
+  }
 }
 
 function request(url, method){
