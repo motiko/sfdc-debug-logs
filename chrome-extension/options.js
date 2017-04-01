@@ -47,6 +47,16 @@ function buildShortcuts(shortcuts = default_shortcuts){
 
 function save(event){
   const form = $i('shortcutsForm')
+  if(!form.checkValidity()){
+    const targetClassList = event.target.classList
+    if(targetClassList.contains('shake-btn')){ 
+      targetClassList.remove('shake-btn')
+      void event.target.offsetWidth // hack to restart animation (forces reflow)
+    }
+    targetClassList.add('shake-btn')
+    event.preventDefault()
+    return 
+  } 
   const toSetting = (trNode) => {
     let path = trNode.querySelector('.val_path').value
     path = path[0] == '/' ? path : '/' + path
@@ -55,7 +65,6 @@ function save(event){
          path : path
        }
   }
-  if(!form.checkValidity()) return event.preventDefault()
   const shortcuts = [...document.getElementById('shortcutsTable').children]      
   chrome.storage.sync.set({'shortcuts': shortcuts.map(toSetting)} )
 }
