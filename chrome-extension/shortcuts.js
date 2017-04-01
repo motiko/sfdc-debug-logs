@@ -45,8 +45,7 @@ window.addEventListener("message", function(event) {
 });
 inject(sendBackOrgId);
 
-chrome.storage.sync.get('shortcuts', ({shortcuts}) => {
-  shortcuts = shortcuts || default_shortcuts
+chrome.storage.sync.get('shortcuts', ({shortcuts = default_shortcuts}) => {
   shortcuts.forEach(shortcutUrl)
 });
 

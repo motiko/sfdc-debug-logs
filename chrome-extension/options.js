@@ -6,6 +6,7 @@ function onload(){
   const shortcutsTable = $i('shortcutsTable')
   $i('save_btn').addEventListener('click', save)
   $i('restore_defaults_btn').addEventListener('click', (event) => {
+    logEvent('restoreDefaults')
     chrome.storage.sync.set({'shortcuts': default_shortcuts} )
   })
   $i('new_btn').addEventListener('click', (event) => {
@@ -28,6 +29,7 @@ function removeShortcutLine(event){
 }
 
 function newShortcutLine(){
+  logEvent('newShortcutLine')
   const template = $i('templateKeyOption').cloneNode(true);
   template.hidden = false
   template.id = undefined
@@ -46,6 +48,7 @@ function buildShortcuts(shortcuts = default_shortcuts){
 }
 
 function save(event){
+  logEvent('save')
   const form = $i('shortcutsForm')
   if(!form.checkValidity()){
     const targetClassList = event.target.classList
@@ -70,7 +73,12 @@ function save(event){
 }
 
 function remove(event) {
-  debugger
+  logEvent('remove')
   const tr = event.target.parentNode.parentNode
   tr.parentNode.removeChild(tr)
+}
+
+function logEvent(eventName){
+  let eventParams = ['_trackEvent', 'Options', eventName]
+  chrome.runtime.sendMessage({command: "ga", params: eventParams});
 }
