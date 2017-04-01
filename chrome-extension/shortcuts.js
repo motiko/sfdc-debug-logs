@@ -64,11 +64,12 @@ function shortcutMethod(char, method){
 
 
 function shortcutUrl({key, path}){
-    logEvent('shortcutUrl')
     Mousetrap.bind(['alt+shift+' + key], function(){
+        logEvent('shortcutUrl')
         document.location.assign(path);
      });
     Mousetrap.bind(['shift+' + key], function(){
+        logEvent('shortcutUrl')
         if( document.activeElement.nodeName == "OBJECT" && 
             document.activeElement.data.indexOf('.swf') > -1){
           return;

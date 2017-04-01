@@ -81,5 +81,9 @@
         "https://*.force.com/*",
         "https://*.salesforce.com/*",
         "storage"
-    ]
+    ],
+    "externally_connectable": {
+      "matches": [
+        "https://*.salesforce.com/*"]
+    }
 }

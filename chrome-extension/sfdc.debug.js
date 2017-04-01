@@ -94,9 +94,9 @@ function init(){
     oRight.insertBefore(codeBlock,oRight.firstChild);
     addControllersContainer();
     addDropDowns();
-    /*if(!getSetting('dontShowHint')){
-        addSearchHint();
-    }*/
+    if(!getSetting('dontShowNewHint')){
+        addHint();
+    }
     removeIllegalIdLinks();
     var debugElements = document.getElementsByClassName('debug');
     var userDebugDivs = toArray(debugElements);
@@ -117,22 +117,23 @@ function toArray(elemntList){
     return [].slice.call(elemntList);
 }
 
-function addSearchHint(){
+function addHint(){
     var hintContainer = document.createElement('div');
     hintContainer.id = 'hintContainer';
     var hint = document.createElement('span');
-    hint.innerHTML = ['<h4>Dear user,</h4><br/>',
-        '<h7>Please note we changed keyboard shortcuts for your convenience.</h7> ',
-        '<ul><li><b>Alt+Shift+d</b> - open debug logs </li>',
-        '<li><b>Shift+d</b> - open debug logs in new tab </li></ul>',
-        '<p> For full list of keyboard shortcuts please visit our <a href="https://github.com/motiko/sfdc-debug-logs">Github page</a></p>'].join('');
+    hint.innerHTML = `<h4>New Feature</h4><br/>
+        <h7>You can configure keyboard shortcuts </h7>
+        <h7> by clicking on the extension icon or </h7>
+        <h7>
+        <a style="color:blue;text-decoration:underline;cursor:pointer;"
+          onclick="chrome.runtime.sendMessage('${chrome.runtime.id}',{command: 'openOptions'})">click here</a> now</h7>`
     var hideTip = document.createElement('button');
-    hideTip.textContent = 'X';
+    hideTip.textContent = '✖';
     hideTip.title = 'Close';
     hideTip.className = 'closeButton';
     hideTip.onclick = function(){
         hintContainer.style.display = 'none';
-        setSetting('dontShowHint',true);
+        setSetting('dontShowNewHint',true);
     };
     hintContainer.appendChild(hideTip);
     hintContainer.appendChild(hint);

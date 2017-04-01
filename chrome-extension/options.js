@@ -10,6 +10,7 @@ function onload(){
     chrome.storage.sync.set({'shortcuts': default_shortcuts} )
   })
   $i('new_btn').addEventListener('click', (event) => {
+    logEvent('newShortcutLine')
     shortcutsTable.appendChild(newShortcutLine())
   })
   chrome.storage.sync.get('shortcuts', ({shortcuts}) => {
@@ -29,7 +30,6 @@ function removeShortcutLine(event){
 }
 
 function newShortcutLine(){
-  logEvent('newShortcutLine')
   const template = $i('templateKeyOption').cloneNode(true);
   template.hidden = false
   template.id = undefined
