@@ -1,13 +1,30 @@
-
-var _gaq = _gaq || [];
+const _gaq = [];
 _gaq.push(['_setAccount', 'UA-93536905-1']);
 
-(function() {
-  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-  ga.src = 'https://ssl.google-analytics.com/ga.js'; //'https://www.google-analytics.com/analytics.js'//
-  //document.body.appendChild(ga);
-  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-})();
+let optionsTabId = ""
+
+chrome.browserAction.onClicked.addListener(function(tab) {
+  if(optionsTabId){
+    chrome.tabs.get(optionsTabId, (tab) => {
+      if(tab) chrome.tabs.update(tab.id, {active: true})
+      chrome.windows.getCurrent({}, (currentWindow) => {
+        if(tab.windowId != currentWindow.id){
+          chrome.windows.update(tab.windowId, {focused: true})
+        }
+      })
+    })
+  }
+  else{
+    chrome.tabs.create({'url': chrome.extension.getURL('options.html'),
+      'selected': true}, (tab) => optionsTabId = tab.id);  
+  }
+  
+})
+
+chrome.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
+  if(optionsTabId == tabId)
+    optionsTabId = ""
+})
 
 chrome.runtime.onMessage.addListener(
     function(request) {
@@ -18,3 +35,12 @@ chrome.runtime.onMessage.addListener(
         _gaq.push(request.params);
     }
  });
+
+// GA
+
+(function() {
+  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+  ga.src = 'https://ssl.google-analytics.com/ga.js'; //'https://www.google-analytics.com/analytics.js'//
+  //document.body.appendChild(ga);
+  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+})();

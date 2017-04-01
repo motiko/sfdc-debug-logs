@@ -32,12 +32,6 @@ function inject(fn) {
     document.body.removeChild(script); // clean up
 }
 
-function sendBackUserId(){
-    if(window.UserContext){
-        window.postMessage({type: "userId", content: UserContext.userId}, "*");
-    }
-}
-
 function sendBackOrgId(){
     if(document.cookie.indexOf('oid=') > -1){
         window.postMessage({type: "orgId", content: document.cookie.substr(document.cookie.indexOf('oid=') + 4, 15)}, "*");
@@ -45,29 +39,17 @@ function sendBackOrgId(){
 }
 
 window.addEventListener("message", function(event) {
-    var userId, orgId;
-    if(event.data.type === "userId"){
-        userId = event.data.content;
-        shortcutUrl('d', "/setup/ui/listApexTraces.apexp");
-    }
     if(event.data.type === "orgId"){
-        orgId = event.data.content;
-        shortcutUrl('i', '/' + orgId);
+        shortcutUrl({key:'i', path: '/' + event.data.content});
     }
 });
-
-inject(sendBackUserId);
 inject(sendBackOrgId);
 
-shortcutUrl('s', "/_ui/platform/schema/ui/schemabuilder/SchemaBuilderUi?setupid=SchemaBuilder");
-shortcutUrl('o', "/p/setup/custent/CustomObjectsPage");
-shortcutUrl('u', "/005?setupid=ManageUsers");
-shortcutUrl('p', "/00e?setupid=EnhancedProfiles");
-shortcutUrl('c', "/01p?all_classes_page%3AtheTemplate%3AclassList%3Arowsperpage=3500");
-shortcutUrl('a', "/05G");
-shortcutUrl('t', "/setup/build/allTriggers.apexp?all_triggers_page%3AtheTemplate%3Aj_id41%3Arowsperpage=3000");
-shortcutUrl('q', "/changemgmt/listOutboundChangeSet.apexp?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DDeploy&setupid=OutboundChangeSet");
-shortcutUrl('z', "/changemgmt/listInboundChangeSet.apexp?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DDeploy&setupid=InboundChangeSet");
+chrome.storage.sync.get('shortcuts', ({shortcuts}) => {
+  shortcuts = shortcuts || default_shortcuts
+  shortcuts.forEach(shortcutUrl)
+});
+
 shortcutMethod('l', openLastLog);
 Mousetrap.bind('e', editObject);
 Mousetrap.bind('s', saveObject);
@@ -82,17 +64,17 @@ function shortcutMethod(char, method){
 }
 
 
-function shortcutUrl(char, url){
+function shortcutUrl({key, path}){
     logEvent('shortcutUrl')
-    Mousetrap.bind(['alt+shift+' + char], function(){
-        document.location.assign(url);
+    Mousetrap.bind(['alt+shift+' + key], function(){
+        document.location.assign(path);
      });
-    Mousetrap.bind(['shift+' + char], function(){
+    Mousetrap.bind(['shift+' + key], function(){
         if( document.activeElement.nodeName == "OBJECT" && 
             document.activeElement.data.indexOf('.swf') > -1){
           return;
         }
-        openInNewTab(url);
+        openInNewTab(path);
     });
 }
 
@@ -115,7 +97,7 @@ function editObject(){
 }
 
 function saveObject(){
-    logEvent('editObject')
+    logEvent('saveObject')
     var saveBtn = document.querySelector("input[name='save']");
     if(saveBtn){
         saveBtn.click();

@@ -9,7 +9,15 @@
           "128": "128.png" },
     "description": "Debug Salesforce apex code with ease",
     "background":{
-        "scripts": ["background.js"]
+        "scripts": ["background.js"],
+        "persistent": false
+    },
+    "options_ui": {
+      "page": "options.html",
+      "chrome_style": true
+    },
+    "browser_action": {
+      "default_icon": "16.png"
     },
     "content_security_policy": "script-src 'self' https://ssl.google-analytics.com; object-src 'self'",
     "content_scripts": [
@@ -43,6 +51,7 @@
                 "https://*.salesforce.com/*"
             ],
             "js": [
+                "default_shortcuts.js",
                 "mousetrap.min.js",
                 "shortcuts.js"
             ],
@@ -70,6 +79,7 @@
     ],
     "permissions": [
         "https://*.force.com/*",
-        "https://*.salesforce.com/*"
+        "https://*.salesforce.com/*",
+        "storage"
     ]
 }

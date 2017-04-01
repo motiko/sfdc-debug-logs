@@ -1,0 +1,55 @@
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Apex Debugger Options</title>
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/skeleton.css">
+  <link rel="stylesheet" href="css/options.css">
+  <link rel="icon" type="image/png" href="16.png">
+</head>
+<body>
+<div class="section">
+  <div class="container">
+      <form id="shortcutsForm">
+        <table class="u-full-width">
+          <thead>
+           <tr>
+             <th width="19%">Name</th>
+             <th width="7%">Key</th>
+             <th>Path</th>
+             <th width="5%">Remove</th>
+           </tr>
+          </thead>
+          <tbody id="shortcutsTable">
+          </tbody>
+        </table>
+      
+        <div class="row container center-content" >
+          <a id="new_btn" class="button-primary button" href="#templateKeyOption"> Add New </a>
+          <a id="save_btn" class="button-primary button" href="./options.html"> Save </a>
+          <a id="restore_defaults_btn" class="button-primary button" href="./options.html">Restore Defaults</a>
+          
+        </div>
+      </form>
+  </div>
+</div>
+<table hidden>
+  <tr id="templateKeyOption">
+    <td>
+      <input class="u-full-width val_name" type="text" title="Name" label="Name" placeholder="Accounts">
+    </td>
+    <td>
+      <input class="u-full-width val_key" type="text"  title="Key" label="Key" placeholder="a" maxlength="1" required>
+    </td>
+    <td>
+      <input class="u-full-width val_path" type="text" title="Path" label="Path" placeholder="/001" pattern="[^'\x22]*" required>
+    </td>
+    <td>
+      <a class="button-primary button remove_btn button-icon">✖</a>
+    </td>
+  </tr>
+</table>
+<script type="text/javascript" src="default_shortcuts.js"></script>
+<script type="text/javascript" src="options.js"></script>
+</body>
+</html>
