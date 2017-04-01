@@ -16,7 +16,7 @@ function openOptionsTab() {
   }
   else{
     chrome.tabs.create({'url': chrome.extension.getURL('options.html'),
-      'selected': true}, (tab) => optionsTabId = tab.id);  
+      'selected': true}, (tab) => optionsTabId = tab.id);
   }
 }
 
@@ -28,7 +28,6 @@ chrome.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
 })
 
 chrome.runtime.onMessage.addListener( (request) => {
-  console.log(request)  
   switch(request.command){
     case "openTab":
       chrome.tabs.create({url: request.url});
@@ -36,10 +35,13 @@ chrome.runtime.onMessage.addListener( (request) => {
     case "ga":
       _gaq.push(request.params);
       break
+    case "openOptionsTab":
+      openOptionsTab()
+      break
   }
  });
- 
- 
+
+
 // GA
 
 (function() {
@@ -48,6 +50,3 @@ chrome.runtime.onMessage.addListener( (request) => {
   //document.body.appendChild(ga);
   var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
 })();
-
-
-chrome.runtime.onMessageExternal.addListener(openOptionsTab)

@@ -94,7 +94,7 @@ function init(){
     oRight.insertBefore(codeBlock,oRight.firstChild);
     addControllersContainer();
     addDropDowns();
-    if(!getSetting('dontShowNewHint')){
+    if(!getSetting('dontShowNewFeature')){
         addHint();
     }
     removeIllegalIdLinks();
@@ -121,19 +121,23 @@ function addHint(){
     var hintContainer = document.createElement('div');
     hintContainer.id = 'hintContainer';
     var hint = document.createElement('span');
-    hint.innerHTML = `<h4>New Feature</h4><br/>
-        <h7>You can configure keyboard shortcuts </h7>
-        <h7> by clicking on the extension icon or </h7>
-        <h7>
-        <a style="color:blue;text-decoration:underline;cursor:pointer;"
-          onclick="chrome.runtime.sendMessage('${chrome.runtime.id}',{command: 'openOptions'})">click here</a> now</h7>`
+    hint.innerHTML = `<h4>New Apex Debugger Extension Feature</h4><br/>
+        <h7>You can configure keyboard shortcuts (Alt+Shift+d)</h7>
+        <h7> by clicking on the extension icon or </h7>`
+    let openSettings = document.createElement('a')
+    openSettings.style = "color:blue;text-decoration:underline;cursor:pointer;"
+    openSettings.onclick = () =>{
+      chrome.runtime.sendMessage({command: "openOptionsTab"});
+    }
+    openSettings.innerHTML = "Click Here"
+    hint.appendChild(openSettings)
     var hideTip = document.createElement('button');
     hideTip.textContent = '✖';
     hideTip.title = 'Close';
     hideTip.className = 'closeButton';
     hideTip.onclick = function(){
         hintContainer.style.display = 'none';
-        setSetting('dontShowNewHint',true);
+        setSetting('dontShowNewFeature',true);
     };
     hintContainer.appendChild(hideTip);
     hintContainer.appendChild(hint);

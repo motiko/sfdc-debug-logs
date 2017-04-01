@@ -1,7 +1,7 @@
 {
     "name": "Apex Debugger",
     "short_name": "Apex Debgr",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "manifest_version": 2,
     "author": "Moti Korets",
     "icons": { "16": "16.png",
@@ -81,9 +81,5 @@
         "https://*.force.com/*",
         "https://*.salesforce.com/*",
         "storage"
-    ],
-    "externally_connectable": {
-      "matches": [
-        "https://*.salesforce.com/*"]
-    }
+    ]
 }
