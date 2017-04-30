@@ -65,12 +65,12 @@ function shortcutMethod(char, method){
 
 function shortcutUrl({key, path}){
     Mousetrap.bind(['alt+shift+' + key], function(){
-        logEvent('shortcutUrl')
+        logEvent('shortcutUrl', `${key} - ${path}`)
         document.location.assign(path);
      });
     Mousetrap.bind(['shift+' + key], function(){
-        logEvent('shortcutUrl')
-        if( document.activeElement.nodeName == "OBJECT" && 
+        logEvent('shortcutUrl', `${key} - ${path}`)
+        if( document.activeElement.nodeName == "OBJECT" &&
             document.activeElement.data.indexOf('.swf') > -1){
           return;
         }
@@ -123,10 +123,11 @@ function openLastLog(inNewTab){
     });
 }
 
-function logEvent(eventName){
+function logEvent(eventName, eventLabel){
   if(typeof chrome !== "undefined"){
     let eventParams = ['_trackEvent', 'Shortcut', eventName]
-    chrome.runtime.sendMessage({command: "ga", params: eventParams});
+    if(eventLabel) eventParams.push(eventLabel)
+    chrome.runtime.sendMessage({command: "ga", params: eventParams})
   }
 }
 

@@ -1,6 +1,5 @@
-const _gaq = [];
+var _gaq = [];
 _gaq.push(['_setAccount', 'UA-93536905-1']);
-
 let optionsTabId = ""
 
 function openOptionsTab() {

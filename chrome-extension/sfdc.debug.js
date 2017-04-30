@@ -94,9 +94,9 @@ function init(){
     oRight.insertBefore(codeBlock,oRight.firstChild);
     addControllersContainer();
     addDropDowns();
-    if(!getSetting('dontShowNewFeature')){
-        addHint();
-    }
+    // if(!getSetting('dontShowNewFeature')){
+    //     addHint();
+    // }
     removeIllegalIdLinks();
     var debugElements = document.getElementsByClassName('debug');
     var userDebugDivs = toArray(debugElements);
