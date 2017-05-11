@@ -126,7 +126,7 @@ function openLastLog(inNewTab){
 function logEvent(eventName, eventLabel){
   if(typeof chrome !== "undefined"){
     let eventParams = ['_trackEvent', 'Shortcut', eventName]
-    if(eventLabel) eventParams.push(eventLabel)
+    if(eventLabel && !eventLabel.startsWith('i')) eventParams.push(eventLabel)
     chrome.runtime.sendMessage({command: "ga", params: eventParams})
   }
 }
