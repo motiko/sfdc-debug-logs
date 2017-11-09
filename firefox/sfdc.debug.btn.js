@@ -2,8 +2,6 @@
 /*global GM_xmlhttpRequest*/
 (function(){
 
-var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
-
 var userId;
 var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
 
@@ -106,9 +104,9 @@ function realDeleteAll(event){
 
     request('/services/data/v32.0/tooling/query/?q='
             + encodeURIComponent('Select Id From ApexLog'))
-        .then(function(reponseObjects){
-
-            var logIdsCsv = reponseObjects.records.map(function(logObj){
+        .then(function(reponse){
+            reponseObject = response.json()
+            var logIdsCsv = reponseObject.records.map(function(logObj){
                         return `"${logObj.Id}"`;
                     }).reduce(function(sum, id){
                         return sum + '\n' + id;
@@ -198,6 +196,7 @@ function requestLogs(){
                       `ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY `,
                         `LastModifiedDate ASC LIMIT ${showLogsNum}`].join('');
     return request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent(selectQuery))
+        .then(response => response.json())
         .then(responseObj => responseObj.records)
         .catch(function(err){
             console.log(err);
@@ -383,19 +382,20 @@ function searchLogs(){
                 id: logIdParam.split('=')[1]};
     }).filter(function(e){return e; });
     var promises = visibleLogRows.map(function(logRow){
-        return request('/services/data/v32.0/tooling/sobjects/ApexLog/' +
-                logRow.id + '/Body')
-                .then(function(rawLogContents){
-            if(searchRegex.test(rawLogContents)){
-                logRow.element.style.background = 'rgb(104, 170, 87)';
-                return true;
-            }
-            return false;
-        }).catch(function(err){
-            console.log(err);
-            document.body.style.cursor = 'default';
-            document.getElementById('LoadinImage').style.display = 'none';
-        });
+      return request('/services/data/v32.0/tooling/sobjects/ApexLog/' +
+      logRow.id + '/Body')
+      .then( response => response.text())
+      .then( rawLogContents => {
+        if(searchRegex.test(rawLogContents)){
+          logRow.element.style.background = 'rgb(104, 170, 87)';
+          return true;
+        }
+        return false;
+      }).catch(function(err){
+        console.log(err);
+        document.body.style.cursor = 'default';
+        document.getElementById('LoadinImage').style.display = 'none';
+      });
     });
     Promise.all(promises).then(function(){
         document.body.style.cursor = 'default';
@@ -454,18 +454,17 @@ function createBatch(jobId, csv){
 }
 
 function bulkRequest(url, method = 'GET', headers, body){
-    h = { ...headers,
+  return fetch(location.origin + url, {method: method, body: body,
+    headers: { ...headers,
       'X-SFDC-Session': sid
-    }
-    return fetch(location.origin + url, {method: method, body: body,
-          headers: h}).then(result => {
-            if(result.ok){
-              return result.text()
-            }else{
-              throw Error('Not OK')
-            }
-          })
-}
+    }}).then(result => {
+      if(result.ok){
+        return result.text()
+      }else{
+        throw Error('Not OK')
+      }
+    })
+  }
 
 function logEvent(eventName){
   if(typeof browser !== "undefined"){
@@ -475,15 +474,15 @@ function logEvent(eventName){
 }
 
 function request(url, method = 'GET'){
-    return fetch(location.origin + url, {method: method,
-      headers: {'Authorization': 'Bearer ' + sid}
-    }).then(result => {
-      if(result.ok){
-        return result.json()
-      }else{
-        throw Error('Not OK')
-      }
-    })
+  return fetch(location.origin + url, {method: method,
+    headers: {'Authorization': 'Bearer ' + sid}
+  }).then(result => {
+    if(result.ok){
+      return result
+    }else{
+      throw Error('Not OK')
+    }
+  })
 }
 
 function escapeRegExp(str) {
