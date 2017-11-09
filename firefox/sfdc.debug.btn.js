@@ -106,8 +106,8 @@ function realDeleteAll(event){
 
     request('/services/data/v32.0/tooling/query/?q='
             + encodeURIComponent('Select Id From ApexLog'))
-        .then(function(result){
-            var reponseObjects = JSON.parse(result);
+        .then(function(reponseObjects){
+
             var logIdsCsv = reponseObjects.records.map(function(logObj){
                         return `"${logObj.Id}"`;
                     }).reduce(function(sum, id){
@@ -198,9 +198,8 @@ function requestLogs(){
                       `ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY `,
                         `LastModifiedDate ASC LIMIT ${showLogsNum}`].join('');
     return request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent(selectQuery))
-        .then(function(rawResult){
-            return JSON.parse(rawResult).records;
-        }).catch(function(err){
+        .then(responseObj => responseObj.records)
+        .catch(function(err){
             console.log(err);
         });
 }
@@ -279,7 +278,7 @@ function addCurrentUser(event){
     const logLevelName = "ApexDebugger"
     const headers = {"Content-Type": 'application/json; charset=UTF-8', "Authorization": 'Bearer ' + sid,
         "Accept": "*/*"}
-    const query = encodeURI("Select Id From DebugLevel Where DeveloperName = '" + logLevelName + "'")  
+    const query = encodeURI("Select Id From DebugLevel Where DeveloperName = '" + logLevelName + "'")
     var debugLevelPayload =  {DeveloperName: logLevelName,MasterLabel: logLevelName,
       Workflow: 'DEBUG', Validation: 'DEBUG', Callout: 'DEBUG',
         ApexCode: 'DEBUG', ApexProfiling: 'DEBUG', Visualforce: 'DEBUG',
@@ -291,7 +290,7 @@ function addCurrentUser(event){
             return existingDebugLevel.records[0].Id
           }else{
             return fetch('/services/data/v36.0/tooling/sobjects/DebugLevel',{ method: 'POST',
-                  headers, 
+                  headers,
                   body: JSON.stringify(debugLevelPayload)}).then(res => res.json().then( result => result.id))
           }
       }).then(dlId => {
@@ -454,98 +453,37 @@ function createBatch(jobId, csv){
                });
 }
 
-function bulkRequest(url, method, headers, body){
-    method = method || 'GET';
-    if(typeof GM_xmlhttpRequest === "function"){
-        return new Promise(function(fulfill, reject){
-            GM_xmlhttpRequest({
-                method: method,
-                url: url,
-                headers: _extends({}, headers, {
-                        'X-SFDC-Session': sid
-                    }),
-                data: body,
-                onload: function(response){
-                    if( response.status.toString().indexOf('2') === 0){
-                        fulfill(response.response);
-                    }else{
-                        reject(Error(response.statusText));
-                    }
-                },
-                onerror: function(){
-                    reject(Error("Network Error"));
-                }
-            });
-        });
+function bulkRequest(url, method = 'GET', headers, body){
+    h = { ...headers,
+      'X-SFDC-Session': sid
     }
-    return new Promise(function(fulfill, reject){
-        var xhr = new XMLHttpRequest();
-        xhr.open(method, url);
-        xhr.onload = function(){
-            if( xhr.status.toString().indexOf('2') === 0){
-                fulfill(xhr.response);
+    return fetch(location.origin + url, {method: method, body: body,
+          headers: h}).then(result => {
+            if(result.ok){
+              return result.text()
             }else{
-                reject(Error(xhr.statusText));
+              throw Error('Not OK')
             }
-        };
-        xhr.onerror = function(){
-            reject(Error("Network Error"));
-        };
-        xhr.setRequestHeader('X-SFDC-Session', sid);
-        for(var header in headers){
-            xhr.setRequestHeader(header, headers[header]);
-        }
-        xhr.send(body);
-    });
+          })
 }
 
 function logEvent(eventName){
-  if(typeof chrome !== "undefined"){
+  if(typeof browser !== "undefined"){
     let eventParams = ['_trackEvent', 'LogsList', eventName]
-    chrome.runtime.sendMessage({command: "ga", params: eventParams});
+    browser.runtime.sendMessage({command: "ga", params: eventParams});
   }
 }
 
-function request(url, method){
-    method = method || 'GET';
-    if(typeof GM_xmlhttpRequest === "function"){
-        return new Promise(function(fulfill, reject){
-            GM_xmlhttpRequest({
-                method: method,
-                url: url,
-                headers: {
-                    Authorization: 'Bearer ' + sid,
-                    Accept: '*/*'
-                },
-                onload: function(response){
-                    if( response.status.toString().indexOf('2') === 0){
-                        fulfill(response.response);
-                    }else{
-                        reject(Error(response.statusText));
-                    }
-                },
-                onerror: function(){
-                    reject(Error("Network Error"));
-                }
-            });
-        });
-    }
-    return new Promise(function(fulfill, reject){
-        var xhr = new XMLHttpRequest();
-        xhr.open(method, url);
-        xhr.onload = function(){
-            if( xhr.status.toString().indexOf('2') === 0){
-                fulfill(xhr.response);
-            }else{
-                reject(Error(xhr.statusText));
-            }
-        };
-        xhr.onerror = function(){
-            reject(Error("Network Error"));
-        };
-        xhr.setRequestHeader('Authorization', 'Bearer ' + sid);
-        xhr.send();
-    });
+function request(url, method = 'GET'){
+    return fetch(location.origin + url, {method: method,
+      headers: {'Authorization': 'Bearer ' + sid}
+    }).then(result => {
+      if(result.ok){
+        return result.json()
+      }else{
+        throw Error('Not OK')
+      }
+    })
 }
 
 function escapeRegExp(str) {

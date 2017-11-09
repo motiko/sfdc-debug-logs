@@ -8,13 +8,13 @@ function onload(){
   $i('save_btn').addEventListener('click', save)
   $i('restore_defaults_btn').addEventListener('click', (event) => {
     logEvent('restoreDefaults')
-    chrome.storage.sync.set({'shortcuts': default_shortcuts} )
+    browser.storage.sync.set({'shortcuts': default_shortcuts} )
   })
   $i('new_btn').addEventListener('click', (event) => {
     logEvent('newShortcutLine')
     shortcutsTable.appendChild(newShortcutLine())
   })
-  chrome.storage.sync.get('shortcuts', ({shortcuts}) => {
+  browser.storage.sync.get('shortcuts', ({shortcuts}) => {
     const shortcutLines = buildShortcuts(shortcuts)
     for(line of shortcutLines){
       shortcutsTable.appendChild(line)
@@ -70,7 +70,7 @@ function save(event){
        }
   }
   const shortcuts = [...document.getElementById('shortcutsTable').children]
-  chrome.storage.sync.set({'shortcuts': shortcuts.map(toSetting)} )
+  browser.storage.sync.set({'shortcuts': shortcuts.map(toSetting)} )
 }
 
 function remove(event) {
@@ -81,5 +81,5 @@ function remove(event) {
 
 function logEvent(eventName){
   let eventParams = ['_trackEvent', 'Options', eventName]
-  chrome.runtime.sendMessage({command: "ga", params: eventParams});
+  browser.runtime.sendMessage({command: "ga", params: eventParams});
 }

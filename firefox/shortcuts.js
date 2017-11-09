@@ -45,7 +45,7 @@ window.addEventListener("message", function(event) {
 });
 inject(sendBackOrgId);
 
-chrome.storage.sync.get('shortcuts', ({shortcuts = default_shortcuts}) => {
+browser.storage.sync.get('shortcuts', ({shortcuts = default_shortcuts}) => {
   shortcuts.forEach(shortcutUrl)
 });
 
@@ -81,8 +81,8 @@ function shortcutUrl({key, path}){
 function openInNewTab(url){
     if(typeof GM_openInTab === 'function'){
         GM_openInTab(location.origin + url);
-    }else if(typeof chrome !== "undefined"){
-        chrome.runtime.sendMessage({url: `${location.protocol}//${location.host}${url}`, command: "openTab"});
+    }else if(typeof browser !== "undefined"){
+        browser.runtime.sendMessage({url: `${location.protocol}//${location.host}${url}`, command: "openTab"});
     }else{
         window.open(url, '_blank');
     }
@@ -124,10 +124,10 @@ function openLastLog(inNewTab){
 }
 
 function logEvent(eventName, eventLabel){
-  if(typeof chrome !== "undefined"){
+  if(typeof browser !== "undefined"){
     let eventParams = ['_trackEvent', 'Shortcut', eventName]
     if(eventLabel && !eventLabel.startsWith('i')) eventParams.push(eventLabel)
-    chrome.runtime.sendMessage({command: "ga", params: eventParams})
+    browser.runtime.sendMessage({command: "ga", params: eventParams})
   }
 }
 

@@ -127,7 +127,7 @@ function addHint(){
     let openSettings = document.createElement('a')
     openSettings.style = "color:blue;text-decoration:underline;cursor:pointer;"
     openSettings.onclick = () =>{
-      chrome.runtime.sendMessage({command: "openOptionsTab"});
+      browser.runtime.sendMessage({command: "openOptionsTab"});
     }
     openSettings.innerHTML = "Click Here"
     hint.appendChild(openSettings)
@@ -577,9 +577,9 @@ function contains(searchString){
 }
 
 function logEvent(eventName){
-  if(typeof chrome !== "undefined"){
+  if(typeof browser !== "undefined"){
     let eventParams = ['_trackEvent', 'LogView', eventName]
-    chrome.runtime.sendMessage({command: "ga", params: eventParams});
+    browser.runtime.sendMessage({command: "ga", params: eventParams});
   }
 }
 

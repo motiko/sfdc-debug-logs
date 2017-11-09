@@ -4,32 +4,32 @@ let optionsTabId = ""
 
 function openOptionsTab() {
   if(optionsTabId){
-    chrome.tabs.get(optionsTabId, (tab) => {
-      if(tab) chrome.tabs.update(tab.id, {active: true})
-      chrome.windows.getCurrent({}, (currentWindow) => {
+    browser.tabs.get(optionsTabId, (tab) => {
+      if(tab) browser.tabs.update(tab.id, {active: true})
+      browser.windows.getCurrent({}, (currentWindow) => {
         if(tab.windowId != currentWindow.id){
-          chrome.windows.update(tab.windowId, {focused: true})
+          browser.windows.update(tab.windowId, {focused: true})
         }
       })
     })
   }
   else{
-    chrome.tabs.create({'url': chrome.extension.getURL('options.html'),
+    browser.tabs.create({'url': browser.extension.getURL('options.html'),
       'selected': true}, (tab) => optionsTabId = tab.id);
   }
 }
 
-chrome.browserAction.onClicked.addListener(openOptionsTab)
+browser.browserAction.onClicked.addListener(openOptionsTab)
 
-chrome.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
+browser.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
   if(optionsTabId == tabId)
     optionsTabId = ""
 })
 
-chrome.runtime.onMessage.addListener( (request) => {
+browser.runtime.onMessage.addListener( (request) => {
   switch(request.command){
     case "openTab":
-      chrome.tabs.create({url: request.url});
+      browser.tabs.create({url: request.url});
       break
     case "ga":
       _gaq.push(request.params);

@@ -134,9 +134,9 @@ function toArray(nodeList){
 }
 
 function logEvent(eventName){
-  if(typeof chrome !== "undefined"){
+  if(typeof browser !== "undefined"){
     let eventParams = ['_trackEvent', 'Classes', eventName]
-    chrome.runtime.sendMessage({command: "ga", params: eventParams});
+    browser.runtime.sendMessage({command: "ga", params: eventParams});
   }
 }
 
