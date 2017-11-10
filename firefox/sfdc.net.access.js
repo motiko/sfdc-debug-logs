@@ -67,28 +67,6 @@ function addIp(ipPrefix){
 
 function request(url,method){
     method = method || 'GET';
-    if(typeof GM_xmlhttpRequest === "function"){
-        return new Promise(function(fulfill,reject){
-            GM_xmlhttpRequest({
-                method:method,
-                url:url,
-                headers:{
-                    Authorization:'Bearer ' + sid,
-                    Accept:'*/*'
-                },
-                onload:function(response){
-                    if( response.status.toString().indexOf('2') === 0){
-                        fulfill(response.response);
-                    }else{
-                        reject(Error(response.statusText));
-                    }
-                },
-                onerror:function(response){
-                    rejected(Error("Network Error"));
-                }
-            });
-        });
-    }
     return new Promise(function(fulfill,reject){
         var xhr = new XMLHttpRequest();
         xhr.open(method,url);

@@ -79,9 +79,7 @@ function shortcutUrl({key, path}){
 }
 
 function openInNewTab(url){
-    if(typeof GM_openInTab === 'function'){
-        GM_openInTab(location.origin + url);
-    }else if(typeof browser !== "undefined"){
+    if(typeof browser !== "undefined"){
         browser.runtime.sendMessage({url: `${location.protocol}//${location.host}${url}`, command: "openTab"});
     }else{
         window.open(url, '_blank');
@@ -133,28 +131,6 @@ function logEvent(eventName, eventLabel){
 
 function request(url, method){
     method = method || 'GET';
-    if(typeof GM_xmlhttpRequest === "function"){
-        return new Promise(function(fulfill, reject){
-            GM_xmlhttpRequest({
-                method: method,
-                url: url,
-                headers: {
-                    Authorization: 'Bearer ' + sid,
-                    Accept: '*/*'
-                },
-                onload: function(response){
-                    if( response.status.toString().indexOf('2') === 0){
-                        fulfill(response.response);
-                    }else{
-                        reject(Error(response.statusText));
-                    }
-                },
-                onerror: function(){
-                    rejected(Error("Network Error"));
-                }
-            });
-        });
-    }
     return new Promise(function(fulfill, reject){
         var xhr = new XMLHttpRequest();
         xhr.open(method, url);

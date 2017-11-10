@@ -1,10 +1,5 @@
 (function(){
 
-if(typeof GM_getResourceText === "function"){
-    var debug_css = GM_getResourceText("debug_css");
-    GM_addStyle(debug_css);
-}
-
 var selectedText,
     currentResult,
     maxResult,
@@ -61,28 +56,17 @@ var selectedText,
     ];
 
 function setSetting(key,value){
-    if(typeof GM_setValue === "function"){
-        GM_setValue(key,value);
-    }else{
-        localStorage.setItem(key,value);
-    }
+    localStorage.setItem(key,value);
 }
 
 function getSetting(key){
-    if(typeof GM_getValue === "function"){
-        if(GM_getValue(key) === undefined)
-            return false;
-        return GM_getValue(key);
-    }else{
-        return localStorage.getItem(key);
-    }
+    return localStorage.getItem(key);
 }
 
 init();
 
 function init(){
     document.body.addEventListener('keyup',keyUpListener);
-    //document.body.addEventListener('mouseup',searchSelectedText);
     var codeElement = document.querySelector('pre');
     var debugText = escapeHtml(codeElement.textContent);
     var res = debugText.split('\n').map(addTagsToKnownLines);
@@ -94,9 +78,6 @@ function init(){
     oRight.insertBefore(codeBlock,oRight.firstChild);
     addControllersContainer();
     addDropDowns();
-    // if(!getSetting('dontShowNewFeature')){
-    //     addHint();
-    // }
     removeIllegalIdLinks();
     var debugElements = document.getElementsByClassName('debug');
     var userDebugDivs = toArray(debugElements);
@@ -115,33 +96,6 @@ function addControllersContainer(){
 
 function toArray(elemntList){
     return [].slice.call(elemntList);
-}
-
-function addHint(){
-    var hintContainer = document.createElement('div');
-    hintContainer.id = 'hintContainer';
-    var hint = document.createElement('span');
-    hint.innerHTML = `<h4>New Apex Debugger Extension Feature</h4><br/>
-        <h7>You can configure keyboard shortcuts (Alt+Shift+d)</h7>
-        <h7> by clicking on the extension icon or </h7>`
-    let openSettings = document.createElement('a')
-    openSettings.style = "color:blue;text-decoration:underline;cursor:pointer;"
-    openSettings.onclick = () =>{
-      browser.runtime.sendMessage({command: "openOptionsTab"});
-    }
-    openSettings.innerHTML = "Click Here"
-    hint.appendChild(openSettings)
-    var hideTip = document.createElement('button');
-    hideTip.textContent = '✖';
-    hideTip.title = 'Close';
-    hideTip.className = 'closeButton';
-    hideTip.onclick = function(){
-        hintContainer.style.display = 'none';
-        setSetting('dontShowNewFeature',true);
-    };
-    hintContainer.appendChild(hideTip);
-    hintContainer.appendChild(hint);
-    addToTop(hintContainer);
 }
 
 function addDropDowns(){
@@ -200,7 +154,6 @@ function generateStyleSelect(){
         dropDown.appendChild(opt);
     });
     dropDown.onchange = function(event){
-        logEvent('changeStyle')
         document.querySelector('#debugText').className = this.value;
         setSetting('style',this.value);
     };
@@ -229,7 +182,6 @@ function addCheckboxes(){
 }
 
 function toggleTimestamp(){
-    logEvent(toggleTimestamp)
     var oldValue = JSON.parse(getSetting('showTimeStamp'));
     setSetting('showTimeStamp',!oldValue);
     document.location.reload();
@@ -245,7 +197,6 @@ function addCollapseAllButton(){
 }
 
 function colapseAll(){
-    logEvent('colapseAll')
     toArray(document.querySelectorAll('.expandUserDebugBtn.collapsed')).forEach(function(button){
         setTimeout(expandUserDebug.bind(button),0);
     });
@@ -268,25 +219,7 @@ function addController(controller){
 }
 
 function keyUpListener(event){
-    /*if(event.keyCode  == 70){ // 'f'
-        if(currentResult === undefined || currentResult === maxResult){
-            currentResult = -1;
-        }
-        currentResult++;
-        goToResult(currentResult);
-    }
-    else if(event.keyCode  == 66){ // 'b'
-        if(currentResult === undefined || currentResult === 0){
-            currentResult = maxResult + 1;
-        }
-        currentResult--;
-        goToResult(currentResult);
-    }
-    else*/
-    if(event.keyCode  == 27){ // 'esc'
-        removeHighlightingOfSearchResults();
-    }
-    else if(event.keyCode  == 85){ // 'u'
+    if(event.keyCode  == 85){ // 'u'
         clickOn(document.querySelector('#showUserMethod'));
     }
     else if(event.keyCode  == 83){ // 's'
@@ -306,84 +239,10 @@ function clickOn(nodeElement){
     nodeElement.dispatchEvent(event, true);
 }
 
-function goToResult(resultNum){
-    document.location.replace('#result' + resultNum);
-    document.body.addEventListener('keyup',keyUpListener);
-    var previouslySelectdElement = document.querySelector('.currentResult');
-    if(previouslySelectdElement){
-        previouslySelectdElement.classList.remove('currentResult');
-    }
-    document.querySelector('span.highlightSearchResult[data-number="' + resultNum + '"]')
-            .classList.add('currentResult');
-}
-
-function removeHighlightingOfSearchResults(){
-    currentResult = 0;
-    maxResult = 0;
-    toArray(document.querySelectorAll('.highlightSearchResult') ).forEach(function(span){
-        var highlightedText = span.textContent;
-        var textNode = document.createTextNode(highlightedText);
-        span.parentElement.insertBefore(textNode,span);
-        span.parentElement.removeChild(span);
-    });
-    toArray(document.querySelectorAll('.searchResultAnchor') ).forEach(function(a){
-        a.parentElement.removeChild(a);
-    });
-}
-
-function searchSelectedText(event){
-    if(event.button == 2 || !event.altKey){
-        return;
-    }
-    selectedText = document.getSelection().toString();
-    removeHighlightingOfSearchResults();
-    if(!selectedText){
-        currentResult = 0;
-        maxResult = 0;
-        return;
-    }
-    selectedText = escapeHtml(selectedText);
-    var searchableElements = toArray(document.querySelectorAll('#debugText .searchable') );
-    var resultNum =0 ;
-    searchableElements.filter(notHidden).filter(contains(selectedText)).forEach(function(div){
-        var regExp = new RegExp(escapeRegExp(selectedText),'gi');
-        div.innerHTML = div.textContent.replace(regExp,function(match){
-            var resultString = '<a name="result' + resultNum +
-             '" class="searchResultAnchor" data-number="' +
-             resultNum + '"></a><span class="highlightSearchResult" data-number="' + resultNum + '">' +
-             match +'</span>';
-            resultNum++;
-            return resultString;
-        });
-        div.innerHTML = div.innerHTML.replace(idRegex,withLegalIdLink);
-        maxResult = resultNum-1;
-    });
-    markNearestSearchResult();
-}
-
 function notHidden(element){
     return element.offsetParent  !== null;
 }
 
-function markNearestSearchResult(){
-    var visibleSearchResults =  toArray(document.querySelectorAll('.searchResultAnchor'))
-                                .filter(isVisibleElement);
-    if(visibleSearchResults.length > 0){
-        var mouseY = event.clientY;
-        var closest = visibleSearchResults.map(function(anchor){
-            var anchorY = anchor.getBoundingClientRect().top;
-            return {element: anchor,distance:Math.abs(mouseY - anchorY)};
-        }).reduce(function(found,current){
-            if(current.distance < found.distance){
-                return current;
-            }
-            return found;
-        });
-        currentResult = parseInt(closest.element.dataset.number,10);
-        document.querySelector('span.highlightSearchResult[data-number="' + currentResult + '"]')
-            .classList.add('currentResult');
-    }
-}
 
 function isVisibleElement(element){
     return element.getBoundingClientRect().top >= 0;
@@ -394,17 +253,17 @@ function addExpnasionButtonsForUserDebugDivs(userDebugDiv){
     if(!debugLevel) return;
     debugLevel = debugLevel[1];
     var debugParts = userDebugDiv.innerHTML.split(debugLevel);
-    userDebugDiv.innerHTML = '<span class="debugHeader searchable">' +
-            debugParts[0] +  debugLevel +'</span> <span class="debugContent searchable">' +
-            debugParts[1] + '</span>';
+    debugger
     var debugText = unescapeHtml(debugParts[1]);
+
+    debugTextParentObj = document.getElementById("debugText")
     if(looksLikeHtml(debugText) || looksLikeSfdcObject(debugText) || isJsonString(debugText)){
         var buttonExpand = document.createElement('button');
         buttonExpand.onclick = expandUserDebug;
         buttonExpand.onmouseup = haltEvent;
         buttonExpand.className = 'expandUserDebugBtn collapsed myButton';
         buttonExpand.textContent = '+';
-        userDebugDiv.insertBefore(buttonExpand,userDebugDiv.children[0]);
+        debugTextParentObj.insertBefore(buttonExpand,userDebugDiv);
     }
 }
 
@@ -487,10 +346,10 @@ function toogleHidden(className){
 }
 
 function expandUserDebug(){
-    logEvent('expandUserDebug')
-    var debugNode = this.nextElementSibling.nextElementSibling;
+    var debugNode = this.nextElementSibling;
     var  oldHtmlVal =  debugNode.innerHTML;
     var debugNodeText = debugNode.textContent;
+    debugger
     if(looksLikeHtml(debugNodeText)){
         debugNode.textContent  = html_beautify(debugNodeText);
     }else if(looksLikeSfdcObject(debugNodeText)){
@@ -576,38 +435,8 @@ function contains(searchString){
     };
 }
 
-function logEvent(eventName){
-  if(typeof browser !== "undefined"){
-    let eventParams = ['_trackEvent', 'LogView', eventName]
-    browser.runtime.sendMessage({command: "ga", params: eventParams});
-  }
-}
-
-
 function request(url,method){
     method = method || 'GET';
-    if(typeof GM_xmlhttpRequest === "function"){
-        return new Promise(function(fulfill,reject){
-            GM_xmlhttpRequest({
-                method:method,
-                url:url,
-                headers:{
-                    Authorization:'Bearer ' + sid,
-                    Accept:'*/*'
-                },
-                onload:function(response){
-                    if( response.status.toString().indexOf('2') === 0){
-                        fulfill(response.response);
-                    }else{
-                        reject(Error(response.statusText));
-                    }
-                },
-                onerror:function(response){
-                    rejected(Error("Network Error"));
-                }
-            });
-        });
-    }
     return new Promise(function(fulfill,reject){
         var xhr = new XMLHttpRequest();
         xhr.open(method,url);

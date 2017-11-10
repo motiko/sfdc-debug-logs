@@ -1,5 +1,4 @@
 /*eslint new-cap:0*/
-/*global GM_xmlhttpRequest*/
 (function(){
 
 var userId;

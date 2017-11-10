@@ -142,30 +142,6 @@ function logEvent(eventName){
 
 function request(url,method,body,contentType){
     method = method || 'GET';
-    if(typeof GM_xmlhttpRequest === "function"){
-        return new Promise(function(fulfill,reject){
-            GM_xmlhttpRequest({
-                method:method,
-                data: body,
-                url:url,
-                headers:{
-                    Authorization:'Bearer ' + sid,
-                    'Content-Type': contentType,
-                    Accept:'*/*'
-                },
-                onload:function(response){
-                    if( response.status.toString().indexOf('2') === 0){
-                        fulfill(response.response);
-                    }else{
-                        reject(response.statusText);
-                    }
-                },
-                onerror:function(response){
-                    reject(Error("Network Error"));
-                }
-            });
-        });
-    }
     return new Promise(function(fulfill,reject){
         var xhr = new XMLHttpRequest();
         xhr.open(method,url);
