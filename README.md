@@ -36,7 +36,7 @@ Keyboard Chortcuts
 Ommit the Alt key to open in new tab. (e.g _Shift+d_)
 
 
-User Scripts (Not updated)
+Standalone User Scripts (Not updated)
 -----------------------------
 
 GreaseMonkey scripts on [openuserjs](https://openuserjs.org/users/motiko/scripts)
