@@ -65,11 +65,9 @@ function shortcutMethod(char, method){
 
 function shortcutUrl({key, path}){
     Mousetrap.bind(['alt+shift+' + key], function(){
-        logEvent('shortcutUrl', `${key} - ${path}`)
         document.location.assign(path);
      });
     Mousetrap.bind(['shift+' + key], function(){
-        logEvent('shortcutUrl', `${key} - ${path}`)
         if( document.activeElement.nodeName == "OBJECT" &&
             document.activeElement.data.indexOf('.swf') > -1){
           return;
@@ -87,7 +85,6 @@ function openInNewTab(url){
 }
 
 function editObject(){
-    logEvent('editObject')
     var editBtn = document.querySelector("input[name='edit']");
     if(editBtn){
         editBtn.click();
@@ -95,7 +92,6 @@ function editObject(){
 }
 
 function saveObject(){
-    logEvent('saveObject')
     var saveBtn = document.querySelector("input[name='save']");
     if(saveBtn){
         saveBtn.click();
@@ -104,7 +100,6 @@ function saveObject(){
 
 
 function openLastLog(inNewTab){
-    logEvent('openLastLog')
     if(!sid){
         return;
     }
@@ -119,14 +114,6 @@ function openLastLog(inNewTab){
             }
         }
     });
-}
-
-function logEvent(eventName, eventLabel){
-  if(typeof browser !== "undefined"){
-    let eventParams = ['_trackEvent', 'Shortcut', eventName]
-    if(eventLabel && !eventLabel.startsWith('i')) eventParams.push(eventLabel)
-    browser.runtime.sendMessage({command: "ga", params: eventParams})
-  }
 }
 
 function request(url, method){

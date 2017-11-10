@@ -3,15 +3,12 @@ const $i = document.getElementById.bind(document)
 onload()
 
 function onload(){
-  logEvent('visitedOptions')
   const shortcutsTable = $i('shortcutsTable')
   $i('save_btn').addEventListener('click', save)
   $i('restore_defaults_btn').addEventListener('click', (event) => {
-    logEvent('restoreDefaults')
     browser.storage.sync.set({'shortcuts': default_shortcuts} )
   })
   $i('new_btn').addEventListener('click', (event) => {
-    logEvent('newShortcutLine')
     shortcutsTable.appendChild(newShortcutLine())
   })
   browser.storage.sync.get('shortcuts', ({shortcuts}) => {
@@ -49,7 +46,6 @@ function buildShortcuts(shortcuts = default_shortcuts){
 }
 
 function save(event){
-  logEvent('save')
   const form = $i('shortcutsForm')
   if(!form.checkValidity()){
     const targetClassList = event.target.classList
@@ -74,12 +70,6 @@ function save(event){
 }
 
 function remove(event) {
-  logEvent('remove')
   const tr = event.target.parentNode.parentNode
   tr.parentNode.removeChild(tr)
-}
-
-function logEvent(eventName){
-  let eventParams = ['_trackEvent', 'Options', eventName]
-  browser.runtime.sendMessage({command: "ga", params: eventParams});
 }

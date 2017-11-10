@@ -17,7 +17,6 @@ function addButton(){
         seeAllClasses.className = 'btn';
         seeAllClasses.type = 'button';
         seeAllClasses.onclick = function(){
-            logEvent('seeAllClasses')
             if(location.search.indexOf('rowsperpage=') > -1){
                 window.location.search = 'setupid=ApexClasses&' + encodeURIComponent(classesRowsPerPageParameter) + '=3500';
             }
@@ -33,7 +32,6 @@ function addButton(){
         seeAllTriggers.className = 'btn';
         seeAllTriggers.type = 'button';
         seeAllTriggers.onclick = function(){
-            logEvent('seeAllTriggers')
             if(location.search.indexOf('rowsperpage=') > -1){
                 window.location.search = 'setupid=ApexClasses&' + encodeURIComponent(triggersRowsPerPageParameter) + '=3500';
             }
@@ -52,7 +50,6 @@ function addHeader(){
     var selectAll = document.createElement('input');
     selectAll.type = 'checkbox';
     selectAll.onclick = function(event){
-        logEvent('selectAll')
         var checkedStatus = this.checked;
         toArray(document.querySelectorAll('.dontLog')).forEach(function(cbDontLog){
             if(cbDontLog.checked != checkedStatus){
@@ -99,7 +96,6 @@ function addCheckbox(row,cell){
 }
 
 function toggleTraceFlag(event){
-    logEvent('toggleTraceFlag')
     var noLog = {Workflow: 'NONE',Validation: 'NONE',Callout: 'NONE',ApexCode: 'NONE',ApexProfiling: 'NONE',Visualforce: 'NONE',System: 'NONE',Database: 'NONE'};
     var checkbox = this;
     var classId = checkbox.dataset.classId;
@@ -131,13 +127,6 @@ function toggleTraceFlag(event){
 
 function toArray(nodeList){
     return [].slice.call(nodeList);
-}
-
-function logEvent(eventName){
-  if(typeof browser !== "undefined"){
-    let eventParams = ['_trackEvent', 'Classes', eventName]
-    browser.runtime.sendMessage({command: "ga", params: eventParams});
-  }
 }
 
 function request(url,method,body,contentType){

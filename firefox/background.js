@@ -1,5 +1,3 @@
-var _gaq = [];
-_gaq.push(['_setAccount', 'UA-93536905-1']);
 let optionsTabId = ""
 
 function openOptionsTab() {
@@ -29,23 +27,10 @@ browser.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
 browser.runtime.onMessage.addListener( (request) => {
   switch(request.command){
     case "openTab":
-      browser.tabs.create({url: request.url});
-      break
-    case "ga":
-      _gaq.push(request.params);
+      browser.tabs.create({url: request.url})
       break
     case "openOptionsTab":
       openOptionsTab()
       break
   }
  });
-
-
-// GA
-
-(function() {
-  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-  ga.src = 'https://ssl.google-analytics.com/ga.js'; //'https://www.google-analytics.com/analytics.js'//
-  //document.body.appendChild(ga);
-  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-})();
