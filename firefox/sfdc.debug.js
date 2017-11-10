@@ -253,9 +253,11 @@ function addExpnasionButtonsForUserDebugDivs(userDebugDiv){
     if(!debugLevel) return;
     debugLevel = debugLevel[1];
     var debugParts = userDebugDiv.innerHTML.split(debugLevel);
-    debugger
     var debugText = unescapeHtml(debugParts[1]);
-
+    userDebugDiv.innerText = debugParts[0] + debugLevel
+    userDebugExapndable = document.createElement('span')
+    userDebugExapndable.innerHTML = debugText
+    userDebugDiv.appendChild(userDebugExapndable)
     debugTextParentObj = document.getElementById("debugText")
     if(looksLikeHtml(debugText) || looksLikeSfdcObject(debugText) || isJsonString(debugText)){
         var buttonExpand = document.createElement('button');
@@ -346,10 +348,9 @@ function toogleHidden(className){
 }
 
 function expandUserDebug(){
-    var debugNode = this.nextElementSibling;
+    var debugNode = this.nextElementSibling.lastChild;
     var  oldHtmlVal =  debugNode.innerHTML;
     var debugNodeText = debugNode.textContent;
-    debugger
     if(looksLikeHtml(debugNodeText)){
         debugNode.textContent  = html_beautify(debugNodeText);
     }else if(looksLikeSfdcObject(debugNodeText)){
@@ -436,22 +437,15 @@ function contains(searchString){
 }
 
 function request(url,method){
-    method = method || 'GET';
-    return new Promise(function(fulfill,reject){
-        var xhr = new XMLHttpRequest();
-        xhr.open(method,url);
-        xhr.onload = function(){
-            if( xhr.status.toString().indexOf('2') === 0){
-                fulfill(xhr.response);
-            }else{
-                reject(Error(xhr.statusText));
-            }
-        };
-        xhr.onerror = function(){
-            rejected(Error("Network Error"));
-        };
-        xhr.setRequestHeader('Authorization','Bearer ' + sid);
-        xhr.send();
-    });
+  return fetch(location.origin + url, {method: method,
+    headers: {'Authorization': 'Bearer ' + sid}
+  }).then(result => {
+    if(result.ok){
+      return result
+    }else{
+      throw Error('Not OK')
+    }
+  })
 }
+
 })();

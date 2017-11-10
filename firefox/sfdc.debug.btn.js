@@ -454,9 +454,9 @@ function createBatch(jobId, csv){
 
 function bulkRequest(url, method = 'GET', headers, body){
   return fetch(location.origin + url, {method: method, body: body,
-    headers: { ...headers,
+    headers: Objcet.assign({
       'X-SFDC-Session': sid
-    }}).then(result => {
+    },headers)}).then(result => {
       if(result.ok){
         return result.text()
       }else{
