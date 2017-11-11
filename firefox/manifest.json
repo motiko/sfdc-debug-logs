@@ -1,4 +1,4 @@
-{
+beautify/1.7.4/beautify.min.js{
     "name": "Apex Debugger",
     "short_name": "Apex Debgr",
     "version": "0.4.5",
@@ -28,9 +28,9 @@
                 "https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*"
             ],
             "js": [
-                "js/mousetrap.min.js",
-                "js/beautify.js",
-                "js/beautify-html.js",
+                "js/lib/mousetrap/1.6.1/mousetrap.min.js",
+                "js/beautify/1.7.4/beautify.min.js",
+                "js/beautify/1.7.4/beautify-html.min.js",
                 "js/sfdc.debug.js"
             ],
             "run_at": "document_end"
@@ -51,7 +51,7 @@
             ],
             "js": [
                 "js/default_shortcuts.js",
-                "js/mousetrap.min.js",
+                "js/lib/mousetrap/1.6.1/mousetrap.min.js",
                 "js/shortcuts.js"
             ],
             "run_at": "document_end"
