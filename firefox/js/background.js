@@ -12,8 +12,8 @@ function openOptionsTab() {
     })
   }
   else{
-    browser.tabs.create({'url': browser.extension.getURL('options.html'),
-      'selected': true}, (tab) => optionsTabId = tab.id);
+    browser.tabs.create({'url': browser.extension.getURL('html/options.html'),
+      'active': true}, (tab) => optionsTabId = tab.id);
   }
 }
 

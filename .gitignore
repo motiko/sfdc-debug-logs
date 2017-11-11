@@ -1,6 +1,6 @@
-chromeApp
 *.zip
 *.pem
-fonts/
 mm.log
 .DS_store
+web-ext-artifacts
+tmp
