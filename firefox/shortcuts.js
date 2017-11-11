@@ -103,10 +103,10 @@ function openLastLog(inNewTab){
     if(!sid){
         return;
     }
-    request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent('SELECT Id,LastModifiedDate,StartTime,Status,SystemModstamp FROM ApexLog ORDER BY LastModifiedDate DESC Limit 1')).then(function(result){
-        var reponseObj = JSON.parse(result);
-        if(reponseObj.records && reponseObj.records.length > 0){
-            var url = '/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=' + reponseObj.records[0].Id;
+    request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent('SELECT Id,LastModifiedDate,StartTime,Status,SystemModstamp FROM ApexLog ORDER BY LastModifiedDate DESC Limit 1'))
+      .then( result => result.json()).then( responseObj => {
+        if(responseObj.records && responseObj.records.length > 0){
+            var url = '/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=' + responseObj.records[0].Id;
             if(inNewTab){
                 openInNewTab(url);
             }else{
@@ -116,24 +116,16 @@ function openLastLog(inNewTab){
     });
 }
 
-function request(url, method){
-    method = method || 'GET';
-    return new Promise(function(fulfill, reject){
-        var xhr = new XMLHttpRequest();
-        xhr.open(method, url);
-        xhr.onload = function(){
-            if( xhr.status.toString().indexOf('2') === 0){
-                fulfill(xhr.response);
-            }else{
-                reject(Error(xhr.statusText));
-            }
-        };
-        xhr.onerror = function(){
-            rejected(Error("Network Error"));
-        };
-        xhr.setRequestHeader('Authorization', 'Bearer ' + sid);
-        xhr.send();
-    });
+function request(url, method = 'GET'){
+  return fetch(location.origin + url, {method: method,
+    headers: {'Authorization': 'Bearer ' + sid}
+  }).then(result => {
+    if(result.ok){
+      return result
+    }else{
+      throw Error('Not OK')
+    }
+  })
 }
 
 })();

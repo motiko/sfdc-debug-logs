@@ -14,9 +14,6 @@ const default_shortcuts = [
   },{ name: 'Classes (See All)',
     key: 'c',
     path: '/01p?all_classes_page%3AtheTemplate%3AclassList%3Arowsperpage=3500'
-  },{ name: 'Network Access',
-    key: 'a',
-    path: '/05G'
   },{ name: 'Triggers (See All)',
     key: 't',
     path: '/setup/build/allTriggers.apexp?all_triggers_page%3AtheTemplate%3Aj_id41%3Arowsperpage=3000'
