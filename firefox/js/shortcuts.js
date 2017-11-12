@@ -1,15 +1,6 @@
 var sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/);
 var sid = sidCookie ? sidCookie[2] : false;
 
-
-function inject(fn) {
-  var script = document.createElement('script');
-  script.setAttribute("type", "application/javascript");
-  script.textContent = '(' + fn + ')();';
-  document.body.appendChild(script); // run the script
-  document.body.removeChild(script); // clean up
-}
-
 function sendBackOrgId() {
   if (document.cookie.indexOf('oid=') > -1) {
     window.postMessage({
@@ -27,6 +18,7 @@ window.addEventListener("message", function(event) {
     });
   }
 });
+
 inject(sendBackOrgId);
 
 browser.storage.sync.get('shortcuts', ({
@@ -95,7 +87,7 @@ function openLastLog(inNewTab) {
   if (!sid) {
     return;
   }
-  request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent('SELECT Id,LastModifiedDate,StartTime,Status,SystemModstamp FROM ApexLog ORDER BY LastModifiedDate DESC Limit 1'))
+  sfRequest('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent('SELECT Id,LastModifiedDate,StartTime,Status,SystemModstamp FROM ApexLog ORDER BY LastModifiedDate DESC Limit 1'))
     .then(result => result.json()).then(responseObj => {
       if (responseObj.records && responseObj.records.length > 0) {
         var url = '/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=' + responseObj.records[0].Id;
@@ -106,19 +98,4 @@ function openLastLog(inNewTab) {
         }
       }
     });
-}
-
-function request(url, method = 'GET') {
-  return fetch(location.origin + url, {
-    method: method,
-    headers: {
-      'Authorization': 'Bearer ' + sid
-    }
-  }).then(result => {
-    if (result.ok) {
-      return result
-    } else {
-      throw Error('Not OK')
-    }
-  })
 }

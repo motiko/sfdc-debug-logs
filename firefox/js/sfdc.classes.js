@@ -110,21 +110,26 @@ function toggleTraceFlag(event) {
   checkbox.parentNode.children[1].style.display = 'inline';
   noLog.TracedEntityId = classId;
   if (dontLog) {
-    request('/services/data/v32.0/tooling/sobjects/TraceFlag/', 'POST', JSON.stringify(noLog), 'application/json').then(function(result) {
-      console.log(result);
-      checkbox.parentNode.children[1].style.display = 'none';
-    }, function() {
-      checkbox.parentNode.children[1].style.display = 'none';
-    });
+    sfRequest('/services/data/v32.0/tooling/sobjects/TraceFlag/', 'POST', {
+        'Content-Type': 'application/json'
+      }, JSON.stringify(noLog))
+      .then(function(result) {
+        checkbox.parentNode.children[1].style.display = 'none';
+      }, function() {
+        checkbox.parentNode.children[1].style.display = 'none';
+      });
   } else {
-    request('/services/data/v32.0/tooling/query?q=' + encodeURI("Select Id From TraceFlag Where TracedEntityId = '" + classId + "'"))
-      .then(function(response) {
-        var responseObj = JSON.parse(response);
+    sfRequest('/services/data/v32.0/tooling/query?q=' +
+        encodeURI("Select Id From TraceFlag Where TracedEntityId = '" +
+          classId + "'"))
+      .then(r => r.json())
+      .then(function(responseObj) {
         if (responseObj.records.length > 0) {
           var traceFlagId = responseObj.records[0].Id;
-          request('/services/data/v32.0/tooling/sobjects/TraceFlag/' + traceFlagId, 'DELETE').then(function() {
-            checkbox.parentNode.children[1].style.display = 'none';
-          });
+          sfRequest('/services/data/v32.0/tooling/sobjects/TraceFlag/' + traceFlagId, 'DELETE')
+            .then(function() {
+              checkbox.parentNode.children[1].style.display = 'none';
+            });
         }
       });
   }
@@ -135,24 +140,24 @@ function toArray(nodeList) {
   return [].slice.call(nodeList);
 }
 
-function request(url, method, body, contentType) {
-  method = method || 'GET';
-  return new Promise(function(fulfill, reject) {
-    var xhr = new XMLHttpRequest();
-    xhr.open(method, url);
-    //xhr.setBody(body);
-    xhr.onload = function() {
-      if (xhr.status.toString().indexOf('2') === 0) {
-        fulfill(xhr.response);
-      } else {
-        reject(xhr.statusText);
-      }
-    };
-    xhr.onerror = function() {
-      reject(Error("Network Error"));
-    };
-    xhr.setRequestHeader('Authorization', 'Bearer ' + sid);
-    xhr.setRequestHeader('Content-Type', contentType);
-    xhr.send(body);
-  });
-}
+// function request(url, method, body, contentType) {
+//   method = method || 'GET';
+//   return new Promise(function(fulfill, reject) {
+//     var xhr = new XMLHttpRequest();
+//     xhr.open(method, url);
+//     //xhr.setBody(body);
+//     xhr.onload = function() {
+//       if (xhr.status.toString().indexOf('2') === 0) {
+//         fulfill(xhr.response);
+//       } else {
+//         reject(xhr.statusText);
+//       }
+//     };
+//     xhr.onerror = function() {
+//       reject(Error("Network Error"));
+//     };
+//     xhr.setRequestHeader('Authorization', 'Bearer ' + sid);
+//     xhr.setRequestHeader('Content-Type', contentType);
+//     xhr.send(body);
+//   });
+// }

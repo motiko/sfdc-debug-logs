@@ -318,7 +318,7 @@ function haltEvent(event) {
 }
 
 function removeIllegalIdLinks() {
-  request('/services/data/v29.0/sobjects').then(function(response) {
+  sfRequest('/services/data/v29.0/sobjects').then(function(response) {
     var sobjects = JSON.parse(response).sobjects;
     keyPrefixes = sobjects.filter(function(sobj) {
       return (sobj.keyPrefix !== undefined);
@@ -436,19 +436,4 @@ function contains(searchString) {
   return function(nodeElem) {
     return nodeElem.innerHTML.indexOf(searchString) > -1;
   };
-}
-
-function request(url, method) {
-  return fetch(location.origin + url, {
-    method: method,
-    headers: {
-      'Authorization': 'Bearer ' + sid
-    }
-  }).then(result => {
-    if (result.ok) {
-      return result
-    } else {
-      throw Error('Not OK')
-    }
-  })
 }

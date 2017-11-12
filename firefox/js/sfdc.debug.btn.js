@@ -7,16 +7,6 @@ const USERS_TABLE_ID = 'Apex_Trace_List:monitoredUsersForm';
 var showLogsNum = 50;
 var tableElement = document.getElementById(LOGS_TABLE_ID);
 
-
-
-function inject(fn) {
-  var script = document.createElement('script');
-  script.setAttribute("type", "application/javascript");
-  script.textContent = '(' + fn + ')();';
-  document.body.appendChild(script); // run the script
-  document.body.removeChild(script); // clean up
-}
-
 function initPage() {
   getUserId();
   addDeleteAllBtn();
@@ -101,10 +91,10 @@ function realDeleteAll(event) {
   event.preventDefault();
   document.body.style.cursor = 'wait';
 
-  request('/services/data/v32.0/tooling/query/?q=' +
+  sfRequest('/services/data/v32.0/tooling/query/?q=' +
       encodeURIComponent('Select Id From ApexLog'))
-    .then(function(reponse) {
-      reponseObject = response.json()
+    .then(r => r.json())
+    .then(function(reponseObject) {
       var logIdsCsv = reponseObject.records.map(function(logObj) {
         return `"${logObj.Id}"`;
       }).reduce(function(sum, id) {
@@ -194,8 +184,8 @@ function requestLogs() {
     `ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY `,
     `LastModifiedDate ASC LIMIT ${showLogsNum}`
   ].join('');
-  return request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent(selectQuery))
-    .then(response => response.json())
+  return sfRequest('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent(selectQuery))
+    .then(r => r.json())
     .then(responseObj => responseObj.records)
     .catch(function(err) {
       console.log(err);
@@ -405,9 +395,9 @@ function searchLogs() {
     return e;
   });
   var promises = visibleLogRows.map(function(logRow) {
-    return request('/services/data/v32.0/tooling/sobjects/ApexLog/' +
+    return sfRequest('/services/data/v32.0/tooling/sobjects/ApexLog/' +
         logRow.id + '/Body')
-      .then(response => response.text())
+      .then(r => r.text())
       .then(rawLogContents => {
         if (searchRegex.test(rawLogContents)) {
           logRow.element.style.background = 'rgb(104, 170, 87)';
@@ -415,7 +405,7 @@ function searchLogs() {
         }
         return false;
       }).catch(function(err) {
-        console.log(err);
+        console.error(err);
         document.body.style.cursor = 'default';
         document.getElementById('LoadinImage').style.display = 'none';
       });
@@ -434,12 +424,14 @@ function createJob(objectName, operation) {
         <concurrencyMode>Parallel</concurrencyMode>
         <contentType>CSV</contentType>
    </jobInfo>`;
-  return bulkRequest('/services/async/34.0/job', 'POST', {
-      'Content-Type': 'application/xml'
-    },
-    queryJob).then(function(response) {
-    return response.match(/<id>(.*)<\/id>/)[1];
-  });
+  return sfRequest('/services/async/34.0/job', 'POST', {
+        'Content-Type': 'application/xml',
+        'X-SFDC-Session': sid
+      },
+      queryJob).then(r => r.text())
+    .then(function(response) {
+      return response.match(/<id>(.*)<\/id>/)[1];
+    });
 }
 
 function pollBatchStatus(jobId, batchId) {
@@ -463,50 +455,24 @@ function pollBatchStatus(jobId, batchId) {
 }
 
 function checkBatchStatus(jobId, batchId) {
-  return bulkRequest(`/services/async/34.0/job/${jobId}/batch/${batchId}`)
+  return sfRequest(`/services/async/34.0/job/${jobId}/batch/${batchId}`, 'GET', {
+      'X-SFDC-Session': sid
+    })
+    .then(r => r.text())
     .then(function(resultXml) {
       return resultXml.match(/<state>(.*)<\/state>/)[1];
     });
 }
 
 function createBatch(jobId, csv) {
-  return bulkRequest(`/services/async/34.0/job/${jobId}/batch`, 'POST', {
-      'Content-Type': 'text/csv; charset=UTF-8'
-    },
-    csv).then(function(response) {
-    return response.match(/<id>(.*)<\/id>/)[1];
-  });
-}
-
-function bulkRequest(url, method = 'GET', headers, body) {
-  return fetch(location.origin + url, {
-    method: method,
-    body: body,
-    headers: Objcet.assign({
-      'X-SFDC-Session': sid
-    }, headers)
-  }).then(result => {
-    if (result.ok) {
-      return result.text()
-    } else {
-      throw Error('Not OK')
-    }
-  })
-}
-
-function request(url, method = 'GET') {
-  return fetch(location.origin + url, {
-    method: method,
-    headers: {
-      'Authorization': 'Bearer ' + sid
-    }
-  }).then(result => {
-    if (result.ok) {
-      return result
-    } else {
-      throw Error('Not OK')
-    }
-  })
+  return sfRequest(`/services/async/34.0/job/${jobId}/batch`, 'POST', {
+        'Content-Type': 'text/csv; charset=UTF-8',
+        'X-SFDC-Session': sid
+      },
+      csv).then(r => r.text())
+    .then(function(response) {
+      return response.match(/<id>(.*)<\/id>/)[1];
+    });
 }
 
 function escapeRegExp(str) {

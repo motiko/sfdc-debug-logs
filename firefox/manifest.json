@@ -31,6 +31,7 @@
                 "js/lib/mousetrap/1.6.1/mousetrap.min.js",
                 "js/lib/beautify/1.7.4/beautify.min.js",
                 "js/lib/beautify/1.7.4/beautify-html.min.js",
+                "js/utils.js",
                 "js/sfdc.debug.js"
             ],
             "run_at": "document_end"
@@ -40,6 +41,7 @@
                 "https://*.salesforce.com/setup/ui/listApexTraces.apexp*"
             ],
             "js": [
+                "js/utils.js",
                 "js/sfdc.debug.btn.js"
             ],
             "run_at": "document_end"
@@ -52,6 +54,7 @@
             "js": [
                 "js/default_shortcuts.js",
                 "js/lib/mousetrap/1.6.1/mousetrap.min.js",
+                "js/utils.js",
                 "js/shortcuts.js"
             ],
             "run_at": "document_end"
