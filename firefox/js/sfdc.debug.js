@@ -256,11 +256,10 @@ function addExpnasionButtonsForUserDebugDivs(userDebugDiv) {
   if (!debugLevel) return;
   debugLevel = debugLevel[1];
   var debugParts = userDebugDiv.innerHTML.split(debugLevel);
+  userDebugDiv.innerHTML = '<span class="debugHeader searchable">' +
+    debugParts[0] + debugLevel + '</span> <span class="debugContent searchable">' +
+    debugParts[1] + '</span>';
   var debugText = unescapeHtml(debugParts[1]);
-  userDebugDiv.innerText = debugParts[0] + debugLevel
-  userDebugExapndable = document.createElement('span')
-  userDebugExapndable.innerHTML = debugText
-  userDebugDiv.appendChild(userDebugExapndable)
   debugTextParentObj = document.getElementById("debugText")
   if (looksLikeHtml(debugText) || looksLikeSfdcObject(debugText) || isJsonString(debugText)) {
     var buttonExpand = document.createElement('button');
@@ -268,7 +267,7 @@ function addExpnasionButtonsForUserDebugDivs(userDebugDiv) {
     buttonExpand.onmouseup = haltEvent;
     buttonExpand.className = 'expandUserDebugBtn collapsed myButton';
     buttonExpand.textContent = '+';
-    debugTextParentObj.insertBefore(buttonExpand, userDebugDiv);
+    userDebugDiv.insertBefore(buttonExpand, userDebugDiv.children[0]);
   }
 }
 
@@ -318,21 +317,22 @@ function haltEvent(event) {
 }
 
 function removeIllegalIdLinks() {
-  sfRequest('/services/data/v29.0/sobjects').then(function(response) {
-    var sobjects = JSON.parse(response).sobjects;
-    keyPrefixes = sobjects.filter(function(sobj) {
-      return (sobj.keyPrefix !== undefined);
-    }).map(function(sobjectDescribe) {
-      return sobjectDescribe.keyPrefix;
+  sfRequest('/services/data/v29.0/sobjects').then(r => r.json())
+    .then(function(response) {
+      var sobjects = response.sobjects;
+      keyPrefixes = sobjects.filter(function(sobj) {
+        return (sobj.keyPrefix !== undefined);
+      }).map(function(sobjectDescribe) {
+        return sobjectDescribe.keyPrefix;
+      });
+      keyPrefixes.push('03d'); // validation rule
+      var idLinks = document.getElementsByClassName('idLink');
+      toArray(idLinks).forEach(function(link) {
+        if (!isLegalId(link.textContent)) {
+          link.className = 'disableClick';
+        }
+      });
     });
-    keyPrefixes.push('03d'); // validation rule
-    var idLinks = document.getElementsByClassName('idLink');
-    toArray(idLinks).forEach(function(link) {
-      if (!isLegalId(link.textContent)) {
-        link.className = 'disableClick';
-      }
-    });
-  });
 }
 
 function isLegalId(id) {
@@ -349,7 +349,7 @@ function toogleHidden(className) {
 }
 
 function expandUserDebug() {
-  var debugNode = this.nextElementSibling.lastChild;
+  var debugNode = this.nextElementSibling.nextElementSibling;
   var oldHtmlVal = debugNode.innerHTML;
   var debugNodeText = debugNode.textContent;
   if (looksLikeHtml(debugNodeText)) {
