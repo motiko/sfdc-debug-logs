@@ -1,0 +1,17 @@
+{
+  "name": "",
+  "description": "ff extension",
+  "version": "0.0.1",
+  "author": "motiko",
+  "license": "MIT",
+  "main": "",
+  "private": true,
+  "scripts": {},
+  "dependencies": {
+    "react": "^16.1.1",
+    "react-dom": "^16.1.1"
+  },
+  "devDependencies": {
+    "reactify": "^1.1.1"
+  }
+}
