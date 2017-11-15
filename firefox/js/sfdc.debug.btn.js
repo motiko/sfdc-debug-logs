@@ -7,7 +7,34 @@ const USERS_TABLE_ID = 'Apex_Trace_List:monitoredUsersForm';
 var showLogsNum = 50;
 var tableElement = document.getElementById(LOGS_TABLE_ID);
 
+function initKeyTraps(event) {
+  Mousetrap.bind('l', clickOn('#load_new_logs'));
+  Mousetrap.bind('u', clickOn('#add_current_user'));
+  Mousetrap.bind('c', clickOn('#clear_search'));
+  Mousetrap.bind('s', focusOn('#FilterByText'));
+  Mousetrap.bind('a', function() {
+    if (confirm("This will delete all logs")) {
+      clickOn('#real_delete_all')()
+    }
+  });
+}
+
+function clickOn(selector) {
+  return function() {
+    const nodeElement = document.querySelector(selector)
+    nodeElement.click()
+  }
+}
+
+function focusOn(selector) {
+  return function() {
+    const nodeElement = document.querySelector(selector)
+    nodeElement.focus()
+  }
+}
+
 function initPage() {
+  initKeyTraps()
   getUserId();
   addDeleteAllBtn();
   removeOldDeleteBtn();
@@ -48,7 +75,8 @@ function addAddUserBtn() {
   var addUserButton = document.createElement('input');
   addUserButton.type = 'button';
   addUserButton.className = 'btn';
-  addUserButton.value = 'Add Current User';
+  addUserButton.value = 'Add Current (U)ser';
+  addUserButton.id = "add_current_user"
   addUserButton.onclick = addCurrentUser;
   pbButton.appendChild(addUserButton);
 }
@@ -76,13 +104,15 @@ function addDeleteAllBtn() {
   var realDeleteAllBtn = document.createElement('input');
   realDeleteAllBtn.type = 'button';
   realDeleteAllBtn.className = 'btn';
-  realDeleteAllBtn.value = 'Delete All ';
+  realDeleteAllBtn.value = 'Delete (A)ll ';
+  realDeleteAllBtn.id = 'real_delete_all'
   realDeleteAllBtn.onclick = realDeleteAll;
   deleteAllContainer.appendChild(realDeleteAllBtn);
   var loadNewLogsBtn = document.createElement('input');
   loadNewLogsBtn.type = 'button';
   loadNewLogsBtn.className = 'btn';
-  loadNewLogsBtn.value = 'Load New Logs';
+  loadNewLogsBtn.value = '(L)oad New Logs';
+  loadNewLogsBtn.id = "load_new_logs"
   loadNewLogsBtn.onclick = loadNewLogs;
   deleteAllContainer.appendChild(loadNewLogsBtn);
 }
@@ -327,13 +357,14 @@ function addSearchControllers() {
   input.type = 'text';
   input.id = 'FilterByText';
   input.autocomplete = 'on';
-  input.placeholder = 'Search logs..';
+  input.placeholder = '(S)earch logs..';
   input.onkeydown = handleSearchKey;
   var filter = document.createElement('button');
   filter.textContent = 'Search';
   filter.type = 'submit';
   var clearFilterBtn = document.createElement('button');
-  clearFilterBtn.textContent = 'Clear';
+  clearFilterBtn.textContent = '(C)lear';
+  clearFilterBtn.id = 'clear_search'
   clearFilterBtn.onclick = clearFilter;
   var loadingImage = document.createElement('img');
   loadingImage.src = '/img/loading.gif';
