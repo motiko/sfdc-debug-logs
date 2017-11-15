@@ -13,6 +13,7 @@ function initKeyTraps() {
   Mousetrap.bind('c', clickOn('#clear_search'));
   Mousetrap.bind('r', focusOn('#FilterByText'));
   Mousetrap.bind('a', function() {
+    logEvent('LogsList','hotKey','#real_delete_all')
     if (confirm("This will delete all logs")) {
       clickOn('#real_delete_all')()
     }
@@ -21,6 +22,7 @@ function initKeyTraps() {
 
 function clickOn(selector) {
   return function() {
+    logEvent('LogsList','hotKey',selector)
     document.querySelector(selector).click()
   }
 }
@@ -28,6 +30,7 @@ function clickOn(selector) {
 function focusOn(selector) {
   return function(event) {
     event.preventDefault()
+    logEvent('LogsList','hotKey',selector)
     document.querySelector(selector).focus()
   }
 }
@@ -117,6 +120,7 @@ function addDeleteAllBtn() {
 }
 
 function realDeleteAll(event) {
+  logEvent('LogsList','realDeleteAll')
   event.preventDefault();
   document.body.style.cursor = 'wait';
 
@@ -160,6 +164,7 @@ function getMonitoredUsers() {
 }
 
 function loadNewLogs() {
+  logEvent('LogsList','loadNewLogs')
   var oldLogIds = loadedLogIds();
   requestLogs().then(function(logs) {
     var deltaLogs = logs.filter(function(log) {
@@ -290,6 +295,7 @@ function clearTable() {
 }
 
 function addCurrentUser(event) {
+  logEvent('LogsList','addCurrentUser')
   if (event) event.preventDefault();
   const logLevelName = "ApexDebugger"
   const headers = {
@@ -401,6 +407,7 @@ function toArray(nodeElements) {
 }
 
 function searchLogs() {
+  logEvent('LogsList','searchLogs')
   resetResults();
   document.body.style.cursor = 'wait';
   document.getElementById('LoadinImage').style.display = 'inline';

@@ -229,7 +229,7 @@ function addCheckboxes(){
 }
 
 function toggleTimestamp(){
-    logEvent(toggleTimestamp)
+    logEvent('toggleTimestamp')
     var oldValue = JSON.parse(getSetting('showTimeStamp'));
     setSetting('showTimeStamp',!oldValue);
     document.location.reload();
