@@ -13,9 +13,9 @@ function onload() {
   $i('new_btn').addEventListener('click', (event) => {
     shortcutsTable.appendChild(newShortcutLine())
   })
-  browser.storage.sync.get('shortcuts', ({
+  browser.storage.sync.get('shortcuts').then(function({
     shortcuts
-  }) => {
+  }) {
     const shortcutLines = buildShortcuts(shortcuts)
     for (line of shortcutLines) {
       shortcutsTable.appendChild(line)
