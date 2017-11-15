@@ -7,11 +7,11 @@ const USERS_TABLE_ID = 'Apex_Trace_List:monitoredUsersForm';
 var showLogsNum = 50;
 var tableElement = document.getElementById(LOGS_TABLE_ID);
 
-function initKeyTraps(event) {
+function initKeyTraps() {
   Mousetrap.bind('l', clickOn('#load_new_logs'));
   Mousetrap.bind('u', clickOn('#add_current_user'));
   Mousetrap.bind('c', clickOn('#clear_search'));
-  Mousetrap.bind('s', focusOn('#FilterByText'));
+  Mousetrap.bind('r', focusOn('#FilterByText'));
   Mousetrap.bind('a', function() {
     if (confirm("This will delete all logs")) {
       clickOn('#real_delete_all')()
@@ -21,26 +21,25 @@ function initKeyTraps(event) {
 
 function clickOn(selector) {
   return function() {
-    const nodeElement = document.querySelector(selector)
-    nodeElement.click()
+    document.querySelector(selector).click()
   }
 }
 
 function focusOn(selector) {
-  return function() {
-    const nodeElement = document.querySelector(selector)
-    nodeElement.focus()
+  return function(event) {
+    event.preventDefault()
+    document.querySelector(selector).focus()
   }
 }
 
 function initPage() {
-  initKeyTraps()
   getUserId();
   addDeleteAllBtn();
   removeOldDeleteBtn();
   addAddUserBtn();
   addReloadControllers();
   addSearchControllers();
+  initKeyTraps();
 }
 
 initPage();
@@ -357,7 +356,7 @@ function addSearchControllers() {
   input.type = 'text';
   input.id = 'FilterByText';
   input.autocomplete = 'on';
-  input.placeholder = '(S)earch logs..';
+  input.placeholder = 'Sea(r)ch logs..';
   input.onkeydown = handleSearchKey;
   var filter = document.createElement('button');
   filter.textContent = 'Search';
@@ -385,7 +384,7 @@ function handleSearchKey(e) {
 }
 
 function clearFilter(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
   document.getElementById('FilterByText').value = '';
   resetResults();
 }
