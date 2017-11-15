@@ -2,11 +2,11 @@ let optionsTabId = ""
 
 function openOptionsTab() {
   if (optionsTabId) {
-    browser.tabs.get(optionsTabId, (tab) => {
+    browser.tabs.get(optionsTabId).then((tab) => {
       if (tab) browser.tabs.update(tab.id, {
         active: true
       })
-      browser.windows.getCurrent({}, (currentWindow) => {
+      browser.windows.getCurrent({}).then( (currentWindow) => {
         if (tab.windowId != currentWindow.id) {
           browser.windows.update(tab.windowId, {
             focused: true
@@ -17,8 +17,8 @@ function openOptionsTab() {
   } else {
     browser.tabs.create({
       'url': browser.extension.getURL('html/options.html'),
-      'active': true
-    }, (tab) => optionsTabId = tab.id);
+      'selected': true
+    }).then(tab => optionsTabId = tab.id);
   }
 }
 
