@@ -41,7 +41,6 @@ browser.runtime.onMessage.addListener((request) => {
       break
     case "ga":
       _gaq.push(request.params);
-      console.log(request.params)
       break
   }
   return true

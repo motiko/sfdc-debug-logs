@@ -186,6 +186,7 @@ function removeOldLogs() {
         tableElement.removeChild(tr);
       } catch (e) {
         console.log('race?');
+        console.log(e);
       }
     });
   }, 1000);
@@ -341,7 +342,7 @@ function addCurrentUser(event) {
         headers: headers,
         body: JSON.stringify(payload)
       }).then(function(res) {
-        res.json().then(r => console.log(r))
+        res.json().then()
       })
     })
 }
@@ -475,7 +476,6 @@ function pollBatchStatus(jobId, batchId) {
   return new Promise(function(resolve, reject) {
     var intervalId = setInterval(function() {
       checkBatchStatus(jobId, batchId).then(function(state) {
-        console.log(state);
         if (state === "Completed") {
           resolve(state);
           clearInterval(intervalId);
