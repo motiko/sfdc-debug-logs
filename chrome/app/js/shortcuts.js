@@ -21,11 +21,10 @@ window.addEventListener("message", function(event) {
 
 inject(sendBackOrgId);
 
-browser.storage.sync.get('shortcuts', ({
-  shortcuts = default_shortcuts
-}) => {
-  shortcuts.forEach(shortcutUrl)
-});
+browser.storage.sync.get('shortcuts')
+  .then(function({ shortcuts = default_shortcuts}) {
+    shortcuts.forEach(shortcutUrl)
+  });
 
 shortcutMethod('l', openLastLog);
 Mousetrap.bind('e', editObject);

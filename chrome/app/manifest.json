@@ -57,6 +57,7 @@
         "https://*.salesforce.com/*"
       ],
       "js": [
+        "js/lib/browser-polyfill/0.2.1/browser-polyfill.min.js",
         "js/default_shortcuts.js",
         "js/lib/mousetrap/1.6.1/mousetrap.min.js",
         "js/utils.js",
