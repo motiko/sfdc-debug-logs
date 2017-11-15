@@ -7,12 +7,13 @@ const USERS_TABLE_ID = 'Apex_Trace_List:monitoredUsersForm';
 var showLogsNum = 50;
 var tableElement = document.getElementById(LOGS_TABLE_ID);
 
-function initKeyTraps(event) {
+function initKeyTraps() {
   Mousetrap.bind('l', clickOn('#load_new_logs'));
   Mousetrap.bind('u', clickOn('#add_current_user'));
   Mousetrap.bind('c', clickOn('#clear_search'));
-  Mousetrap.bind('s', focusOn('#FilterByText'));
+  Mousetrap.bind('r', focusOn('#FilterByText'));
   Mousetrap.bind('a', function() {
+    logEvent('LogsList','hotKey','#real_delete_all')
     if (confirm("This will delete all logs")) {
       clickOn('#real_delete_all')()
     }
@@ -21,26 +22,27 @@ function initKeyTraps(event) {
 
 function clickOn(selector) {
   return function() {
-    const nodeElement = document.querySelector(selector)
-    nodeElement.click()
+    logEvent('LogsList','hotKey',selector)
+    document.querySelector(selector).click()
   }
 }
 
 function focusOn(selector) {
-  return function() {
-    const nodeElement = document.querySelector(selector)
-    nodeElement.focus()
+  return function(event) {
+    event.preventDefault()
+    logEvent('LogsList','hotKey',selector)
+    document.querySelector(selector).focus()
   }
 }
 
 function initPage() {
-  initKeyTraps()
   getUserId();
   addDeleteAllBtn();
   removeOldDeleteBtn();
   addAddUserBtn();
   addReloadControllers();
   addSearchControllers();
+  initKeyTraps();
 }
 
 initPage();
@@ -118,6 +120,7 @@ function addDeleteAllBtn() {
 }
 
 function realDeleteAll(event) {
+  logEvent('LogsList','realDeleteAll')
   event.preventDefault();
   document.body.style.cursor = 'wait';
 
@@ -161,6 +164,7 @@ function getMonitoredUsers() {
 }
 
 function loadNewLogs() {
+  logEvent('LogsList','loadNewLogs')
   var oldLogIds = loadedLogIds();
   requestLogs().then(function(logs) {
     var deltaLogs = logs.filter(function(log) {
@@ -291,6 +295,7 @@ function clearTable() {
 }
 
 function addCurrentUser(event) {
+  logEvent('LogsList','addCurrentUser')
   if (event) event.preventDefault();
   const logLevelName = "ApexDebugger"
   const headers = {
@@ -357,7 +362,7 @@ function addSearchControllers() {
   input.type = 'text';
   input.id = 'FilterByText';
   input.autocomplete = 'on';
-  input.placeholder = '(S)earch logs..';
+  input.placeholder = 'Sea(r)ch logs..';
   input.onkeydown = handleSearchKey;
   var filter = document.createElement('button');
   filter.textContent = 'Search';
@@ -385,7 +390,7 @@ function handleSearchKey(e) {
 }
 
 function clearFilter(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
   document.getElementById('FilterByText').value = '';
   resetResults();
 }
@@ -402,6 +407,7 @@ function toArray(nodeElements) {
 }
 
 function searchLogs() {
+  logEvent('LogsList','searchLogs')
   resetResults();
   document.body.style.cursor = 'wait';
   document.getElementById('LoadinImage').style.display = 'inline';

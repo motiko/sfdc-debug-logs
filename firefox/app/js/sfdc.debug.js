@@ -127,6 +127,7 @@ function generateFontSelect() {
     dropDown.appendChild(opt);
   }
   dropDown.onchange = function(event) {
+    logEvent('LogView','changeStyle',`Font Size -- ${this.value}`)
     document.querySelector('#debugText').style.fontSize = this.value + 'px';
     setSetting('fontSize', this.value);
   };
@@ -160,6 +161,7 @@ function generateStyleSelect() {
     dropDown.appendChild(opt);
   });
   dropDown.onchange = function(event) {
+    logEvent('LogView','changeStyle',`Style -- ${this.value}`)
     document.querySelector('#debugText').className = this.value;
     setSetting('style', this.value);
   };
@@ -188,6 +190,7 @@ function addCheckboxes() {
 }
 
 function toggleTimestamp() {
+  logEvent('LogView','toggleTimestamp')
   var oldValue = JSON.parse(getSetting('showTimeStamp'));
   setSetting('showTimeStamp', !oldValue);
   document.location.reload();
@@ -203,6 +206,7 @@ function addCollapseAllButton() {
 }
 
 function colapseAll() {
+  logEvent('LogView','colapseAll')
   toArray(document.querySelectorAll('.expandUserDebugBtn.collapsed')).forEach(function(button) {
     setTimeout(expandUserDebug.bind(button), 0);
   });
@@ -349,6 +353,7 @@ function toogleHidden(className) {
 }
 
 function expandUserDebug() {
+  logEvent('LogView','expandUserDebug')
   var debugNode = this.nextElementSibling.nextElementSibling;
   var oldHtmlVal = debugNode.innerHTML;
   var debugNodeText = debugNode.textContent;

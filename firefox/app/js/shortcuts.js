@@ -21,11 +21,12 @@ window.addEventListener("message", function(event) {
 
 inject(sendBackOrgId);
 
-browser.storage.sync.get('shortcuts', ({
-  shortcuts = default_shortcuts
-}) => {
-  shortcuts.forEach(shortcutUrl)
-});
+browser.storage.sync.get('shortcuts')
+  .then(function({
+    shortcuts = default_shortcuts
+  }) {
+    shortcuts.forEach(shortcutUrl)
+  });
 
 shortcutMethod('l', openLastLog);
 Mousetrap.bind('e', editObject);
@@ -46,6 +47,7 @@ function shortcutUrl({
   path
 }) {
   Mousetrap.bind(['alt+shift+' + key], function() {
+    if (key != 'i') logEvent('Shortcut', 'shortcutUrl', `alt+shift+${key} - ${path}`)
     document.location.assign(path);
   });
   Mousetrap.bind(['shift+' + key], function() {
@@ -53,22 +55,21 @@ function shortcutUrl({
       document.activeElement.data.indexOf('.swf') > -1) {
       return;
     }
+    if (key != 'i') logEvent('Shortcut', 'shortcutUrl', `${key} - ${path}`)
     openInNewTab(path);
   });
 }
 
 function openInNewTab(url) {
-  if (typeof browser !== "undefined") {
-    browser.runtime.sendMessage({
+  browser.runtime.sendMessage({
       url: `${location.protocol}//${location.host}${url}`,
       command: "openTab"
     });
-  } else {
-    window.open(url, '_blank');
-  }
 }
 
+
 function editObject() {
+  logEvent('Shortcut','editObject')
   var editBtn = document.querySelector("input[name='edit']");
   if (editBtn) {
     editBtn.click();
@@ -76,6 +77,7 @@ function editObject() {
 }
 
 function saveObject() {
+  logEvent('Shortcut','saveObject')
   var saveBtn = document.querySelector("input[name='save']");
   if (saveBtn) {
     saveBtn.click();
@@ -84,6 +86,7 @@ function saveObject() {
 
 
 function openLastLog(inNewTab) {
+  logEvent('Shortcut','openLastLog')
   if (!sid) {
     return;
   }

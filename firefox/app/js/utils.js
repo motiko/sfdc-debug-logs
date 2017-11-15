@@ -24,3 +24,11 @@ function sfRequest(path, method = 'GET', headers = {}, body) {
       }
     })
 }
+
+// GA
+
+function logEvent(eventCat, eventName, eventLabel){
+    let eventParams = ['_trackEvent', eventCat, eventName]
+    if(eventLabel) eventParams.push(eventLabel)
+    browser.runtime.sendMessage({command: "ga", params: eventParams})
+}
