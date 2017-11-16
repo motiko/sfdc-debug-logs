@@ -1,2 +1,5 @@
-`browserify -t reactify src/app.js -o ../js/build/app.js`
-`watchify -t reactify src/app.js -o ../js/build/app.js`
+run:
+
+```bash
+watchify -t [ babelify --presets [ env react ] ] src/app.js -o ../app/js/build/app.js
+```
