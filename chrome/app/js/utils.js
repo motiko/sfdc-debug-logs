@@ -19,7 +19,6 @@ function sfRequest(path, method = 'GET', headers = {}, body) {
       if (result.ok) {
         return result
       } else {
-        debugger
         throw Error(`${result.status} : ${result.statusText}`)
       }
     })
