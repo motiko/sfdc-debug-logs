@@ -14,8 +14,14 @@ function initKeyTraps() {
   Mousetrap.bind('r', focusOn('#FilterByText'));
   Mousetrap.bind('a', function() {
     logEvent('LogsList','hotKey','#real_delete_all')
-    if (confirm("This will delete all logs")) {
+    let dontConfirm = JSON.parse(localStorage.getItem('dontConfirmDeleteAllHotKey'))
+    if (dontConfirm) {
       clickOn('#real_delete_all')()
+    }else{
+      if(confirm("This will delete all logs")){
+        localStorage.setItem('dontConfirmDeleteAllHotKey',true)
+        clickOn('#real_delete_all')()
+      }
     }
   });
 }
@@ -128,6 +134,10 @@ function realDeleteAll(event) {
       encodeURIComponent('Select Id From ApexLog'))
     .then(r => r.json())
     .then(function(reponseObject) {
+      if(reponseObject.records.length == 0){
+        document.body.style.cursor = 'auto';
+        return;
+      }
       var logIdsCsv = reponseObject.records.map(function(logObj) {
         return `"${logObj.Id}"`;
       }).reduce(function(sum, id) {
@@ -186,6 +196,7 @@ function removeOldLogs() {
         tableElement.removeChild(tr);
       } catch (e) {
         console.log('race?');
+        console.log(e);
       }
     });
   }, 1000);
@@ -341,7 +352,7 @@ function addCurrentUser(event) {
         headers: headers,
         body: JSON.stringify(payload)
       }).then(function(res) {
-        res.json().then(r => console.log(r))
+        res.json().then()
       })
     })
 }
@@ -475,7 +486,6 @@ function pollBatchStatus(jobId, batchId) {
   return new Promise(function(resolve, reject) {
     var intervalId = setInterval(function() {
       checkBatchStatus(jobId, batchId).then(function(state) {
-        console.log(state);
         if (state === "Completed") {
           resolve(state);
           clearInterval(intervalId);
