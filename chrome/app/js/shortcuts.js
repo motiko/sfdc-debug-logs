@@ -1,5 +1,6 @@
 var sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/);
 var sid = sidCookie ? sidCookie[2] : false;
+var orgId;
 
 function sendBackOrgId() {
   if (document.cookie.indexOf('oid=') > -1) {
@@ -12,6 +13,7 @@ function sendBackOrgId() {
 
 window.addEventListener("message", function(event) {
   if (event.data.type === "orgId") {
+    orgId = event.data.content
     shortcutUrl({
       key: 'i',
       path: '/' + event.data.content
@@ -31,6 +33,14 @@ browser.storage.sync.get('shortcuts')
 shortcutMethod('l', openLastLog);
 Mousetrap.bind('e', editObject);
 Mousetrap.bind('s', saveObject);
+Mousetrap.bind('shift+x', openApp);
+
+function openApp(){
+  browser.runtime.sendMessage({
+      url: `${browser.extension.getURL('html/app.html')}?sid=${sid}&orgId=${orgId}&host=${encodeURIComponent(location.hostname)}`,
+      command: "openTab"
+    });
+}
 
 function shortcutMethod(char, method) {
   Mousetrap.bind(['alt+shift+' + char], function() {
@@ -60,9 +70,9 @@ function shortcutUrl({
   });
 }
 
-function openInNewTab(url) {
+function openInNewTab(path) {
   browser.runtime.sendMessage({
-      url: `${location.protocol}//${location.host}${url}`,
+      url: `${location.protocol}//${location.host}${path}`,
       command: "openTab"
     });
 }
