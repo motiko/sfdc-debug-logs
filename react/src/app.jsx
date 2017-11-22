@@ -73,24 +73,29 @@ const MainContainer = () => (
   </div>
 )
 
+const buttonStyle = {margin: '1em'}
+
 const TopControls = () => (
   <div>
-    <FloatingActionButton onClick={()=> refresh()}>
+    <Search/>
+    <FloatingActionButton onClick={()=> refresh()} style={buttonStyle}>
       <RefreshIcon/>
     </FloatingActionButton>
-    <FloatingActionButton>
+    <FloatingActionButton style={buttonStyle}>
       <DeleteIcon/>
     </FloatingActionButton>
-    <Search/>
-    <CircularProgress style={{display: evil.loading ? 'inline' : 'none'}}/>
+
+    <CircularProgress style={{display: evil.loading ? 'inline' : 'none',
+              margin: '1em'}}/>
   </div>
 )
 
 const Search = () => (
-  <span>
+  <span style={{display: "inline-block"}}>
     <TextField hintText="Search" value={evil.searchTerm}
+      style={{margin: '0px 1em'}} width="450px"
       onChange={updateTerm} />
-    <FloatingActionButton  onClick={search}>
+    <FloatingActionButton  onClick={search} style={{margin: '1em'}}>
       <SearchIcon/>
     </FloatingActionButton>
   </span>
