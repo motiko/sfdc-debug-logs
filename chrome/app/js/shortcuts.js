@@ -38,7 +38,8 @@ Mousetrap.bind('shift+x', openApp);
 function openApp(){
   browser.runtime.sendMessage({
       url: `${browser.extension.getURL('html/app.html')}?sid=${sid}&orgId=${orgId}&host=${encodeURIComponent(location.hostname)}`,
-      command: "openTab"
+      name: `app_${orgId}`,
+      command: "openOrFocusTab"
     });
 }
 
