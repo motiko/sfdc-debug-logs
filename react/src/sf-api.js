@@ -1,3 +1,5 @@
+import regeneratorRuntime from "regenerator-runtime";
+
 var SF = {}
 
 SF.host = ""
@@ -8,28 +10,30 @@ SF.logBody = function logBody(logId) {
     .then(r => r.text())
 }
 
-SF.requestLogs = function requestLogs() {
+SF.requestLogs = function requestLogs(numLimit=50,timeLimit="LAST_MONTH") {
   var selectQuery = [`SELECT LogUser.Name,Application,DurationMilliseconds,`,
     `Id,LastModifiedDate,Location,LogLength,LogUserId,`,
     `Operation,Request,StartTime,Status,SystemModstamp From `,
-    `ApexLog Where LastModifiedDate > LAST_MONTH ORDER BY `,
-    `LastModifiedDate ASC LIMIT 5`
+    `ApexLog Where LastModifiedDate > ${timeLimit} ORDER BY `,
+    `LastModifiedDate ASC LIMIT ${numLimit}`
   ].join('');
   return request('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent(selectQuery))
     .then(r => r.json())
     .then(responseObj => responseObj.records)
 }
 
-SF.deleteAll = function deleteAll(ids) {
+SF.deleteAll = async function deleteAll(ids) {
   let logIdsCsv = ids.reduce((acc, id) => `${acc}\n"${id}"`, `"Id"`)
-  return createJob('ApexLog', 'delete')
-    .then(job => {
-      return request(`/${job.contentUrl}`, 'PUT', {
-          'Content-Type': 'text/csv'
-        }, logIdsCsv)
-        .then(() => closeJob(job.id))
-        .then(() => pollJobStatus(job.id))
-    })
+  let job = await createJob('ApexLog', 'delete')
+  await attachBatchToJob(job,logIdsCsv)
+  await closeJob(job.id)
+  return pollJobStatus(job.id)
+}
+
+function attachBatchToJob(job,csv){
+  return request(`/${job.contentUrl}`, 'PUT', {
+      'Content-Type': 'text/csv'
+    }, csv)
 }
 
 function request(path, method = 'GET', headers = {}, body) {

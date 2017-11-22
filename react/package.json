@@ -10,7 +10,8 @@
   "dependencies": {
     "material-ui": "^0.19.4",
     "react": "^16.1.1",
-    "react-dom": "^16.1.1"
+    "react-dom": "^16.1.1",
+    "regenerator-runtime": "^0.11.0"
   },
   "devDependencies": {
     "babel-core": "^6.26.0",
