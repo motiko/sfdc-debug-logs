@@ -3,6 +3,14 @@ var SF = {}
 SF.host = ""
 SF.sid = ""
 
+SF.logBody = function logBody(logId){
+  return request(`/services/data/v32.0/tooling/sobjects/ApexLog/${logId}/Body`)
+    .then(r => r.text())
+    .catch(function(err) {
+      console.error(err);
+    })
+}
+
 SF.requestLogs = function requestLogs() {
   var selectQuery = [`SELECT LogUser.Name,Application,DurationMilliseconds,`,
     `Id,LastModifiedDate,Location,LogLength,LogUserId,`,
@@ -32,6 +40,10 @@ function request(path, method = 'GET', headers = {}, body) {
         return result
       } else {
         throw Error(`${result.status} : ${result.statusText}`)
+      }
+    }).catch((err)=>{
+      if(err.message.substring(0,3) === "401"){
+          // TODO give proper message of expired session
       }
     })
 }

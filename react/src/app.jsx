@@ -21,39 +21,45 @@ import CircularProgress from 'material-ui/CircularProgress';
 import Paper from 'material-ui/Paper';
 import SF from './sf-api'
 
-////////////////   INIT //////////////////
-var evil = {}
-
-function initSF(){
-  function getParam(s) {
-   const url = new URL(location.href)
-   return url.searchParams.get(s)
-  }
-  SF.host = getParam("host")
-  SF.sid = getParam("sid")
+//////////////////// UTILS //////////////////////
+function escapeRegExp(str) {
+  return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
 }
 
-function initEvil(){
-  refresh()
-}
+///////////////////  EVENTS & ACTIONS //////////
 
-function init(){
-  initSF()
-  initEvil()
-}
-
-function refresh(){
-  SF.requestLogs().then((records) => {
-    console.log(records)
-    evil.logs = records
+function search(){
+  evil.loading = true
+  render()
+  var searchRegex = new RegExp(escapeRegExp(evil.searchTerm), 'gi');
+  let logBodyPromises = evil.logs.map(x => x.Id).map(x => ({id: x, promise: SF.logBody(x)}))
+  let resultPromise = logBodyPromises.map(
+    (lbp) => lbp.promise.then((logBody) => ({id: lbp.id,
+                  found: searchRegex.test(logBody)})))
+  Promise.all(resultPromise).then((results)=> {
+    evil.logs = evil.logs.filter(l =>
+      results.filter(r => r.found).map(r => r.id).indexOf(l.Id) > -1)
+    evil.loading = false
     render()
   })
 }
 
-init()
+function updateTerm(e){
+  evil.searchTerm = e.target.value
+  render()
+}
 
-////////////////   END OF INIT //////////////////
+function refresh(){
+  render()
+  SF.requestLogs().then((records) => {
+    evil.logs = records
+    evil.loading = false
+    render()
+  })
+}
 
+
+////////////////////// UI /////////////////////////////
 const App = () => (
   <MuiThemeProvider>
     <MainContainer/>
@@ -76,16 +82,17 @@ const TopControls = () => (
       <DeleteIcon/>
     </FloatingActionButton>
     <Search/>
+    <CircularProgress style={{display: evil.loading ? 'inline' : 'none'}}/>
   </div>
 )
 
 const Search = () => (
   <span>
-    <TextField hintText="Search" />
-    <FloatingActionButton>
+    <TextField hintText="Search" value={evil.searchTerm}
+      onChange={updateTerm} />
+    <FloatingActionButton  onClick={search}>
       <SearchIcon/>
     </FloatingActionButton>
-    <CircularProgress/>
   </span>
 )
 
@@ -123,3 +130,25 @@ const toLogView = (log, index) => {
 function render(){
   ReactDOM.render(<App/>, document.getElementById("container"))
 }
+
+
+////////////////   INIT //////////////////
+var evil = {searchTerm: "", logs: [], loading: true}
+
+function initSF(){
+  function getParam(s) {
+   const url = new URL(location.href)
+   return url.searchParams.get(s)
+  }
+  SF.host = getParam("host")
+  SF.sid = getParam("sid")
+}
+
+function init(){
+  initSF()
+  refresh()
+}
+
+init()
+
+////////////////   END OF INIT //////////////////
