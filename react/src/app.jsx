@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
+import Snackbar from 'material-ui/Snackbar';
 import {List, ListItem} from 'material-ui/List';
 import {
   Table,
@@ -46,6 +47,7 @@ function search(){
 
 function updateTerm(e){
   evil.searchTerm = e.target.value
+
   render()
 }
 
@@ -55,7 +57,17 @@ function refresh(){
     evil.logs = records
     evil.loading = false
     render()
+  }).catch((err)=>{
+    evil.message = `Error occured: ${err.message}`
+    evil.showMessage = true
+    render()
   })
+}
+
+function deleteAll(){
+  evil.message = "WOOT"
+  evil.showMessage = true
+  render()
 }
 
 
@@ -70,6 +82,12 @@ const MainContainer = () => (
   <div>
     <TopControls/>
     <LogsTable logs={evil.logs}/>
+    <Snackbar open={evil.showMessage} message={evil.message}
+        onRequestClose={()=> {
+            evil.showMessage = false
+            evil.message = ""
+            render()
+        }}/>
   </div>
 )
 
@@ -78,13 +96,12 @@ const buttonStyle = {margin: '1em'}
 const TopControls = () => (
   <div>
     <Search/>
-    <FloatingActionButton onClick={()=> refresh()} style={buttonStyle}>
+    <FloatingActionButton onClick={refresh} style={buttonStyle}>
       <RefreshIcon/>
     </FloatingActionButton>
-    <FloatingActionButton style={buttonStyle}>
+    <FloatingActionButton style={buttonStyle} onClick={deleteAll}>
       <DeleteIcon/>
     </FloatingActionButton>
-
     <CircularProgress style={{display: evil.loading ? 'inline' : 'none',
               margin: '1em'}}/>
   </div>
@@ -93,8 +110,8 @@ const TopControls = () => (
 const Search = () => (
   <span style={{display: "inline-block"}}>
     <TextField hintText="Search" value={evil.searchTerm}
-      style={{margin: '0px 1em'}} width="450px"
-      onChange={updateTerm} />
+      style={{margin: '0px 1em'}}
+      onChange={updateTerm} onKeyUp={(e) => {if(e.keyCode==13) search()}}/>
     <FloatingActionButton  onClick={search} style={{margin: '1em'}}>
       <SearchIcon/>
     </FloatingActionButton>
@@ -138,7 +155,7 @@ function render(){
 
 
 ////////////////   INIT //////////////////
-var evil = {searchTerm: "", logs: [], loading: true}
+var evil = {searchTerm: "", logs: [], loading: true, showMessage: false, message: ""}
 
 function initSF(){
   function getParam(s) {
