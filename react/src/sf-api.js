@@ -3,7 +3,7 @@ var SF = {}
 SF.host = ""
 SF.sid = ""
 
-SF.logBody = function logBody(logId){
+SF.logBody = function logBody(logId) {
   return request(`/services/data/v32.0/tooling/sobjects/ApexLog/${logId}/Body`)
     .then(r => r.text())
 }
@@ -20,9 +20,24 @@ SF.requestLogs = function requestLogs() {
     .then(responseObj => responseObj.records)
 }
 
+SF.deleteAll = function deleteAll(ids) {
+  let logIdsCsv = ids.reduce((acc, id) => `${acc}\n"${id}"`, `"Id"`)
+  return createJob('ApexLog', 'delete')
+    .then(job => {
+      return request(`/${job.contentUrl}`, 'PUT', {
+          'Content-Type': 'text/csv'
+        }, logIdsCsv)
+        .then(() => closeJob(job.id))
+        .then(() => pollJobStatus(job.id))
+    })
+}
+
 function request(path, method = 'GET', headers = {}, body) {
-  if (!headers['X-SFDC-Session']) {
-    headers['Authorization'] = 'Bearer ' + SF.sid
+  headers['Authorization'] = 'Bearer ' + SF.sid
+  headers['Accept'] = 'application/json'
+  if (!headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json; charset=UTF-8'
+    body = JSON.stringify(body)
   }
   return fetch(`https://${SF.host}${path}`, {
       method,
@@ -35,70 +50,51 @@ function request(path, method = 'GET', headers = {}, body) {
       } else {
         throw Error(`${result.status}: ${result.statusText}`)
       }
-    }).catch((err)=>{
-      if(err.message.substring(0,3) === "401"){
-          // TODO give proper message of expired session
-          throw Error(`401: Unauthorized`)
+    }).catch((err) => {
+      if (err.message.substring(0, 3) === "401") {
+        throw Error(`401: Unauthorized`)
       }
     })
 }
 
 function createJob(objectName, operation) {
-  var queryJob = `<?xml version="1.0" encoding="UTF-8"?>
-   <jobInfo xmlns="http://www.force.com/2009/06/asyncapi/dataload">
-        <operation>${operation}</operation>
-        <object>${objectName}</object>
-        <concurrencyMode>Parallel</concurrencyMode>
-        <contentType>CSV</contentType>
-   </jobInfo>`;
-  return sfRequest('/services/async/34.0/job', 'POST', {
-        'Content-Type': 'application/xml',
-        'X-SFDC-Session': sid
-      },
-      queryJob).then(r => r.text())
-    .then(function(response) {
-      return response.match(/<id>(.*)<\/id>/)[1];
-    });
+  var job = {
+    object: objectName,
+    operation: operation
+  }
+  return request('/services/data/v41.0/jobs/ingest', 'POST', {}, job)
+    .then(r => r.json())
 }
 
-function pollBatchStatus(jobId, batchId) {
+function closeJob(jobId) {
+  return request(`/services/data/v41.0/jobs/ingest/${jobId}`,
+    'PATCH', {}, {
+      state: "UploadComplete"
+    })
+}
+
+function checkJobStatus(jobId) {
+  return request(`/services/data/v41.0/jobs/ingest/${jobId}`)
+    .then(r => r.json())
+}
+
+function pollJobStatus(jobId) {
   return new Promise(function(resolve, reject) {
     var intervalId = setInterval(function() {
-      checkBatchStatus(jobId, batchId).then(function(state) {
-        if (state === "Completed") {
+      checkJobStatus(jobId).then(function({
+        state
+      }) {
+        if (state === "JobComplete") {
+          clearInterval(intervalId);
           resolve(state);
-          clearInterval(intervalId);
         }
-        if (state === "Error" || state === "Not Processed") {
+        if (state === "Failed" || state === "Not Processed") {
+          clearInterval(intervalId);
           reject(state);
-          clearInterval(intervalId);
         }
-
       });
-
     }, 1000);
   });
-}
-
-function checkBatchStatus(jobId, batchId) {
-  return sfRequest(`/services/async/34.0/job/${jobId}/batch/${batchId}`, 'GET', {
-      'X-SFDC-Session': sid
-    })
-    .then(r => r.text())
-    .then(function(resultXml) {
-      return resultXml.match(/<state>(.*)<\/state>/)[1];
-    });
-}
-
-function createBatch(jobId, csv) {
-  return sfRequest(`/services/async/34.0/job/${jobId}/batch`, 'POST', {
-        'Content-Type': 'text/csv; charset=UTF-8',
-        'X-SFDC-Session': sid
-      },
-      csv).then(r => r.text())
-    .then(function(response) {
-      return response.match(/<id>(.*)<\/id>/)[1];
-    });
 }
 
 export default SF

@@ -65,8 +65,12 @@ function refresh(){
 }
 
 function deleteAll(){
-  evil.message = "WOOT"
-  evil.showMessage = true
+  SF.deleteAll(evil.logs.map(l=>l.Id)).then(()=>{
+    evil.message = "Removed logs from salesforce"
+    evil.showMessage = true
+    render()
+  })
+  evil.logs = []
   render()
 }
 
