@@ -43,7 +43,7 @@ export default class SF{
 
   async startLogging() {
     const userId = await this.getUserId()
-    const debugLevelId = await getOrCreateDebugLevel()
+    const debugLevelId = await this.tooling.getOrCreateDebugLevel()
     return this.tooling.createTraceFlag(userId, debugLevelId)
   }
 
