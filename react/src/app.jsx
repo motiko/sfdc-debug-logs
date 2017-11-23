@@ -26,40 +26,24 @@ import Paper from 'material-ui/Paper'
 import SF from './api/sf'
 import IconButton from 'material-ui/IconButton'
 
-
-
-//////////////////// UTILS //////////////////////
-function escapeRegExp(str) {
-  return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-}
-
 ///////////////////  EVENTS & ACTIONS //////////
 
-function search(){
-  evil.loading = true
-  render()
-  const searchRegex = new RegExp(escapeRegExp(evil.searchTerm), 'gi');
-  const logBodyPromises = evil.logs.map(x => x.Id).map(x => ({id: x, promise: evil.sf.logBody(x)}))
-  const resultPromise = logBodyPromises.map(
-    (lbp) => lbp.promise.then((logBody) => ({id: lbp.id,
-                  found: searchRegex.test(logBody)})))
-  Promise.all(resultPromise).then((results)=> {
-    const foundIds = results.filter(r => r.found).map(r => r.id)
-    evil.logs.filter(l=> foundIds.indexOf(l.Id) == -1).forEach(l => {
-      l['not_matches_search'] = true
-    })
-    evil.loading = false
-    render()
-  })
-}
+document.body.addEventListener('keyup',(e) => {
+  if(e.target.type == "text") return
+  const key = e.key
+  const funMap = {
+    'r': refresh,
+    's': () => {
 
-function updateTerm(e){
-  evil.searchTerm = e.target.value
-  render()
-}
+    }
+  }
+  if(funMap[key])
+    funMap[key]()
+})
 
 function refresh(){
   evil.loading = true
+  evil.searchTerm = ""
   render()
   evil.sf.requestLogs().then((records) => {
     evil.logs = records
@@ -74,24 +58,8 @@ function refresh(){
   })
 }
 
-function deleteAll(){
-  evil.sf.deleteAll().then(()=>{
-    evil.message = "Removed logs from salesforce"
-    evil.showMessage = true
-    render()
-  })
-  evil.logs = []
-  render()
-}
+////////////////////////Styles //////////////////////////
 
-function startLogging(){
-  evil.sf.startLogging().then(()=>{
-    evil.isLogging = true
-    render()
-  })
-}
-
-//////////////////////// STYLES ////////////////////////////
 const styles = {
   mediumIcon: {
     width: 48,
@@ -101,8 +69,10 @@ const styles = {
     width: 96,
     height: 96,
     padding: 24,
-  }
-};
+  },
+  button : {margin: '1em'}
+}
+
 ////////////////////// UI /////////////////////////////
 const App = () => (
   <MuiThemeProvider>
@@ -123,16 +93,26 @@ const MainContainer = () => (
   </div>
 )
 
-const buttonStyle = {margin: '1em'}
+const TopControls = () => {
 
-const TopControls = () => (
+  function deleteAll(){
+    evil.sf.deleteAll().then(()=>{
+      evil.message = "Removed logs from salesforce"
+      evil.showMessage = true
+      render()
+    })
+    evil.logs = []
+    render()
+  }
+
+  return (
   <div style={{position:"relative"}}>
     <Search/>
-    <IconButton tooltip="(R)eload" onClick={refresh} style={buttonStyle}
+    <IconButton tooltip="(R)eload" onClick={refresh} style={styles.button}
                  iconStyle={styles.mediumIcon} style={styles.medium}>
       <RefreshIcon />
     </IconButton>
-    <IconButton style={buttonStyle} onClick={deleteAll} tooltip="Delete (A)ll"
+    <IconButton style={styles.button} onClick={deleteAll} tooltip="Delete (A)ll"
                  iconStyle={styles.mediumIcon} style={styles.medium}>
       <DeleteIcon/>
     </IconButton>
@@ -140,10 +120,18 @@ const TopControls = () => (
               margin: '1em'}}/>
     <TrackingLogs isTracking={evil.isLogging}/>
   </div>
-)
+)}
 
 const TrackingLogs = (props) => {
   let style={position: "absolute", top: 7,left: 10}
+
+  function startLogging(){
+    evil.sf.startLogging().then(()=>{
+      evil.isLogging = true
+      render()
+    })
+  }
+
   if(props.isTracking){
     return (
       <FlatButton label="Logging Activity" disabled={true} style={style} icon={<CheckIcon />}/>
@@ -156,28 +144,75 @@ const TrackingLogs = (props) => {
   }
 }
 
+const Search = () => {
+  function handleKey(e){
+    if(e.keyCode==13) search()
+    if(e.keyCode==27) refresh()
 
+  }
 
-const Search = () => (
+  function updateTerm(e){
+    evil.searchTerm = e.target.value
+    render()
+  }
+
+  function escapeRegExp(str) {
+    return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+  }
+
+  function search(){
+    evil.loading = true
+    render()
+    const searchRegex = new RegExp(escapeRegExp(evil.searchTerm), 'gi');
+    const logBodyPromises = evil.logs.map(x => x.Id).map(x => ({id: x, promise: evil.sf.logBody(x)}))
+    const resultPromise = logBodyPromises.map(
+      (lbp) => lbp.promise.then((logBody) => ({id: lbp.id,
+                    found: searchRegex.test(logBody)})))
+    Promise.all(resultPromise).then((results)=> {
+      const foundIds = results.filter(r => r.found).map(r => r.id)
+      evil.logs.filter(l=> foundIds.indexOf(l.Id) == -1).forEach(l => {
+        l['not_matches_search'] = true
+      })
+      evil.loading = false
+      render()
+    })
+  }
+
+  return (
   <span style={{display: "inline-block"}}>
     <TextField hintText="Search" value={evil.searchTerm}
       style={{margin: '0px 1em'}}
-      onChange={updateTerm} onKeyUp={(e) => {if(e.keyCode==13) search()}}/>
+      onChange={updateTerm} onKeyUp={handleKey}/>
     <IconButton  onClick={search} style={{margin: '1em'}} tooltip="Search"
                    iconStyle={styles.mediumIcon} style={styles.medium}>
       <SearchIcon/>
     </IconButton>
   </span>
-)
+)}
 
-function openLog(index){
-  browser.runtime.sendMessage({
-      url: `https://${getParam('host')}/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${evil.logs[index].Id}`,
-      command: "openTab"
-    });
-}
+const LogsTable = (props) => {
+  function openLog(index){
+    browser.runtime.sendMessage({
+        url: `https://${getParam('host')}/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${evil.logs[index].Id}`,
+        command: "openTab"
+      });
+  }
 
-const LogsTable = (props) => (
+  const toLogView = (log, index) => {
+    const style = {display: log['not_matches_search'] ? 'none' : 'table-row'}
+    const timeString = log.StartTime.match(/T(\d\d:\d\d):/)[1]
+    return (
+        <TableRow key={log.Id} style={style}>
+          <TableRowColumn>{timeString}</TableRowColumn>
+          <TableRowColumn>{log.Operation}</TableRowColumn>
+          <TableRowColumn>{log.Status}</TableRowColumn>
+          <TableRowColumn>{log.LogUser.Name}</TableRowColumn>
+          <TableRowColumn>{log.DurationMilliseconds + "ms"}</TableRowColumn>
+          <TableRowColumn>{`${log.LogLength/1000} k`}</TableRowColumn>
+        </TableRow>)
+  }
+
+  return (
   <Table onRowSelection={openLog}>
     <TableHeader adjustForCheckbox={false} displaySelectAll={false}>
       <TableRow>
@@ -192,21 +227,7 @@ const LogsTable = (props) => (
     <TableBody showRowHover={true}  displayRowCheckbox={false} >
       {props.logs.map( toLogView)}
     </TableBody>
-  </Table>
-)
-
-const toLogView = (log, index) => {
-  const style = {display: log['not_matches_search'] ? 'none' : 'table-row'}
-  const timeString = log.StartTime.match(/T(\d\d:\d\d):/)[1]
-  return (
-      <TableRow key={log.Id} style={style}>
-        <TableRowColumn>{timeString}</TableRowColumn>
-        <TableRowColumn>{log.Operation}</TableRowColumn>
-        <TableRowColumn>{log.Status}</TableRowColumn>
-        <TableRowColumn>{log.LogUser.Name}</TableRowColumn>
-        <TableRowColumn>{log.DurationMilliseconds + "ms"}</TableRowColumn>
-        <TableRowColumn>{`${log.LogLength/1000} k`}</TableRowColumn>
-      </TableRow>)
+  </Table>)
 }
 
 function render(){
