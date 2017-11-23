@@ -32,31 +32,12 @@ document.body.addEventListener('keyup',(e) => {
   if(e.target.type == "text") return
   const key = e.key
   const funMap = {
-    'r': refresh,
-    's': () => {
-
-    }
+    'r': ()=> console.log("REFRESH"),
+    's': () => {}
   }
   if(funMap[key])
     funMap[key]()
 })
-
-function refresh(){
-  evil.loading = true
-  evil.searchTerm = ""
-  render()
-  evil.sf.requestLogs().then((records) => {
-    evil.logs = records
-    console.log(records)
-    evil.loading = false
-    render()
-  }).catch((err)=>{
-    evil.loading = false
-    evil.message = `Error occured: ${err.message}`
-    evil.showMessage = true
-    render()
-  })
-}
 
 ////////////////////////Styles //////////////////////////
 
@@ -80,115 +61,155 @@ const App = () => (
   </MuiThemeProvider>
 )
 
-const MainContainer = () => (
-  <div>
-    <TopControls/>
-    <LogsTable logs={evil.logs}/>
-    <Snackbar open={evil.showMessage} message={evil.message}
-        onRequestClose={()=> {
-            evil.showMessage = false
-            evil.message = ""
-            render()
-        }}/>
-  </div>
-)
+class MainContainer extends React.Component{
+  constructor(props){
+    super(props)
+    this.state = {logs: [], loading: true, message: ""}
+    this.refresh = this.refresh.bind(this)
+    this.deleteAll = this.deleteAll.bind(this)
+    this.search = this.search.bind(this)
+  }
 
-const TopControls = () => {
+  handleSnackbarClose() {
+    this.setState({message: ""})
+  }
 
-  function deleteAll(){
+  deleteAll() {
     evil.sf.deleteAll().then(()=>{
-      evil.message = "Removed logs from salesforce"
-      evil.showMessage = true
-      render()
+      this.setState({ message: "Removed logs from salesforce" })
     })
-    evil.logs = []
-    render()
+    this.setState( { logs:[]} )
   }
 
-  return (
-  <div style={{position:"relative"}}>
-    <Search/>
-    <IconButton tooltip="(R)eload" onClick={refresh} style={styles.button}
-                 iconStyle={styles.mediumIcon} style={styles.medium}>
-      <RefreshIcon />
-    </IconButton>
-    <IconButton style={styles.button} onClick={deleteAll} tooltip="Delete (A)ll"
-                 iconStyle={styles.mediumIcon} style={styles.medium}>
-      <DeleteIcon/>
-    </IconButton>
-    <CircularProgress style={{display: evil.loading ? 'inline' : 'none',
-              margin: '1em'}}/>
-    <TrackingLogs isTracking={evil.isLogging}/>
-  </div>
-)}
-
-const TrackingLogs = (props) => {
-  let style={position: "absolute", top: 7,left: 10}
-
-  function startLogging(){
-    evil.sf.startLogging().then(()=>{
-      evil.isLogging = true
-      render()
+  refresh() {
+    this.setState({
+      loading: true,
+      searchTerm: ""
+    })
+    evil.sf.requestLogs().then((records) => {
+      this.setState({
+        logs: records,
+        loading: false
+      })
+    }).catch((err)=>{
+      this.setState({
+        showMessage: true,
+        message: `Error occured: ${err.message}`,
+        loading:false
+      })
     })
   }
 
-  if(props.isTracking){
-    return (
-      <FlatButton label="Logging Activity" disabled={true} style={style} icon={<CheckIcon />}/>
-    )
-  }else{
-    return (
-      <FlatButton label="Start Logging" onClick={startLogging} style={style}
-        icon={<CheckBlankIcon />}/>
-    )
-  }
-}
-
-const Search = () => {
-  function handleKey(e){
-    if(e.keyCode==13) search()
-    if(e.keyCode==27) refresh()
-
-  }
-
-  function updateTerm(e){
-    evil.searchTerm = e.target.value
-    render()
-  }
-
-  function escapeRegExp(str) {
-    return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-  }
-
-  function search(){
-    evil.loading = true
-    render()
-    const searchRegex = new RegExp(escapeRegExp(evil.searchTerm), 'gi');
-    const logBodyPromises = evil.logs.map(x => x.Id).map(x => ({id: x, promise: evil.sf.logBody(x)}))
+  search(searchTerm) {
+    this.setState({loading: true})
+    const escapeRegExp = (str) => str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
+    const searchRegex = new RegExp(escapeRegExp(searchTerm), 'gi');
+    const logBodyPromises = this.state.logs.map(x => x.Id).map(x => ({id: x, promise: evil.sf.logBody(x)}))
     const resultPromise = logBodyPromises.map(
       (lbp) => lbp.promise.then((logBody) => ({id: lbp.id,
                     found: searchRegex.test(logBody)})))
     Promise.all(resultPromise).then((results)=> {
       const foundIds = results.filter(r => r.found).map(r => r.id)
-      evil.logs.forEach(l => {
-        l['not_matches_search'] = foundIds.indexOf(l.Id) == -1
+      this.setState( (oldState) => {
+        return {
+                logs: oldState.logs.map(l => {
+                    l['not_matches_search'] = foundIds.indexOf(l.Id) == -1
+                    return l
+                  }),
+                loading:false
+        }
       })
-      evil.loading = false
-      render()
     })
   }
 
-  return (
-  <span style={{display: "inline-block"}}>
-    <TextField hintText="Search" value={evil.searchTerm}
-      style={{margin: '0px 1em'}}
-      onChange={updateTerm} onKeyUp={handleKey}/>
-    <IconButton  onClick={search} style={{margin: '1em'}} tooltip="Search"
-                   iconStyle={styles.mediumIcon} style={styles.medium}>
-      <SearchIcon/>
-    </IconButton>
-  </span>
-)}
+  render(){
+    return (
+     <div>
+       <TopControls handleRefresh={this.refresh} handleSearch={this.search}
+                    handleDeleteAll={this.deleteAll}/>
+       <LogsTable logs={this.state.logs}/>
+       <Snackbar open={this.state.message != ""} message={this.state.message}
+           onRequestClose={() => this.handleSnackbarClose()}/>
+     </div>)
+  }
+}
+
+function TopControls(props) {
+    const loading = props.loading
+    return (
+      <div style={{position:"relative"}}>
+        <Search handleSearch={props.handleSearch}/>
+        <IconButton tooltip="(R)eload" onClick={props.handleRefresh} style={styles.button}
+                     iconStyle={styles.mediumIcon} style={styles.medium}>
+          <RefreshIcon />
+        </IconButton>
+        <IconButton style={styles.button} onClick={props.handleDeleteAll} tooltip="Delete (A)ll"
+                     iconStyle={styles.mediumIcon} style={styles.medium}>
+          <DeleteIcon/>
+        </IconButton>
+        <CircularProgress style={{display:loading ? 'inline' : 'none',
+                  margin: '1em'}}/>
+        <TrackingLogs/>
+
+      </div>)
+}
+
+
+class TrackingLogs extends React.Component {
+  constructor(props){
+    super(props)
+    this.state = {isTracking: false}
+    this.startLogging = this.startLogging.bind(this)
+  }
+
+  startLogging(){
+    evil.sf.startLogging().then(()=>{
+      this.setState({isTracking: true})
+    })
+  }
+
+  render(){
+    const style={position: "absolute", top: 7,left: 10}
+    if(this.state.isTracking){
+      return <FlatButton label="Logging Activity" disabled={true} style={style} icon={<CheckIcon />}/>
+    }
+    return (
+      <FlatButton label="Start Logging" onClick={this.startLogging} style={style}
+        icon={<CheckBlankIcon />}/>)
+  }
+}
+
+class Search extends React.Component {
+  constructor(props){
+    super(props)
+    this.state = {searchTerm: ""}
+    this.updateTerm = this.updateTerm.bind(this)
+    this.handleKey = this.handleKey.bind(this)
+  }
+
+  handleKey(e){
+    if(e.keyCode==13) this.props.handleSearch(this.state.searchTerm)
+    if(e.keyCode==27) this.props.handleRefresh()
+  }
+
+  updateTerm(e){
+    this.setState({searchTerm: e.target.value})
+  }
+
+  render(){
+    const searchTerm = this.state.searchTerm
+    return (
+    <span style={{display: "inline-block"}}>
+      <TextField hintText="Search" value={searchTerm}
+        style={{margin: '0px 1em'}}
+        onChange={this.updateTerm} onKeyUp={this.handleKey}/>
+      <IconButton  onClick={(e)=>this.props.handleSearch(searchTerm)} style={{margin: '1em'}} tooltip="Search"
+                     iconStyle={styles.mediumIcon} style={styles.medium}>
+        <SearchIcon/>
+      </IconButton>
+    </span>)
+  }
+}
 
 const LogsTable = (props) => {
   function openLog(index){
@@ -234,25 +255,12 @@ function render(){
   ReactDOM.render(<App/>, document.getElementById("container"))
 }
 
-
 ////////////////   INIT //////////////////
-var evil = {searchTerm: "", logs: [], loading: true, showMessage: false, message: "", sf : {}}
 
 function getParam(s) {
  const url = new URL(location.href)
  return url.searchParams.get(s)
 }
 
-function init(){
-  evil.sf = new SF(getParam("host"), getParam("sid"))
-  refresh()
-  evil.sf.isLogging().then((isLogging)=>{
-    evil.isLogging = isLogging
-    render()
-  })
-}
-
-init()
-
-
-////////////////   END OF INIT //////////////////
+const evil = {sf: new SF(getParam("host"), getParam("sid"))}
+render()
