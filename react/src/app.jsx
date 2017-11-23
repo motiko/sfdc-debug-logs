@@ -26,18 +26,15 @@ import Paper from 'material-ui/Paper'
 import SF from './api/sf'
 import IconButton from 'material-ui/IconButton'
 
-///////////////////  EVENTS & ACTIONS //////////
+////////////////   INIT //////////////////
 
-document.body.addEventListener('keyup',(e) => {
-  if(e.target.type == "text") return
-  const key = e.key
-  const funMap = {
-    'r': ()=> console.log("REFRESH"),
-    's': () => {}
-  }
-  if(funMap[key])
-    funMap[key]()
-})
+function getParam(s) {
+ const url = new URL(location.href)
+ return url.searchParams.get(s)
+}
+
+const sf = new SF(getParam("host"), getParam("sid"))
+
 
 ////////////////////////Styles //////////////////////////
 
@@ -64,7 +61,7 @@ const App = () => (
 class MainContainer extends React.Component{
   constructor(props){
     super(props)
-    this.state = {logs: [], loading: true, message: ""}
+    this.state = {logs: [], loading: false, message: ""}
     this.refresh = this.refresh.bind(this)
     this.deleteAll = this.deleteAll.bind(this)
     this.search = this.search.bind(this)
@@ -75,7 +72,7 @@ class MainContainer extends React.Component{
   }
 
   deleteAll() {
-    evil.sf.deleteAll().then(()=>{
+    sf.deleteAll().then(()=>{
       this.setState({ message: "Removed logs from salesforce" })
     })
     this.setState( { logs:[]} )
@@ -86,7 +83,7 @@ class MainContainer extends React.Component{
       loading: true,
       searchTerm: ""
     })
-    evil.sf.requestLogs().then((records) => {
+    sf.requestLogs().then((records) => {
       this.setState({
         logs: records,
         loading: false
@@ -104,7 +101,7 @@ class MainContainer extends React.Component{
     this.setState({loading: true})
     const escapeRegExp = (str) => str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
     const searchRegex = new RegExp(escapeRegExp(searchTerm), 'gi');
-    const logBodyPromises = this.state.logs.map(x => x.Id).map(x => ({id: x, promise: evil.sf.logBody(x)}))
+    const logBodyPromises = this.state.logs.map(x => x.Id).map(x => ({id: x, promise: sf.logBody(x)}))
     const resultPromise = logBodyPromises.map(
       (lbp) => lbp.promise.then((logBody) => ({id: lbp.id,
                     found: searchRegex.test(logBody)})))
@@ -122,11 +119,25 @@ class MainContainer extends React.Component{
     })
   }
 
+  componentDidMount(){
+    this.refresh()
+    document.body.addEventListener('keyup',(e) => {
+      if(e.target.type == "text") return
+      const key = e.key
+      const funMap = {
+        'r': this.refresh,
+        's': () => {}
+      }
+      if(funMap[key])
+        funMap[key]()
+    })
+  }
+
   render(){
     return (
      <div>
        <TopControls handleRefresh={this.refresh} handleSearch={this.search}
-                    handleDeleteAll={this.deleteAll}/>
+                    handleDeleteAll={this.deleteAll} loading={this.state.loading}/>
        <LogsTable logs={this.state.logs}/>
        <Snackbar open={this.state.message != ""} message={this.state.message}
            onRequestClose={() => this.handleSnackbarClose()}/>
@@ -163,9 +174,17 @@ class TrackingLogs extends React.Component {
   }
 
   startLogging(){
-    evil.sf.startLogging().then(()=>{
+    sf.startLogging().then(()=>{
       this.setState({isTracking: true})
     })
+  }
+
+  componentDidMount(){
+    sf.isLogging()
+      .then((isTracking) => {
+        this.setState({isTracking})
+        if(!isTracking) this.startLogging()
+      })
   }
 
   render(){
@@ -203,7 +222,7 @@ class Search extends React.Component {
       <TextField hintText="Search" value={searchTerm}
         style={{margin: '0px 1em'}}
         onChange={this.updateTerm} onKeyUp={this.handleKey}/>
-      <IconButton  onClick={(e)=>this.props.handleSearch(searchTerm)} style={{margin: '1em'}} tooltip="Search"
+      <IconButton  onClick={(e) => this.props.handleSearch(searchTerm)} style={{margin: '1em'}} tooltip="Search"
                      iconStyle={styles.mediumIcon} style={styles.medium}>
         <SearchIcon/>
       </IconButton>
@@ -214,7 +233,7 @@ class Search extends React.Component {
 const LogsTable = (props) => {
   function openLog(index){
     browser.runtime.sendMessage({
-        url: `https://${getParam('host')}/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${evil.logs[index].Id}`,
+        url: `https://${getParam('host')}/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${props.logs[index].Id}`,
         command: "openTab"
       });
   }
@@ -254,13 +273,4 @@ const LogsTable = (props) => {
 function render(){
   ReactDOM.render(<App/>, document.getElementById("container"))
 }
-
-////////////////   INIT //////////////////
-
-function getParam(s) {
- const url = new URL(location.href)
- return url.searchParams.get(s)
-}
-
-const evil = {sf: new SF(getParam("host"), getParam("sid"))}
 render()
