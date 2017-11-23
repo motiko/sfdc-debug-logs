@@ -21,16 +21,13 @@ export default class Tooling {
       System: 'DEBUG',
       Database: 'DEBUG'
     }
-    return this.request(`/services/data/v36.0/tooling/query?q=${query}`, 'GET', headers)
-      .then(existingDebugLevel => {
-        if (existingDebugLevel.records.length > 0) {
-          return existingDebugLevel.records[0].Id
-        } else {
-          return request('/services/data/v36.0/tooling/sobjects/DebugLevel',
-              'POST', headers, debugLevelPayload)
-            .then(result => result.id)
-        }
-      })
+    return this.request(`/services/data/v36.0/tooling/query?q=${query}`, 'GET', headers).then(existingDebugLevel => {
+      if (existingDebugLevel.records.length > 0) {
+        return existingDebugLevel.records[0].Id
+      } else {
+        return request('/services/data/v36.0/tooling/sobjects/DebugLevel', 'POST', headers, debugLevelPayload).then(result => result.id)
+      }
+    })
   }
 
   createTraceFlag(userId, debugLevelId) {
@@ -43,10 +40,8 @@ export default class Tooling {
   }
 
   getLogBody(logId) {
-    return this.request(`/services/data/v32.0/tooling/sobjects/ApexLog/${logId}/Body`, 'GET', {}, undefined, 'text')
-      .then(r => r.text())
+    return this.request(`/services/data/v32.0/tooling/sobjects/ApexLog/${logId}/Body`, 'GET', {}, undefined, 'text').then(r => r.text())
   }
-
 
   query(query) {
     return this.request(`/services/data/v36.0/tooling/query?q=${query}`)
