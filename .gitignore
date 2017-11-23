@@ -5,3 +5,5 @@ mm.log
 web-ext-artifacts
 tmp
 libs
+build/
+node_modules/
