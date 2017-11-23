@@ -23,7 +23,7 @@ import CheckBlankIcon from 'material-ui/svg-icons/toggle/check-box-outline-blank
 import CheckIcon from 'material-ui/svg-icons/toggle/check-box'
 import CircularProgress from 'material-ui/CircularProgress'
 import Paper from 'material-ui/Paper'
-import SF from './sf-api'
+import SF from './api/sf'
 import IconButton from 'material-ui/IconButton'
 
 
@@ -39,7 +39,7 @@ function search(){
   evil.loading = true
   render()
   const searchRegex = new RegExp(escapeRegExp(evil.searchTerm), 'gi');
-  const logBodyPromises = evil.logs.map(x => x.Id).map(x => ({id: x, promise: SF.logBody(x)}))
+  const logBodyPromises = evil.logs.map(x => x.Id).map(x => ({id: x, promise: sf.logBody(x)}))
   const resultPromise = logBodyPromises.map(
     (lbp) => lbp.promise.then((logBody) => ({id: lbp.id,
                   found: searchRegex.test(logBody)})))
@@ -61,7 +61,7 @@ function updateTerm(e){
 function refresh(){
   evil.loading = true
   render()
-  SF.requestLogs().then((records) => {
+  sf.requestLogs().then((records) => {
     evil.logs = records
     console.log(records)
     evil.loading = false
@@ -75,7 +75,7 @@ function refresh(){
 }
 
 function deleteAll(){
-  SF.deleteAll(evil.logs.map(l=>l.Id)).then(()=>{
+  sf.deleteAll(evil.logs.map(l=>l.Id)).then(()=>{
     evil.message = "Removed logs from salesforce"
     evil.showMessage = true
     render()
@@ -85,7 +85,7 @@ function deleteAll(){
 }
 
 function startLogging(){
-  SF.startLogging().then(()=>{
+  sf.startLogging().then(()=>{
     evil.isLogging = true
     render()
   })
@@ -172,7 +172,7 @@ const Search = () => (
 
 function openLog(index){
   browser.runtime.sendMessage({
-      url: `https://${SF.host}/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${evil.logs[index].Id}`,
+      url: `https://${getParam('host')}/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${evil.logs[index].Id}`,
       command: "openTab"
     });
 }
@@ -216,20 +216,23 @@ function render(){
 
 ////////////////   INIT //////////////////
 var evil = {searchTerm: "", logs: [], loading: true, showMessage: false, message: ""}
+var sf
+
+function getParam(s) {
+ const url = new URL(location.href)
+ return url.searchParams.get(s)
+}
 
 function initSF(){
-  function getParam(s) {
-   const url = new URL(location.href)
-   return url.searchParams.get(s)
-  }
-  SF.host = getParam("host")
-  SF.sid = getParam("sid")
+  sf = new SF(getParam("host"), getParam("sid"))
+  // SF.host = getParam("host")
+  // SF.sid = getParam("sid")
 }
 
 function init(){
   initSF()
   refresh()
-  SF.isLogging().then((isLogging)=>{
+  sf.isLogging().then((isLogging)=>{
     evil.isLogging = isLogging
     render()
   })
