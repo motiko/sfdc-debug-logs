@@ -13,9 +13,9 @@ export default class Tooling{
       {}, payload)
   }
 
-  getLogBody(){
-  return this.request(`/services/data/v32.0/tooling/sobjects/ApexLog/${logId}/Body`,'GET',{},undefined,'text')
-    .then(r => r.text())
+  getLogBody(logId){
+    return this.request(`/services/data/v32.0/tooling/sobjects/ApexLog/${logId}/Body`,'GET',{},undefined,'text')
+      .then(r => r.text())
   }
 
 

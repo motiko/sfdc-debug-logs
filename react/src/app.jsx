@@ -39,7 +39,7 @@ function search(){
   evil.loading = true
   render()
   const searchRegex = new RegExp(escapeRegExp(evil.searchTerm), 'gi');
-  const logBodyPromises = evil.logs.map(x => x.Id).map(x => ({id: x, promise: sf.logBody(x)}))
+  const logBodyPromises = evil.logs.map(x => x.Id).map(x => ({id: x, promise: evil.sf.logBody(x)}))
   const resultPromise = logBodyPromises.map(
     (lbp) => lbp.promise.then((logBody) => ({id: lbp.id,
                   found: searchRegex.test(logBody)})))
@@ -61,7 +61,7 @@ function updateTerm(e){
 function refresh(){
   evil.loading = true
   render()
-  sf.requestLogs().then((records) => {
+  evil.sf.requestLogs().then((records) => {
     evil.logs = records
     console.log(records)
     evil.loading = false
@@ -75,7 +75,7 @@ function refresh(){
 }
 
 function deleteAll(){
-  sf.deleteAll(evil.logs.map(l=>l.Id)).then(()=>{
+  evil.sf.deleteAll().then(()=>{
     evil.message = "Removed logs from salesforce"
     evil.showMessage = true
     render()
@@ -85,7 +85,7 @@ function deleteAll(){
 }
 
 function startLogging(){
-  sf.startLogging().then(()=>{
+  evil.sf.startLogging().then(()=>{
     evil.isLogging = true
     render()
   })
@@ -215,24 +215,17 @@ function render(){
 
 
 ////////////////   INIT //////////////////
-var evil = {searchTerm: "", logs: [], loading: true, showMessage: false, message: ""}
-var sf
+var evil = {searchTerm: "", logs: [], loading: true, showMessage: false, message: "", sf : {}}
 
 function getParam(s) {
  const url = new URL(location.href)
  return url.searchParams.get(s)
 }
 
-function initSF(){
-  sf = new SF(getParam("host"), getParam("sid"))
-  // SF.host = getParam("host")
-  // SF.sid = getParam("sid")
-}
-
 function init(){
-  initSF()
+  evil.sf = new SF(getParam("host"), getParam("sid"))
   refresh()
-  sf.isLogging().then((isLogging)=>{
+  evil.sf.isLogging().then((isLogging)=>{
     evil.isLogging = isLogging
     render()
   })

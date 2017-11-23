@@ -11,7 +11,7 @@ export default class SF{
   }
 
   logBody(logId) {
-    this.tooling.logBody(logId)
+    return this.tooling.getLogBody(logId)
   }
 
   requestLogs(numLimit=50,timeLimit="LAST_MONTH") {
@@ -25,7 +25,7 @@ export default class SF{
             .then(responseObj => responseObj.records)
   }
 
-  async deleteAll(ids) {
+  async deleteAll() {
     let logs = await this.tooling.query('Select Id From ApexLog')
     let logIds = logs.records.map(r => r.Id)
     let logIdsCsv = logIds.reduce((acc, id) => `${acc}\n"${id}"`, `"Id"`)
