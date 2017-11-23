@@ -170,8 +170,8 @@ const Search = () => {
                     found: searchRegex.test(logBody)})))
     Promise.all(resultPromise).then((results)=> {
       const foundIds = results.filter(r => r.found).map(r => r.id)
-      evil.logs.filter(l=> foundIds.indexOf(l.Id) == -1).forEach(l => {
-        l['not_matches_search'] = true
+      evil.logs.forEach(l => {
+        l['not_matches_search'] = foundIds.indexOf(l.Id) == -1
       })
       evil.loading = false
       render()
@@ -202,7 +202,7 @@ const LogsTable = (props) => {
     const style = {display: log['not_matches_search'] ? 'none' : 'table-row'}
     const timeString = log.StartTime.match(/T(\d\d:\d\d):/)[1]
     return (
-        <TableRow key={log.Id} style={style}>
+        <TableRow key={log.Id} logid={log.Id} style={style}>
           <TableRowColumn>{timeString}</TableRowColumn>
           <TableRowColumn>{log.Operation}</TableRowColumn>
           <TableRowColumn>{log.Status}</TableRowColumn>
