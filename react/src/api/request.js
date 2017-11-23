@@ -1,4 +1,4 @@
-function initRequest(host, sid){
+export default function initRequest(host, sid){
   return function(path, method = 'GET', headers = {}, body, response='json') {
     headers['Authorization'] = 'Bearer ' + sid
     if(response == 'json') headers['Accept'] = 'application/json'
@@ -25,6 +25,3 @@ function initRequest(host, sid){
       })
   }
 }
-
-
-export default initRequest

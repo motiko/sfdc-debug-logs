@@ -26,7 +26,9 @@ export default class SF{
   }
 
   async deleteAll(ids) {
-    let logIdsCsv = ids.reduce((acc, id) => `${acc}\n"${id}"`, `"Id"`)
+    let logs = await this.tooling.query('Select Id From ApexLog')
+    let logIds = logs.records.map(r => r.Id)
+    let logIdsCsv = logIds.reduce((acc, id) => `${acc}\n"${id}"`, `"Id"`)
     let job = await this.batch.createJob('ApexLog', 'delete')
     await this.batch.attachBatchToJob(job,logIdsCsv)
     await this.batch.closeJob(job.id)
