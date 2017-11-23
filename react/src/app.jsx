@@ -58,11 +58,13 @@ class MainContainer extends React.Component {
     this.state = {
       logs: [],
       loading: false,
-      message: ""
+      message: "",
+      searchTerm: ""
     }
     this.refresh = this.refresh.bind(this)
     this.deleteAll = this.deleteAll.bind(this)
     this.search = this.search.bind(this)
+    this.updateSearchTerm = this.updateSearchTerm.bind(this)
   }
 
   handleSnackbarClose() {
@@ -85,7 +87,8 @@ class MainContainer extends React.Component {
     })
   }
 
-  search(searchTerm) {
+  search() {
+    const searchTerm = this.state.searchTerm
     this.setState({loading: true})
     const escapeRegExp = (str) => str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
     const searchRegex = new RegExp(escapeRegExp(searchTerm), 'gi');
@@ -113,28 +116,61 @@ class MainContainer extends React.Component {
       const key = e.key
       const funMap = {
         'r': this.refresh,
-        's': () => {}
+        'a': this.deleteAll
       }
       if (funMap[key])
         funMap[key]()
     })
   }
 
+  updateSearchTerm(e) {
+    this.setState({searchTerm: e.target.value})
+  }
+
   render() {
     return (<div>
-      <TopControls handleRefresh={this.refresh} handleSearch={this.search} handleDeleteAll={this.deleteAll} loading={this.state.loading}/>
+      <div style={{
+          position: "relative"
+        }}>
+        <Search handleSearch={this.search} handleRefresh={this.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
+        <LogButtons handleRefresh={this.refresh} handleDeleteAll={this.deleteAll} loading={this.state.loading}/>
+      </div>
       <LogsTable logs={this.state.logs}/>
       <Snackbar open={this.state.message != ""} message={this.state.message} onRequestClose={() => this.handleSnackbarClose()}/>
     </div>)
   }
 }
 
-function TopControls(props) {
-  const loading = props.loading
-  return (<div style={{
-      position: "relative"
+function Search(props) {
+
+  function handleKey(e) {
+    if (e.keyCode == 13)
+      props.handleSearch()
+    if (e.keyCode == 27) {
+      props.handleRefresh()
+      props.updateSearchTerm('')
+    }
+  }
+
+  const searchTerm = props.searchTerm
+  return (<span style={{
+      display: "inline-block"
     }}>
-    <Search handleSearch={props.handleSearch}/>
+    <TextField hintText="Search" value={props.searchTerm} style={{
+        margin: '0px 1em'
+      }} onChange={props.updateSearchTerm} onKeyUp={handleKey}/>
+    <IconButton onClick={props.handleSearch} style={styles.medium} tooltip="Search" iconStyle={styles.mediumIcon}>
+      <SearchIcon/>
+    </IconButton>
+  </span>)
+
+}
+
+function LogButtons(props) {
+  const loading = props.loading
+  return (<span style={{
+      display: "inline-block"
+    }}>
     <IconButton tooltip="(R)eload" onClick={props.handleRefresh} style={styles.medium} iconStyle={styles.mediumIcon}>
       <RefreshIcon/>
     </IconButton>
@@ -148,8 +184,7 @@ function TopControls(props) {
         margin: '1em'
       }}/>
     <TrackingLogs/>
-
-  </div>)
+  </span>)
 }
 
 class TrackingLogs extends React.Component {
@@ -188,43 +223,7 @@ class TrackingLogs extends React.Component {
   }
 }
 
-class Search extends React.Component {
-  constructor(props) {
-    super(props)
-    this.state = {
-      searchTerm: ""
-    }
-    this.updateTerm = this.updateTerm.bind(this)
-    this.handleKey = this.handleKey.bind(this)
-  }
-
-  handleKey(e) {
-    if (e.keyCode == 13)
-      this.props.handleSearch(this.state.searchTerm)
-    if (e.keyCode == 27)
-      this.props.handleRefresh()
-  }
-
-  updateTerm(e) {
-    this.setState({searchTerm: e.target.value})
-  }
-
-  render() {
-    const searchTerm = this.state.searchTerm
-    return (<span style={{
-        display: "inline-block"
-      }}>
-      <TextField hintText="Search" value={searchTerm} style={{
-          margin: '0px 1em'
-        }} onChange={this.updateTerm} onKeyUp={this.handleKey}/>
-      <IconButton onClick={(e) => this.props.handleSearch(searchTerm)} style={styles.medium} tooltip="Search" iconStyle={styles.mediumIcon}>
-        <SearchIcon/>
-      </IconButton>
-    </span>)
-  }
-}
-
-const LogsTable = (props) => {
+function LogsTable(props) {
   function openLog(index) {
     browser.runtime.sendMessage({url: `https://${getParam('host')}/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${props.logs[index].Id}`, command: "openTab"});
   }
