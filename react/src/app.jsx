@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
-import Snackbar from 'material-ui/Snackbar';
-import {List, ListItem} from 'material-ui/List';
+import Snackbar from 'material-ui/Snackbar'
+import {List, ListItem} from 'material-ui/List'
 import {
   Table,
   TableBody,
@@ -10,17 +10,23 @@ import {
   TableHeaderColumn,
   TableRow,
   TableRowColumn,
-} from 'material-ui/Table';
-import FloatingActionButton from 'material-ui/FloatingActionButton';
-import RaisedButton from 'material-ui/RaisedButton';
-import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
-import TextField from 'material-ui/TextField';
-import RefreshIcon from 'material-ui/svg-icons/action/autorenew';
-import SearchIcon from 'material-ui/svg-icons/action/search';
-import DeleteIcon from 'material-ui/svg-icons//action/delete-forever';
-import CircularProgress from 'material-ui/CircularProgress';
-import Paper from 'material-ui/Paper';
+} from 'material-ui/Table'
+import FloatingActionButton from 'material-ui/FloatingActionButton'
+import RaisedButton from 'material-ui/RaisedButton'
+import FlatButton from 'material-ui/FlatButton'
+import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
+import TextField from 'material-ui/TextField'
+import RefreshIcon from 'material-ui/svg-icons/action/autorenew'
+import SearchIcon from 'material-ui/svg-icons/action/search'
+import DeleteIcon from 'material-ui/svg-icons//action/delete-forever'
+import CheckBlankIcon from 'material-ui/svg-icons/toggle/check-box-outline-blank'
+import CheckIcon from 'material-ui/svg-icons/toggle/check-box'
+import CircularProgress from 'material-ui/CircularProgress'
+import Paper from 'material-ui/Paper'
 import SF from './sf-api'
+import IconButton from 'material-ui/IconButton'
+
+
 
 //////////////////// UTILS //////////////////////
 function escapeRegExp(str) {
@@ -32,14 +38,16 @@ function escapeRegExp(str) {
 function search(){
   evil.loading = true
   render()
-  var searchRegex = new RegExp(escapeRegExp(evil.searchTerm), 'gi');
-  let logBodyPromises = evil.logs.map(x => x.Id).map(x => ({id: x, promise: SF.logBody(x)}))
-  let resultPromise = logBodyPromises.map(
+  const searchRegex = new RegExp(escapeRegExp(evil.searchTerm), 'gi');
+  const logBodyPromises = evil.logs.map(x => x.Id).map(x => ({id: x, promise: SF.logBody(x)}))
+  const resultPromise = logBodyPromises.map(
     (lbp) => lbp.promise.then((logBody) => ({id: lbp.id,
                   found: searchRegex.test(logBody)})))
   Promise.all(resultPromise).then((results)=> {
-    evil.logs = evil.logs.filter(l =>
-      results.filter(r => r.found).map(r => r.id).indexOf(l.Id) > -1)
+    const foundIds = results.filter(r => r.found).map(r => r.id)
+    evil.logs.filter(l=> foundIds.indexOf(l.Id) == -1).forEach(l => {
+      l['not_matches_search'] = true
+    })
     evil.loading = false
     render()
   })
@@ -47,17 +55,19 @@ function search(){
 
 function updateTerm(e){
   evil.searchTerm = e.target.value
-
   render()
 }
 
 function refresh(){
+  evil.loading = true
   render()
   SF.requestLogs().then((records) => {
     evil.logs = records
+    console.log(records)
     evil.loading = false
     render()
   }).catch((err)=>{
+    evil.loading = false
     evil.message = `Error occured: ${err.message}`
     evil.showMessage = true
     render()
@@ -74,7 +84,25 @@ function deleteAll(){
   render()
 }
 
+function startLogging(){
+  SF.startLogging().then(()=>{
+    evil.isLogging = true
+    render()
+  })
+}
 
+//////////////////////// STYLES ////////////////////////////
+const styles = {
+  mediumIcon: {
+    width: 48,
+    height: 48,
+  },
+  medium: {
+    width: 96,
+    height: 96,
+    padding: 24,
+  }
+};
 ////////////////////// UI /////////////////////////////
 const App = () => (
   <MuiThemeProvider>
@@ -98,27 +126,47 @@ const MainContainer = () => (
 const buttonStyle = {margin: '1em'}
 
 const TopControls = () => (
-  <div>
+  <div style={{position:"relative"}}>
     <Search/>
-    <FloatingActionButton onClick={refresh} style={buttonStyle}>
-      <RefreshIcon/>
-    </FloatingActionButton>
-    <FloatingActionButton style={buttonStyle} onClick={deleteAll}>
+    <IconButton tooltip="(R)eload" onClick={refresh} style={buttonStyle}
+                 iconStyle={styles.mediumIcon} style={styles.medium}>
+      <RefreshIcon />
+    </IconButton>
+    <IconButton style={buttonStyle} onClick={deleteAll} tooltip="Delete (A)ll"
+                 iconStyle={styles.mediumIcon} style={styles.medium}>
       <DeleteIcon/>
-    </FloatingActionButton>
+    </IconButton>
     <CircularProgress style={{display: evil.loading ? 'inline' : 'none',
               margin: '1em'}}/>
+    <TrackingLogs isTracking={evil.isLogging}/>
   </div>
 )
+
+const TrackingLogs = (props) => {
+  let style={position: "absolute", top: 7,left: 10}
+  if(props.isTracking){
+    return (
+      <FlatButton label="Logging Activity" disabled={true} style={style} icon={<CheckIcon />}/>
+    )
+  }else{
+    return (
+      <FlatButton label="Start Logging" onClick={startLogging} style={style}
+        icon={<CheckBlankIcon />}/>
+    )
+  }
+}
+
+
 
 const Search = () => (
   <span style={{display: "inline-block"}}>
     <TextField hintText="Search" value={evil.searchTerm}
       style={{margin: '0px 1em'}}
       onChange={updateTerm} onKeyUp={(e) => {if(e.keyCode==13) search()}}/>
-    <FloatingActionButton  onClick={search} style={{margin: '1em'}}>
+    <IconButton  onClick={search} style={{margin: '1em'}} tooltip="Search"
+                   iconStyle={styles.mediumIcon} style={styles.medium}>
       <SearchIcon/>
-    </FloatingActionButton>
+    </IconButton>
   </span>
 )
 
@@ -133,9 +181,12 @@ const LogsTable = (props) => (
   <Table onRowSelection={openLog}>
     <TableHeader adjustForCheckbox={false} displaySelectAll={false}>
       <TableRow>
-        <TableHeaderColumn tooltip="Time">Time</TableHeaderColumn>
-        <TableHeaderColumn tooltip="Length">Length</TableHeaderColumn>
-        <TableHeaderColumn tooltip="Status">Status</TableHeaderColumn>
+        <TableHeaderColumn >Time</TableHeaderColumn>
+        <TableHeaderColumn >Operation</TableHeaderColumn>
+        <TableHeaderColumn >Status</TableHeaderColumn>
+        <TableHeaderColumn >User</TableHeaderColumn>
+        <TableHeaderColumn >Run Duration</TableHeaderColumn>
+        <TableHeaderColumn >Length</TableHeaderColumn>
       </TableRow>
     </TableHeader>
     <TableBody showRowHover={true}  displayRowCheckbox={false} >
@@ -145,11 +196,16 @@ const LogsTable = (props) => (
 )
 
 const toLogView = (log, index) => {
+  const style = {display: log['not_matches_search'] ? 'none' : 'table-row'}
+  const timeString = log.StartTime.match(/T(\d\d:\d\d):/)[1]
   return (
-      <TableRow key={log.Id}>
-        <TableRowColumn>{log.StartTime}</TableRowColumn>
-        <TableRowColumn>{log.LogLength}</TableRowColumn>
+      <TableRow key={log.Id} style={style}>
+        <TableRowColumn>{timeString}</TableRowColumn>
+        <TableRowColumn>{log.Operation}</TableRowColumn>
         <TableRowColumn>{log.Status}</TableRowColumn>
+        <TableRowColumn>{log.LogUser.Name}</TableRowColumn>
+        <TableRowColumn>{log.DurationMilliseconds + "ms"}</TableRowColumn>
+        <TableRowColumn>{`${log.LogLength/1000} k`}</TableRowColumn>
       </TableRow>)
 }
 
@@ -173,8 +229,13 @@ function initSF(){
 function init(){
   initSF()
   refresh()
+  SF.isLogging().then((isLogging)=>{
+    evil.isLogging = isLogging
+    render()
+  })
 }
 
 init()
+
 
 ////////////////   END OF INIT //////////////////
