@@ -102,7 +102,8 @@ class MainContainer extends React.Component {
             l['not_matches_search'] = foundIds.indexOf(l.Id) == -1
             return l
           }),
-          loading: false
+          loading: false,
+          message: `Found ${foundIds.length} matching logs`
         }
       })
     })
