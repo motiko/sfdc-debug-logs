@@ -13,7 +13,7 @@ import {getParam} from './utils'
 const sf = new SF(getParam("host"), getParam("sid"))
 
 
-class MainContainer extends React.Component {
+class LogsPage extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
@@ -33,8 +33,10 @@ class MainContainer extends React.Component {
   }
 
   deleteAll() {
+    this.setState({loading: true, searchTerm: ""})
     sf.deleteAll().then(() => {
-      this.setState({message: "Removed logs from salesforce"})
+      this.setState({message: "Removed logs from salesforce",
+                    loading:false})
     })
     this.setState({logs: []})
   }
@@ -105,7 +107,7 @@ class MainContainer extends React.Component {
 }
 
 const App = () => (<MuiThemeProvider>
-  <MainContainer/>
+  <LogsPage/>
 </MuiThemeProvider>)
 
 function render() {

@@ -14,9 +14,16 @@ export default class TrackingLogs extends React.Component {
   }
 
   startLogging() {
-    this.sf.startLogging().then(() => {
-      this.setState({isTracking: true})
+    this.sf.startLogging().then((res) => {
+      if(res && res.success)
+        this.setState({isTracking: true})
+      else
+        this.checkIsLogging()
     })
+  }
+
+  checkIsLogging(){
+    this.sf.isLogging().then((isTracking)=> this.setState({isTracking}))
   }
 
   componentDidMount() {

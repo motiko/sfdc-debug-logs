@@ -31,12 +31,15 @@ export default class Tooling {
   }
 
   createTraceFlag(userId, debugLevelId) {
+    const MS_IN_DAY = 1000 * 60 * 60 * 24
+    let expirationDate = new Date(Date.now() + MS_IN_DAY - 100000)
     var payload = {
       TracedEntityId: userId,
       DebugLevelId: debugLevelId,
-      LogType: 'DEVELOPER_LOG'
-    };
-    return this.request('/services/data/v36.0/tooling/sobjects/TraceFlag', 'POST', {}, payload)
+      LogType: 'DEVELOPER_LOG',
+      ExpirationDate: expirationDate
+    }
+    return this.request('/services/data/v41.0/tooling/sobjects/TraceFlag', 'POST', {}, payload)
   }
 
   getLogBody(logId) {
