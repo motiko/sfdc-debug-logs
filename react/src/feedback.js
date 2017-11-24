@@ -10,50 +10,47 @@ import Dialog from 'material-ui/Dialog';
 import FlatButton from 'material-ui/FlatButton'
 import TextSmsIcon from 'material-ui/svg-icons/content/send'
 import ReplyIcon from 'material-ui/svg-icons/content/reply'
+import BackIcon from  'material-ui/svg-icons/navigation/arrow-back'
 import IconButton from 'material-ui/IconButton'
+import MessageIcon from 'material-ui/svg-icons/communication/message'
 
-const evilMessages = [
-  {
-    "_id": "5a1796db3e0d4f0208d224e7",
-    "body": `"Do you think you can tell
-    Heaven from hel Blue sky from the groung above"`,
-    "author": "pink",
-    "createdAt": 1511495387263,
-    "replies": [
-      {
-        "body": `"Which one is pink by the way.Or what is going on anyway"`,
-        "author": "manager",
-        "createdAt": 1511495410511
-      }
-    ]
-  }
-]
-
-const style={width:650, margin: "0 auto"}
-
-function nestedMessage(m,i){
-  return (
-    <ListItem primaryText={m.body}
-        secondaryTextLines={2}
-        secondaryText={`Sent By: ${m.author}`} key={i}/>)
-}
-
+const BASE_URL = "https://adbg.herokuapp.com"
 
 export default class FeedbackPage extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {dialogOpen: false, replyTo: null, messagesSent: 0, messages: evilMessages}
+    this.state = {dialogOpen: false, replyTo: null, messagesSent: 0, messages: []}
     this.handlePost = this.handlePost.bind(this)
+    this.loadMessages = this.loadMessages.bind(this)
+  }
+
+  componentWillMount(){
+    this.loadMessages()
+  }
+
+  loadMessages(){
+    return fetch(`${BASE_URL}/messages`)
+      .then(r=>r.json())
+      .then((messages)=> this.setState({messages}))
   }
 
   handlePost(msg){
     console.log("SENDING...")
     console.log(msg)
+    const headers = {"Content-Type": "application/json"}
+    const options = {method: 'POST',
+                    body: JSON.stringify(msg),
+                    headers: headers}
+    if(this.state.replyTo){
+      fetch(`${BASE_URL}/messages/${this.state.replyTo}/reply`, options)
+        .then(this.loadMessages)
+    }else{
+      fetch(`${BASE_URL}/messages`, options).then(this.loadMessages)
+    }
     this.setState((oldState)=>({
         messagesSent: oldState.messagesSent + 1,
         dialogOpen: false,
-        replyTo: null,
-        messages: [...oldState.messages,msg]
+        replyTo: null
     }))
   }
 
@@ -62,16 +59,28 @@ export default class FeedbackPage extends React.Component {
     this.setState({dialogOpen: true, replyTo: msg._id})
   }
 
+  openDialog(){
+    this.setState({dialogOpen:true})
+  }
+
+  closeDialog(){
+    this.setState({dialogOpen:false})
+  }
+
   render() {
     return(
-    <div>
+    <div style={{width:"80%", margin:"0 auto"}}>
+      <div style={{textAlign: "center", marginBottom: 15}}>
+        <IconButton style={{float:"left"}} tooltip="Back" onClick={()=>window.history.back()}><BackIcon/></IconButton>
+        <FlatButton style={{margin:"0px auto", width: 250}} label="New Message" onClick={()=>this.openDialog()} icon={<MessageIcon/>} />
+      </div>
       <List>
-        <Subheader style={{textAlign: "center"}}>Latest Messages</Subheader>
+
         {this.state.messages.map((m, i)=> (
           <ViewMessage nested={false} message={m}
               onReply={() => this.handleReply(m)} key={i}/>))}
       </List>
-      <MessageDialog open={this.state.dialogOpen} onSubmit={this.handlePost}/>
+      <MessageDialog open={this.state.dialogOpen} onSubmit={this.handlePost} onClose={()=>this.closeDialog()}/>
     </div>)
   }
 }
@@ -80,8 +89,8 @@ function ViewMessage(props){
   const m = props.message
   const bodyLines = m.body.split('\n')
   const secondaryText = bodyLines.length > 1
-                         ? (<p> {bodyLines[1]} <br/> SentBy: {m.author}</p>)
-                         : `By: ${m.author}`
+                         ? (<p> {bodyLines[1]} <br/> Sent By: {m.author}</p>)
+                         : `Sent By: ${m.author}`
   const replyButton =  (<IconButton tooltip="Reply" onClick={props.onReply}><ReplyIcon/></IconButton>)
   if(props.nested){
     return (<ListItem primaryText={bodyLines[0]}
@@ -97,15 +106,12 @@ function ViewMessage(props){
                 nestedItems={m.replies ?
                 m.replies.map((m,i) => ViewMessage({nested:true, message:m, key:i})) : []}/>)
   }
-
-
-
 }
 
 class MessageDialog extends React.Component{
   constructor(props){
     super(props)
-    this.state = {name: "", body: ""}
+    this.state = {name: "", body: "", error: ""}
   }
 
   handleNameChange(e){
@@ -121,21 +127,32 @@ class MessageDialog extends React.Component{
   }
 
   handleSubmit(){
+    if(this.state.body.trim() == "" || this.state.body.length < 5){
+      this.setState({error:"This field is required (at least 5 characters)"})
+      return
+    }
     const msg = {
       body: this.state.body,
       author: this.state.name
     }
     this.props.onSubmit(msg)
+    this.setState({name: "", body: ""})
   }
 
+  handleKeyUp(e){
+    if(e.keyCode == 13){
+      console.log(e)
+      if(e.altKey || e.shiftKey || e.ctrlKey) this.handleSubmit()
+    }
+  }
 
   render(){
     return (
       <Dialog
           actions={[<FlatButton label="Send" onClick={()=>this.handleSubmit()} icon={<ReplyIcon />} /> ]}
-          modal={true}
+          modal={false}
           open={this.props.open}
-          onRequestClose={this.handleClose}>
+          onRequestClose={this.props.onClose}>
         <TextField
           floatingLabelText="Name (Optional)"
           value={this.state.name}
@@ -146,7 +163,10 @@ class MessageDialog extends React.Component{
           value={this.state.body}
           onChange={(e) => this.handleBodyChange(e)}
           multiLine={true}
+          rowsMax={2}
           style={{width:650}}
+          onKeyUp={(e)=>this.handleKeyUp(e)}
+          errorText={this.state.error}
         />
     </Dialog>)
   }
