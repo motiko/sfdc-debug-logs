@@ -9,9 +9,11 @@ import LogButtons from './components/log-buttons'
 import Snackbar from 'material-ui/Snackbar'
 import {styles} from './styles'
 import {getParam} from './utils'
+import ChatIcon from 'material-ui/svg-icons/communication/chat'
+import FlatButton from 'material-ui/FlatButton'
+import FeedbackPage from './feedback'
 
 const sf = new SF(getParam("host"), getParam("sid"))
-
 
 class LogsPage extends React.Component {
   constructor(props) {
@@ -35,8 +37,7 @@ class LogsPage extends React.Component {
   deleteAll() {
     this.setState({loading: true, searchTerm: ""})
     sf.deleteAll().then(() => {
-      this.setState({message: "Removed logs from salesforce",
-                    loading:false})
+      this.setState({message: "Removed logs from salesforce", loading: false})
     })
     this.setState({logs: []})
   }
@@ -102,13 +103,64 @@ class LogsPage extends React.Component {
       <LogsTable logs={this.state.logs}/>
       <Snackbar open={this.state.message != ""} message={this.state.message} onRequestClose={() => this.handleSnackbarClose()}/>
       <TrackingLogs sf={sf}/>
+      <FlatButton label="Give Feedback" style={{
+          position: "absolute",
+          top: 7,
+          right: 10
+        }} onClick={() => this.props.changePage("FeedbackPage")} icon={<ChatIcon />} />
     </div>)
   }
 }
 
-const App = () => (<MuiThemeProvider>
-  <LogsPage/>
-</MuiThemeProvider>)
+class App extends React.Component {
+  constructor(props){
+    super(props)
+    this.state = {pageName: "LogsPage"}
+    this.handlePageChange = this.handlePageChange.bind(this)
+  }
+
+  handlePageChange(newPage){
+    document.location.hash = newPage
+    this.setPage(newPage)
+  }
+
+  setPage(pageName){
+    if(this.isLegalPage(pageName)){
+      this.setState({pageName})
+    }else{
+      this.setState({pageName: "LogsPage"})
+    }
+  }
+
+  componentWillMount(){
+    const firstPage = document.location.hash.slice(1)
+    this.setPage(firstPage)
+    window.addEventListener("popstate", (e) =>{
+      const newPage = document.location.hash.slice(1)
+      this.setPage(newPage)
+    })
+  }
+
+  isLegalPage(pageName){
+    return Object.keys(this.nameToPage()).indexOf(pageName) > -1
+  }
+
+  nameToPage(){
+    return {
+      LogsPage: <LogsPage changePage={this.handlePageChange}/>,
+      FeedbackPage: <FeedbackPage changePage={this.handlePageChange}/>
+    }
+  }
+
+  render() {
+    let page = this.nameToPage()[this.state.pageName]
+    console.log(this.state.pageName)
+    return (
+      <MuiThemeProvider>
+        {page}
+      </MuiThemeProvider>)
+  }
+}
 
 function render() {
   ReactDOM.render(<App/>, document.getElementById("container"))

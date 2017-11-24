@@ -80,6 +80,7 @@
   "permissions": [
     "https://*.force.com/*",
     "https://*.salesforce.com/*",
+    "https://agdb.herokuapp.com/*",
     "storage"
   ]
 }
