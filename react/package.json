@@ -8,10 +8,17 @@
   "private": true,
   "scripts": {},
   "dependencies": {
+    "material-ui": "^0.19.4",
     "react": "^16.1.1",
-    "react-dom": "^16.1.1"
+    "react-dom": "^16.1.1",
+    "regenerator-runtime": "^0.11.0"
   },
   "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-react": "^6.24.1",
+    "babelify": "^8.0.0",
     "reactify": "^1.1.1"
   }
 }
