@@ -25,6 +25,7 @@ export default class FeedbackPage extends React.Component {
   loadMessages(){
     return fetch(`${BASE_URL}/messages`)
       .then(r=>r.json())
+      .then(messages => messages.reverse())
       .then((messages)=> this.setState({messages}))
   }
 
@@ -47,7 +48,6 @@ export default class FeedbackPage extends React.Component {
   }
 
   handleReply(msg){
-    console.log(msg)
     this.setState({dialogOpen: true, replyTo: msg._id})
   }
 

@@ -4,7 +4,8 @@ import IconButton from 'material-ui/IconButton'
 import ReplyIcon from 'material-ui/svg-icons/content/reply'
 
 export default function MessageView(props){
-  const m = props.message
+  let m = props.message
+  if(m.author.trim() == "") m.author = "Anonymous"
   const bodyLines = m.body.split('\n')
   const secondaryText = bodyLines.length > 1
                          ? (<p> {bodyLines[1]} <br/> Sent By: {m.author}</p>)
