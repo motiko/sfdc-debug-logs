@@ -1,25 +1,18 @@
 import React from 'react'
 import {List, ListItem} from 'material-ui/List';
-import Divider from 'material-ui/Divider';
-import Subheader from 'material-ui/Subheader';
-import MoreVertIcon from 'material-ui/svg-icons/navigation/more-vert';
-import IconMenu from 'material-ui/IconMenu';
-import MenuItem from 'material-ui/MenuItem';
-import TextField from 'material-ui/TextField';
-import Dialog from 'material-ui/Dialog';
 import FlatButton from 'material-ui/FlatButton'
-import TextSmsIcon from 'material-ui/svg-icons/content/send'
-import ReplyIcon from 'material-ui/svg-icons/content/reply'
 import BackIcon from  'material-ui/svg-icons/navigation/arrow-back'
 import IconButton from 'material-ui/IconButton'
 import MessageIcon from 'material-ui/svg-icons/communication/message'
+import ReplyIcon from 'material-ui/svg-icons/content/reply'
+import MessageDialog from './components/message-dialog'
 
 const BASE_URL = "https://adbg.herokuapp.com"
 
 export default class FeedbackPage extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {dialogOpen: false, replyTo: null, messagesSent: 0, messages: []}
+    this.state = {dialogOpen: true, replyTo: null, messagesSent: 0, messages: []}
     this.handlePost = this.handlePost.bind(this)
     this.loadMessages = this.loadMessages.bind(this)
   }
@@ -35,8 +28,6 @@ export default class FeedbackPage extends React.Component {
   }
 
   handlePost(msg){
-    console.log("SENDING...")
-    console.log(msg)
     const headers = {"Content-Type": "application/json"}
     const options = {method: 'POST',
                     body: JSON.stringify(msg),
@@ -105,69 +96,5 @@ function ViewMessage(props){
                 open={true}
                 nestedItems={m.replies ?
                 m.replies.map((m,i) => ViewMessage({nested:true, message:m, key:i})) : []}/>)
-  }
-}
-
-class MessageDialog extends React.Component{
-  constructor(props){
-    super(props)
-    this.state = {name: "", body: "", error: ""}
-  }
-
-  handleNameChange(e){
-    this.setState({name: e.target.value})
-  }
-
-  handleBodyChange(e){
-    const newBody = e.target.value
-    const newLines = newBody.match(/\n/g)
-    if(newLines && newLines.length > 1) return
-    if(newBody.length > 140) return
-    this.setState({body : newBody})
-  }
-
-  handleSubmit(){
-    if(this.state.body.trim() == "" || this.state.body.length < 5){
-      this.setState({error:"This field is required (at least 5 characters)"})
-      return
-    }
-    const msg = {
-      body: this.state.body,
-      author: this.state.name
-    }
-    this.props.onSubmit(msg)
-    this.setState({name: "", body: ""})
-  }
-
-  handleKeyUp(e){
-    if(e.keyCode == 13){
-      console.log(e)
-      if(e.altKey || e.shiftKey || e.ctrlKey) this.handleSubmit()
-    }
-  }
-
-  render(){
-    return (
-      <Dialog
-          actions={[<FlatButton label="Send" onClick={()=>this.handleSubmit()} icon={<ReplyIcon />} /> ]}
-          modal={false}
-          open={this.props.open}
-          onRequestClose={this.props.onClose}>
-        <TextField
-          floatingLabelText="Name (Optional)"
-          value={this.state.name}
-          onChange={(e) => this.handleNameChange(e)}
-        />
-        <TextField
-          floatingLabelText={`Any thoughts (${this.state.body.length}/140)`}
-          value={this.state.body}
-          onChange={(e) => this.handleBodyChange(e)}
-          multiLine={true}
-          rowsMax={2}
-          style={{width:650}}
-          onKeyUp={(e)=>this.handleKeyUp(e)}
-          errorText={this.state.error}
-        />
-    </Dialog>)
   }
 }

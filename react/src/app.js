@@ -154,7 +154,6 @@ class App extends React.Component {
 
   render() {
     let page = this.nameToPage()[this.state.pageName]
-    console.log(this.state.pageName)
     return (
       <MuiThemeProvider>
         {page}
