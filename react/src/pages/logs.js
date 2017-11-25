@@ -99,7 +99,8 @@ export default class LogsPage extends React.Component {
       <FlatButton label="Give Feedback" style={{
           position: "absolute",
           top: 7,
-          right: 10
+          right: 10,
+          display: "none"
         }} onClick={() => this.props.changePage("FeedbackPage")} icon={<ChatIcon />} />
     </div>)
   }
