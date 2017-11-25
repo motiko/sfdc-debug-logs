@@ -4,8 +4,8 @@ import FlatButton from 'material-ui/FlatButton'
 import BackIcon from  'material-ui/svg-icons/navigation/arrow-back'
 import IconButton from 'material-ui/IconButton'
 import MessageIcon from 'material-ui/svg-icons/communication/message'
-import MessageEdit from './components/message-edit'
-import MessageView from './components/message-view'
+import MessageEdit from '../components/message-edit'
+import MessageView from '../components/message-view'
 import Dialog from 'material-ui/Dialog';
 
 const BASE_URL = "https://adbg.herokuapp.com"
