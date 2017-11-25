@@ -49,6 +49,10 @@ function initPage() {
   addReloadControllers();
   addSearchControllers();
   initKeyTraps();
+  let dontShowHint = JSON.parse(localStorage.getItem('dontShowNewAppHint'))
+  if(!dontShowHint){
+    addHint()
+  }
 }
 
 initPage();
@@ -123,6 +127,26 @@ function addDeleteAllBtn() {
   loadNewLogsBtn.id = "load_new_logs"
   loadNewLogsBtn.onclick = loadNewLogs;
   deleteAllContainer.appendChild(loadNewLogsBtn);
+}
+
+function addHint(){
+    var hintContainer = document.createElement('div');
+    hintContainer.id = 'hintContainer';
+    var hint = document.createElement('span');
+    hint.innerHTML = ['<h4>Try the new logs view with <b> Shift + w</b></h4><br/>',
+        '<p style="margin-right: 15px;"> ApexDebugger Extension</p>'].join('');
+    var hideTip = document.createElement('button');
+    hideTip.textContent = 'X';
+    hideTip.title = 'Close';
+    hideTip.className = 'closeButton';
+    hideTip.onclick = function(){
+        hintContainer.style.display = 'none';
+        localStorage.setItem('dontShowNewAppHint',true)
+    };
+    hintContainer.appendChild(hideTip);
+    hintContainer.appendChild(hint);
+    var title = document.querySelector(".bPageTitle")
+    title.parentNode.insertBefore(hintContainer, title)
 }
 
 function realDeleteAll(event) {
