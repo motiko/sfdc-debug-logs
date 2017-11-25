@@ -1,11 +1,10 @@
 import React from 'react'
 import ReplyIcon from 'material-ui/svg-icons/content/reply'
 import MessageIcon from 'material-ui/svg-icons/communication/message'
-import Dialog from 'material-ui/Dialog';
 import FlatButton from 'material-ui/FlatButton'
 import TextField from 'material-ui/TextField';
 
-export default class MessageDialog extends React.Component{
+export default class MessageEdit extends React.Component{
   constructor(props){
     super(props)
     this.state = {name: "", body: "", error: ""}
@@ -52,12 +51,7 @@ export default class MessageDialog extends React.Component{
   }
 
   render(){
-    return (
-      <Dialog
-          actions={[<FlatButton label="Send" onClick={this.handleSubmit} icon={<ReplyIcon />} /> ]}
-          modal={false}
-          open={this.props.open}
-          onRequestClose={this.props.onClose}>
+    return (<div>
         <TextField
           floatingLabelText="Name (Optional)"
           value={this.state.name}
@@ -75,6 +69,7 @@ export default class MessageDialog extends React.Component{
           errorText={this.state.error}
           tabIndex={0}
         />
-    </Dialog>)
+        <FlatButton style={{float:"right", marginTop: 32}} label="Send" onClick={this.handleSubmit} icon={<ReplyIcon />} />
+    </div>)
   }
 }

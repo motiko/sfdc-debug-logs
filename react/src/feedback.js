@@ -5,7 +5,8 @@ import BackIcon from  'material-ui/svg-icons/navigation/arrow-back'
 import IconButton from 'material-ui/IconButton'
 import MessageIcon from 'material-ui/svg-icons/communication/message'
 import ReplyIcon from 'material-ui/svg-icons/content/reply'
-import MessageDialog from './components/message-dialog'
+import MessageEdit from './components/message-edit'
+import Dialog from 'material-ui/Dialog';
 
 const BASE_URL = "https://adbg.herokuapp.com"
 
@@ -13,7 +14,7 @@ export default class FeedbackPage extends React.Component {
   constructor(props) {
     super(props)
     this.state = {dialogOpen: true, replyTo: null, messagesSent: 0, messages: []}
-    this.handlePost = this.handlePost.bind(this)
+    this.sendMessage = this.sendMessage.bind(this)
     this.loadMessages = this.loadMessages.bind(this)
   }
 
@@ -27,7 +28,7 @@ export default class FeedbackPage extends React.Component {
       .then((messages)=> this.setState({messages}))
   }
 
-  handlePost(msg){
+  sendMessage(msg){
     const headers = {"Content-Type": "application/json"}
     const options = {method: 'POST',
                     body: JSON.stringify(msg),
@@ -71,7 +72,12 @@ export default class FeedbackPage extends React.Component {
           <ViewMessage nested={false} message={m}
               onReply={() => this.handleReply(m)} key={i}/>))}
       </List>
-      <MessageDialog open={this.state.dialogOpen} onSubmit={this.handlePost} onClose={()=>this.closeDialog()}/>
+      <Dialog
+          modal={false}
+          open={this.state.dialogOpen}
+          onRequestClose={()=>this.closeDialog()}>
+      <MessageEdit onSubmit={this.sendMessage}/>
+      </Dialog>
     </div>)
   }
 }
