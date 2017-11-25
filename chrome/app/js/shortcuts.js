@@ -28,16 +28,18 @@ browser.storage.sync.get('shortcuts')
     shortcuts = default_shortcuts
   }) {
     shortcuts.forEach(shortcutUrl)
+    Mousetrap.bind('shift+w', openApp);
   });
 
 shortcutMethod('l', openLastLog);
 Mousetrap.bind('e', editObject);
 Mousetrap.bind('s', saveObject);
-Mousetrap.bind('shift+x', openApp);
+// shortcutUrl({key:'w', path:'/setup/ui/listApexTraces.apexp'});
 
 function openApp(){
+  logEvent('Shortcut','openApp')
   browser.runtime.sendMessage({
-      url: `${browser.extension.getURL('html/app.html')}?sid=${sid}&orgId=${orgId}&host=${encodeURIComponent(location.hostname)}`,
+      url: `${browser.extension.getURL('html/app.html')}?orgId=${orgId}&host=${encodeURIComponent(location.hostname)}&sid=${sid}`,
       name: `app_${orgId}`,
       command: "openOrFocusTab"
     });

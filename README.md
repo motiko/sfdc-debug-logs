@@ -13,18 +13,18 @@ Key Features
 ------------
 
   * Search in logs
-  * Auto loading new logs
   * Improved view of logs (select from available themes).
   * Click any Id to go to Object (Class, Trigger, Validation Rule e.t.c).
   * Indent User Debug (sObject, List, XML or JSON)
   * Delete all logs (all of'em).
-  * Add current User.
-  * Keyboard shortcuts from any Salesforce page
+  * Automatically start log tracking.
+  * Customizable keyboard shortcuts for Salesforce
 
 Keyboard Chortcuts
 ------------------
 
 * _Shift+d_ - Open Debug Logs + Add current user
+* _Shift+w_ - Open New logs view
 * _Shift+l_ - Open last debug log
 * _Shift+o_ - Custom objects page
 * _Shift+u_ - Manage Users
@@ -33,7 +33,7 @@ Keyboard Chortcuts
 * _Shift+i_ - Company Information
 * _Shift+s_ - Data Schema
 
-hold Alt key to open in same tab. (e.g _Alt+Shift+d_)
+Hold Alt key to open in same tab. (e.g _Alt+Shift+d_)
 
 Quick Demo
 -----------------
