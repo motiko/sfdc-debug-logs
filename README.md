@@ -24,17 +24,23 @@ Key Features
 Keyboard Chortcuts
 ------------------
 
-* _Alt+Shift+d_ - Open Debug Logs + Add current user
-* _Alt+Shift+l_ - Open last debug log
-* _Alt+Shift+o_ - Custom objects page
-* _Alt+Shift+u_ - Manage Users
-* _Alt+Shift+p_ - Manage Profiles
-* _Alt+Shift+c_ - Apex Classes
-* _Alt+Shift+i_ - Company Information
-* _Alt+Shift+s_ - Data Schema
+* _Shift+d_ - Open Debug Logs + Add current user
+* _Shift+l_ - Open last debug log
+* _Shift+o_ - Custom objects page
+* _Shift+u_ - Manage Users
+* _Shift+p_ - Manage Profiles
+* _Shift+c_ - Apex Classes
+* _Shift+i_ - Company Information
+* _Shift+s_ - Data Schema
 
-Ommit the Alt key to open in new tab. (e.g _Shift+d_)
+hold Alt key to open in same tab. (e.g _Alt+Shift+d_)
 
+Quick Demo
+-----------------
+
+[![Basic usage demo   ](https://img.youtube.com/vi/4PaQhY6tSDk/0.jpg)](https://www.youtube.com/watch?v=4PaQhY6tSDk)
+
+[![ Last log, Search, Indent, Auto Refresh, Edit   ](https://img.youtube.com/vi/FuoA07dxEGI/0.jpg)](https://www.youtube.com/watch?v=FuoA07dxEGI)
 
 Standalone User Scripts (Not updated)
 -----------------------------

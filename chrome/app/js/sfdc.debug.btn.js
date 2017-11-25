@@ -14,8 +14,14 @@ function initKeyTraps() {
   Mousetrap.bind('r', focusOn('#FilterByText'));
   Mousetrap.bind('a', function() {
     logEvent('LogsList','hotKey','#real_delete_all')
-    if (confirm("This will delete all logs")) {
+    let dontConfirm = JSON.parse(localStorage.getItem('dontConfirmDeleteAllHotKey'))
+    if (dontConfirm) {
       clickOn('#real_delete_all')()
+    }else{
+      if(confirm("This will delete all logs")){
+        localStorage.setItem('dontConfirmDeleteAllHotKey',true)
+        clickOn('#real_delete_all')()
+      }
     }
   });
 }
@@ -128,6 +134,10 @@ function realDeleteAll(event) {
       encodeURIComponent('Select Id From ApexLog'))
     .then(r => r.json())
     .then(function(reponseObject) {
+      if(reponseObject.records.length == 0){
+        document.body.style.cursor = 'auto';
+        return;
+      }
       var logIdsCsv = reponseObject.records.map(function(logObj) {
         return `"${logObj.Id}"`;
       }).reduce(function(sum, id) {

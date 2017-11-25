@@ -1,4 +1,3 @@
-let optionsTabId = ""
 let appTabIds = {}
 
 function openOptionsTab() {
@@ -39,8 +38,11 @@ browser.browserAction.onClicked.addListener(
   () => openOrFocusTab(browser.extension.getURL('html/options.html'), "options"))
 
 browser.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
-  if (optionsTabId == tabId)
-    optionsTabId = ""
+  if (Object.values(appTabIds).indexOf(tabId) > -1 ){
+    Object.keys(appTabIds).filter((key)=> appTabIds[key] == tabId)
+      .forEach(key => appTabIds[key] = undefined)
+  }
+
 })
 
 browser.runtime.onMessage.addListener((request) => {
