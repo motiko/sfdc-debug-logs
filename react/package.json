@@ -6,7 +6,10 @@
   "license": "MIT",
   "main": "",
   "private": true,
-  "scripts": {},
+  "scripts": {
+    "watch": "watchify -t [ babelify --presets [ env react ] ] src/*.js -o '| tee ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js > /dev/null'",
+    "clean": "rm ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js"
+  },
   "dependencies": {
     "material-ui": "^0.19.4",
     "react": "^16.1.1",

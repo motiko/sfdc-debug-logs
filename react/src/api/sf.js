@@ -15,7 +15,7 @@ export default class SF {
   }
 
   requestLogs(numLimit = 50, timeLimit = "LAST_MONTH") {
-    var query = [`SELECT LogUser.Name,Application,DurationMilliseconds,`, `Id,LastModifiedDate,Location,LogLength,LogUserId,`, `Operation,Request,StartTime,Status,SystemModstamp From `, `ApexLog Where LastModifiedDate > ${timeLimit} ORDER BY `, `LastModifiedDate ASC LIMIT ${numLimit}`].join('');
+    var query = [`SELECT LogUser.Name,Application,DurationMilliseconds,`, `Id,LastModifiedDate,Location,LogLength,LogUserId,`, `Operation,Request,StartTime,Status,SystemModstamp From `, `ApexLog Where LastModifiedDate > ${timeLimit} ORDER BY `, `LastModifiedDate DESC LIMIT ${numLimit}`].join('');
     return this.tooling.query(query).then(responseObj => responseObj.records)
   }
 
