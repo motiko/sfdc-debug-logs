@@ -8,11 +8,10 @@ import {
   TableRow,
   TableRowColumn
 } from 'material-ui/Table'
-import {getParam} from '../utils'
 
 export default function LogsTable(props) {
   function openLog(index) {
-    browser.runtime.sendMessage({url: `https://${getParam('host')}/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${props.logs[index].Id}`, command: "openTab"});
+    props.history.push(`/logview/${props.logs[index].Id}`)
   }
 
   const toLogView = (log, index) => {

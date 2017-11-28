@@ -14,6 +14,7 @@
     "material-ui": "^0.19.4",
     "react": "^16.1.1",
     "react-dom": "^16.1.1",
+    "react-router-dom": "^4.2.2",
     "regenerator-runtime": "^0.11.0"
   },
   "devDependencies": {

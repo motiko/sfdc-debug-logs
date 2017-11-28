@@ -7,6 +7,7 @@ import Snackbar from 'material-ui/Snackbar'
 import {styles} from '../styles'
 import ChatIcon from 'material-ui/svg-icons/communication/chat'
 import FlatButton from 'material-ui/FlatButton'
+import {Link} from 'react-router-dom'
 
 export default class LogsPage extends React.Component {
   constructor(props) {
@@ -93,14 +94,16 @@ export default class LogsPage extends React.Component {
         <Search handleSearch={this.search} handleRefresh={this.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
         <LogButtons handleRefresh={this.refresh} handleDeleteAll={this.deleteAll} loading={this.state.loading}/>
       </div>
-      <LogsTable logs={this.state.logs}/>
+      <LogsTable logs={this.state.logs} history={this.props.history}/>
       <Snackbar open={this.state.message != ""} message={this.state.message} onRequestClose={() => this.handleSnackbarClose()}/>
       <TrackingLogs sf={this.props.sf}/>
-      <FlatButton label="Give Feedback" style={{
-          position: "absolute",
-          top: 7,
-          right: 10
-        }} onClick={() => this.props.changePage("FeedbackPage")} icon={<ChatIcon />} />
+      <Link to="/feedback">
+        <FlatButton label="Give Feedback" style={{
+            position: "absolute",
+            top: 7,
+            right: 10
+          }} icon={<ChatIcon />} />
+      </Link>
     </div>)
   }
 }

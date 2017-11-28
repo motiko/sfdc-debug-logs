@@ -5,55 +5,40 @@ import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
 import FeedbackPage from './pages/feedback'
 import LogsPage from './pages/logs'
 import {getParam} from './utils'
-
-const sf = new SF(getParam("host"), getParam("sid"))
-
+import {
+  HashRouter as Router,
+  Route,
+  Link,
+  hashHistory,
+  Redirect,
+  Switch
+} from 'react-router-dom'
+import LogView from './pages/logview'
 
 class App extends React.Component {
   constructor(props){
     super(props)
-    this.state = {pageName: "LogsPage"}
-    this.handlePageChange = this.handlePageChange.bind(this)
-  }
-
-  handlePageChange(newPage){
-    document.location.hash = newPage
-    this.setPage(newPage)
-  }
-
-  setPage(pageName){
-    if(this.isLegalPage(pageName)){
-      this.setState({pageName})
-    }else{
-      this.setState({pageName: "LogsPage"})
-    }
-  }
-
-  componentWillMount(){
-    const firstPage = document.location.hash.slice(1)
-    this.setPage(firstPage)
-    window.addEventListener("popstate", (e) =>{
-      const newPage = document.location.hash.slice(1)
-      this.setPage(newPage)
-    })
-  }
-
-  isLegalPage(pageName){
-    return Object.keys(this.nameToPage()).indexOf(pageName) > -1
-  }
-
-  nameToPage(){
-    return {
-      LogsPage: <LogsPage changePage={this.handlePageChange} sf={sf}/>,
-      FeedbackPage: <FeedbackPage changePage={this.handlePageChange}/>
-    }
   }
 
   render() {
-    let page = this.nameToPage()[this.state.pageName]
+    function getParam(s) {
+      const url = new URL(location.href)
+      return url.searchParams.get(s)
+    }
+    const sf = new SF(getParam("host"), getParam("sid"))
     return (
       <MuiThemeProvider>
-        {page}
+      <Router history={hashHistory}>
+        <Switch>
+        <Route path="/logs" render={props =>(
+          <LogsPage sf={sf} {...props}/>)}/>
+        <Route exact path="/feedback" render={props =>(
+          <FeedbackPage sf={sf} {...props}/>)}/>
+        <Route path="/logview/:id" component={LogView} />
+        <Route render={props =>(
+          <LogsPage sf={sf} {...props}/>)}/>
+        </Switch>
+      </Router>
       </MuiThemeProvider>)
   }
 }
