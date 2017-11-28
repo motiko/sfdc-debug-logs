@@ -1,7 +1,7 @@
 {
   "name": "Apex Debugger",
   "short_name": "Apex Debgr",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "manifest_version": 2,
   "author": "Moti Korets",
   "icons": {

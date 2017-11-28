@@ -20,6 +20,8 @@ export default function initRequest(host, sid) {
     }).catch((err) => {
       if (err.message.substring(0, 3) === "401") {
         throw Error(`401: Unauthorized`)
+      }else{
+        throw err
       }
     })
   }
