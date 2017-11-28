@@ -11,7 +11,7 @@ import {
 
 export default function LogsTable(props) {
   function openLog(index) {
-    props.history.push(`/logview/${props.logs[index].Id}`)
+    props.history.push(`/logs/${props.logs[index].Id}`)
   }
 
   const toLogView = (log, index) => {

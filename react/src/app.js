@@ -12,7 +12,6 @@ import {
   Redirect,
   Switch
 } from 'react-router-dom'
-import LogView from './pages/logview'
 
 class App extends React.Component {
   constructor(props){
@@ -29,13 +28,9 @@ class App extends React.Component {
       <MuiThemeProvider>
       <Router history={hashHistory}>
         <Switch>
-        <Route path="/logs" render={props =>(
-          <LogsPage sf={sf} {...props}/>)}/>
-        <Route exact path="/feedback" render={props =>(
-          <FeedbackPage sf={sf} {...props}/>)}/>
-        <Route path="/logview/:id" component={LogView} />
-        <Route render={props =>(
-          <LogsPage sf={sf} {...props}/>)}/>
+          <Route path="/logs" render={props => <LogsPage sf={sf} {...props}/>} />
+          <Route exact path="/feedback" render={props => <FeedbackPage sf={sf} {...props}/>}/>
+          <Route render={props => <LogsPage sf={sf} {...props}/>}/>
         </Switch>
       </Router>
       </MuiThemeProvider>)
