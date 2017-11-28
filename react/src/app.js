@@ -1,3 +1,4 @@
+import 'react-devtools'
 import SF from './api/sf'
 import React from 'react'
 import ReactDOM from 'react-dom'

@@ -23,6 +23,7 @@ export default class LogsPage extends React.Component {
     this.deleteAll = this.deleteAll.bind(this)
     this.search = this.search.bind(this)
     this.updateSearchTerm = this.updateSearchTerm.bind(this)
+    this.fetchLogBody = this.fetchLogBody.bind(this)
   }
 
   handleSnackbarClose() {
@@ -46,19 +47,24 @@ export default class LogsPage extends React.Component {
     })
   }
 
+  fetchLogBody(id){
+    return this.props.sf.logBody(id)
+  }
+
   search() {
     const searchTerm = this.state.searchTerm
     this.setState({loading: true})
     const escapeRegExp = (str) => str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
     const searchRegex = new RegExp(escapeRegExp(searchTerm), 'gi');
     const logBodyPromises = this.state.logs.map(x => x.Id).map(x => ({id: x, promise: this.props.sf.logBody(x)}))
-    const resultPromise = logBodyPromises.map((lbp) => lbp.promise.then((logBody) => ({id: lbp.id, found: searchRegex.test(logBody)})))
+    const resultPromise = logBodyPromises.map((lbp) => lbp.promise.then((logBody) => ({id: lbp.id, found: searchRegex.test(logBody), body: logBody})))
     Promise.all(resultPromise).then((results) => {
       const foundIds = results.filter(r => r.found).map(r => r.id)
       this.setState((oldState) => {
         return {
           logs: oldState.logs.map(l => {
             l['not_matches_search'] = foundIds.indexOf(l.Id) == -1
+            l['Body'] = results.find(r => r.id == l.Id)['Body']
             return l
           }),
           loading: false,
@@ -69,7 +75,6 @@ export default class LogsPage extends React.Component {
   }
 
   componentDidMount() {
-    this.refresh()
     document.body.addEventListener('keyup', (e) => {
       if (e.target.type == "text")
         return
@@ -85,6 +90,10 @@ export default class LogsPage extends React.Component {
 
   updateSearchTerm(e) {
     this.setState({searchTerm: e.target.value})
+  }
+
+  logById(id){
+    this.state.logs.find(l=> l.Id == id)
   }
 
   render() {
@@ -105,8 +114,8 @@ export default class LogsPage extends React.Component {
           }} icon={<ChatIcon />}/>
       </Link>
       <Switch>
-        <Route path="/logs/:id" component={LogView}/>
-        <Route render={props => <LogsTable logs={this.state.logs} {...props}/>}/>
+        <Route path="/logs/:id" render={props => <LogView fetchBody={this.fetchLogBody} {...props}/>}/>
+        <Route render={props => (<LogsTable logs={this.state.logs} refreshLogs={this.refresh} {...props}/>)}/>
       </Switch>
     </div>)
   }
