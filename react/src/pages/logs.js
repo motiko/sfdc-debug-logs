@@ -47,6 +47,10 @@ export default class LogsPage extends React.Component {
     })
   }
 
+  componentDidCatch(error, info){
+    this.setState({message: `Error: ${error}`})
+  }
+
   fetchLogBody(id){
     return this.props.sf.logBody(id)
   }
@@ -75,6 +79,7 @@ export default class LogsPage extends React.Component {
   }
 
   componentDidMount() {
+    this.refresh()
     document.body.addEventListener('keyup', (e) => {
       if (e.target.type == "text")
         return

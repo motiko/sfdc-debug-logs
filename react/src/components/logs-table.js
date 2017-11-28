@@ -31,7 +31,7 @@ export default function LogsTable(props) {
     </TableRow>)
   }
 
-  return (<Table onRowSelection={openLog}>
+  return (<Table onRowSelection={openLog} height="80%" >
     <TableHeader adjustForCheckbox={false} displaySelectAll={false}>
       <TableRow>
         <TableHeaderColumn >Time</TableHeaderColumn>
