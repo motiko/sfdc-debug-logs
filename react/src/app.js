@@ -4,7 +4,6 @@ import ReactDOM from 'react-dom'
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
 import FeedbackPage from './pages/feedback'
 import LogsPage from './pages/logs'
-import {getParam} from './utils'
 import {
   HashRouter as Router,
   Route,
