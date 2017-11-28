@@ -3,9 +3,14 @@ NEW=`curl http://adbg.herokuapp.com/messages 2>/dev/null`
 if (( $? != 0)); then
   exit $?
 fi
+[[ -e last.json ]] || FIRST_RUN=1
 touch new.json
 mv new.json last.json
-echo $NEW | jq . > new.json
+curl http://adbg.herokuapp.com/messages 2>/dev/null | jq . > new.json
+if (( FIRST_RUN )); then
+  echo "FIRST RUN"
+  exit 0
+fi
 diff -q last.json new.json
 if (( $? != 0 )) ; then
   echo "New Message"
