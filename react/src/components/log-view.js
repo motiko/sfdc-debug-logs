@@ -1,5 +1,5 @@
 import React from 'react'
-import BackIcon from  'material-ui/svg-icons/navigation/close'
+import BackIcon from  'material-ui-icons/Close'
 import IconButton from 'material-ui/IconButton'
 import {List, ListItem} from 'material-ui/List';
 

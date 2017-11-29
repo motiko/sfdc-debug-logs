@@ -5,11 +5,11 @@ import LogsTable from '../components/logs-table'
 import LogButtons from '../components/log-buttons'
 import Snackbar from 'material-ui/Snackbar'
 import {styles} from '../styles'
-import ChatIcon from 'material-ui/svg-icons/communication/chat'
-import FlatButton from 'material-ui/FlatButton'
+import ChatIcon from 'material-ui-icons/Chat'
+import Button from 'material-ui/Button'
 import {Link, Route, Switch} from 'react-router-dom'
 import LogView from '../components/log-view'
-import {Toolbar, ToolbarGroup, ToolbarTitle} from 'material-ui/Toolbar'
+import Toolbar from 'material-ui/Toolbar'
 
 export default class LogsPage extends React.Component {
   constructor(props) {
@@ -105,18 +105,12 @@ export default class LogsPage extends React.Component {
   render() {
     return (<div style={{width:"100%"}}>
       <Toolbar>
-        <ToolbarGroup firstChild={true}>
           <Search handleSearch={this.search} handleRefresh={this.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
-        </ToolbarGroup>
-        <ToolbarGroup>
           <LogButtons handleRefresh={this.refresh} handleDeleteAll={this.deleteAll} loading={this.state.loading}/>
-        </ToolbarGroup>
-        <ToolbarGroup lastChild={true}>
-        <TrackingLogs sf={this.props.sf}/>
-        <Link to="/feedback">
-          <FlatButton label="Give Feedback"  icon={<ChatIcon />}/>
-        </Link>
-        </ToolbarGroup>
+          <TrackingLogs sf={this.props.sf}/>
+          <Link to="/feedback">
+            <Button ><ChatIcon/> Give Feedback</Button>
+          </Link>
       </Toolbar>
       <Snackbar open={this.state.message != ""} message={this.state.message} onRequestClose={() => this.handleSnackbarClose()}/>
 

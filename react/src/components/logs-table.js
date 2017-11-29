@@ -1,12 +1,9 @@
 import React from 'react'
-import {
-  Table,
+import Table,{
   TableBody,
-  TableFooter,
-  TableHeader,
-  TableHeaderColumn,
+  TableHead,
   TableRow,
-  TableRowColumn
+  TableCell
 } from 'material-ui/Table'
 
 export default function LogsTable(props) {
@@ -22,27 +19,27 @@ export default function LogsTable(props) {
     }
     const timeString = log.StartTime.match(/T(\d\d:\d\d):/)[1]
     return (<TableRow key={log.Id} logid={log.Id} style={style}>
-      <TableRowColumn>{timeString}</TableRowColumn>
-      <TableRowColumn>{log.Operation}</TableRowColumn>
-      <TableRowColumn>{log.Status}</TableRowColumn>
-      <TableRowColumn>{log.LogUser.Name}</TableRowColumn>
-      <TableRowColumn>{log.DurationMilliseconds + "ms"}</TableRowColumn>
-      <TableRowColumn>{`${log.LogLength / 1000} k`}</TableRowColumn>
+      <TableCell>{timeString}</TableCell>
+      <TableCell>{log.Operation}</TableCell>
+      <TableCell>{log.Status}</TableCell>
+      <TableCell>{log.LogUser.Name}</TableCell>
+      <TableCell>{log.DurationMilliseconds + "ms"}</TableCell>
+      <TableCell>{`${log.LogLength / 1000} k`}</TableCell>
     </TableRow>)
   }
 
-  return (<Table onRowSelection={openLog} height="80%" >
-    <TableHeader adjustForCheckbox={false} displaySelectAll={false}>
+  return (<Table  >
+    <TableHead  >
       <TableRow>
-        <TableHeaderColumn >Time</TableHeaderColumn>
-        <TableHeaderColumn >Operation</TableHeaderColumn>
-        <TableHeaderColumn >Status</TableHeaderColumn>
-        <TableHeaderColumn >User</TableHeaderColumn>
-        <TableHeaderColumn >Run Duration</TableHeaderColumn>
-        <TableHeaderColumn >Length</TableHeaderColumn>
+        <TableCell >Time</TableCell>
+        <TableCell >Operation</TableCell>
+        <TableCell >Status</TableCell>
+        <TableCell >User</TableCell>
+        <TableCell >Run Duration</TableCell>
+        <TableCell >Length</TableCell>
       </TableRow>
-    </TableHeader>
-    <TableBody showRowHover={true} displayRowCheckbox={false}>
+    </TableHead>
+    <TableBody>
       {props.logs.map(toLogView)}
     </TableBody>
   </Table>)

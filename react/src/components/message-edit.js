@@ -1,8 +1,14 @@
 import React from 'react'
-import ReplyIcon from 'material-ui/svg-icons/content/reply'
-import MessageIcon from 'material-ui/svg-icons/communication/message'
-import FlatButton from 'material-ui/FlatButton'
-import TextField from 'material-ui/TextField';
+import ReplyIcon from 'material-ui-icons/Reply'
+import MessageIcon from 'material-ui-icons/Message'
+import Button from 'material-ui/Button'
+import TextField from 'material-ui/TextField'
+import {
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle
+} from 'material-ui/Dialog'
 
 export default class MessageEdit extends React.Component{
   constructor(props){
@@ -53,23 +59,22 @@ export default class MessageEdit extends React.Component{
   render(){
     return (<div>
         <TextField
-          floatingLabelText="Name (Optional)"
+          label="Name (Optional)"
           value={this.state.name}
           onChange={(e) => this.handleNameChange(e)}
-          ref={element => {this.nameElement = element}}
         />
         <TextField
-          floatingLabelText={`Any thoughts (${this.state.body.length}/140)`}
+          label={`Any thoughts (${this.state.body.length}/140)`}
           value={this.state.body}
           onChange={(e) => this.handleBodyChange(e)}
-          multiLine={true}
-          rowsMax={2}
-          style={{width:650}}
+          multiline
+          fullWidth
+          rowsMax="2"
           onKeyDown={(e)=>this.handleKeyDown(e)}
-          errorText={this.state.error}
-          tabIndex={0}
+          error={this.state.error.length > 0}
         />
-        <FlatButton style={{float:"right", marginTop: 32}} label="Send" onClick={this.handleSubmit} icon={<ReplyIcon />} />
     </div>)
   }
 }
+/*
+ref={element => {this.nameElement = element}}*/

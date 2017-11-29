@@ -1,8 +1,9 @@
 // import 'react-devtools'
+// import 'typeface-roboto'
 import SF from './api/sf'
 import React from 'react'
 import ReactDOM from 'react-dom'
-import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
+import { MuiThemeProvider, createMuiTheme} from 'material-ui/styles';
 import FeedbackPage from './pages/feedback'
 import LogsPage from './pages/logs'
 import {
@@ -13,6 +14,12 @@ import {
   Redirect,
   Switch
 } from 'react-router-dom'
+
+const theme = createMuiTheme({
+  palette: {
+    type: 'dark', // Switching the dark mode on is a single property value change.
+  }
+})
 
 class App extends React.Component {
   constructor(props){
@@ -26,20 +33,14 @@ class App extends React.Component {
     }
     const sf = new SF(getParam("host"), getParam("sid"))
     return (
-      <MuiThemeProvider>
       <Router history={hashHistory}>
         <Switch>
           <Route path="/logs" render={props => <LogsPage sf={sf} {...props}/>} />
           <Route exact path="/feedback" render={props => <FeedbackPage sf={sf} {...props}/>}/>
           <Route render={props => <LogsPage sf={sf} {...props}/>}/>
         </Switch>
-      </Router>
-      </MuiThemeProvider>)
+      </Router>)
   }
 }
 
-function render() {
-  ReactDOM.render(<App/>, document.getElementById("container"))
-}
-
-render()
+ReactDOM.render(<App/>, document.getElementById("container"))

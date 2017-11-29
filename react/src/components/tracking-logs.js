@@ -1,7 +1,7 @@
 import React from 'react'
-import FlatButton from 'material-ui/FlatButton'
-import CheckBlankIcon from 'material-ui/svg-icons/toggle/check-box-outline-blank'
-import CheckIcon from 'material-ui/svg-icons/toggle/check-box'
+import Button from 'material-ui/Button'
+import CheckBlankIcon from 'material-ui-icons/CheckBoxOutlineBlank'
+import CheckIcon from 'material-ui-icons/CheckBox'
 
 export default class TrackingLogs extends React.Component {
   constructor(props) {
@@ -36,8 +36,8 @@ export default class TrackingLogs extends React.Component {
 
   render() {
     if (this.state.isTracking) {
-      return <FlatButton label="Logging Activity" disabled={true} icon={<CheckIcon />}/>
+      return <Button disabled> <CheckIcon/> Logging Activity </Button>
     }
-    return (<FlatButton label="Start Logging" onClick={this.startLogging} icon={<CheckBlankIcon />}/>)
+    return (<Button onClick={this.startLogging} > <CheckBlankIcon/> Start Logging</Button>)
   }
 }

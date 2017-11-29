@@ -1,28 +1,36 @@
 import React from 'react'
-import {List, ListItem} from 'material-ui/List'
+import List, {ListItem, ListItemText, ListItemIcon} from 'material-ui/List'
 import IconButton from 'material-ui/IconButton'
-import ReplyIcon from 'material-ui/svg-icons/content/reply'
+import ReplyIcon from 'material-ui-icons/Reply'
 
-export default function MessageView(props){
-  let m = props.message
-  if(m.author.trim() == "") m.author = "Anonymous"
-  const bodyLines = m.body.split('\n')
-  const secondaryText = bodyLines.length > 1
-                         ? (<p> {bodyLines[1]} <br/> Sent By: {m.author}</p>)
-                         : `Sent By: ${m.author}`
-  const replyButton =  (<IconButton tooltip="Reply" onClick={props.onReply}><ReplyIcon/></IconButton>)
-  if(props.nested){
-    return (<ListItem primaryText={bodyLines[0]}
-        secondaryTextLines={2}
-        secondaryText={secondaryText} disabled={true} key={props.key}/>)
-  }else{
-    return (
-      <ListItem primaryText={bodyLines[0]} secondaryText={secondaryText}
-                disabled={true}
-                secondaryTextLines={2}
-                rightIconButton={replyButton}
-                open={true}
-                nestedItems={m.replies ?
-                m.replies.map((m,i) => MessageView({nested:true, message:m, key:i})) : []}/>)
+export default function MessageView({message: m, onReply, nested}){
+  function repliesList(replies){
+    if(!replies) return;
+    return (<List disablePadding>
+      {replies.map((m,i) => <ListItem key={i}> <ListItemText inset primary={m.body}
+          secondary={secondaryText(m)} disabled={true}/></ListItem>)}
+    </List>
+    )
   }
+
+  function secondaryText(msg){
+    return (msg.author.trim() == "") ? "Sent By: Anonymous" : `Sent By: ${msg.author}`
+  }
+  return (<div>
+    <ListItem button onClick={onReply}>
+     <ListItemText primary={m.body} secondary={secondaryText(m)}/>
+    <ListItemIcon>
+      <ReplyIcon/>
+    </ListItemIcon>
+    </ListItem>
+    {repliesList(m.replies)}
+  </div>)
 }
+
+
+/*
+
+rightIconButton={replyButton}
+nestedItems={m.replies ?
+m.replies.map((m,i) => MessageView({nested:true, message:m, key:i})) : []}
+*/

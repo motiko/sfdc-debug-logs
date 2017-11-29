@@ -1,13 +1,20 @@
 import React from 'react'
-import {List, ListItem} from 'material-ui/List'
-import FlatButton from 'material-ui/FlatButton'
-import BackIcon from  'material-ui/svg-icons/navigation/arrow-back'
+// import {List, ListItem} from 'material-ui/List'
+import List, { ListItem, ListItemText } from 'material-ui/List'
+import Button from 'material-ui/Button'
+import BackIcon from  'material-ui-icons/ArrowBack'
 import IconButton from 'material-ui/IconButton'
-import MessageIcon from 'material-ui/svg-icons/communication/message'
+import MessageIcon from 'material-ui-icons/Message'
 import MessageEdit from '../components/message-edit'
 import MessageView from '../components/message-view'
-import Dialog from 'material-ui/Dialog'
-import {Toolbar, ToolbarGroup, ToolbarTitle} from 'material-ui/Toolbar'
+import Dialog,{
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle
+}  from 'material-ui/Dialog'
+import Toolbar from 'material-ui/Toolbar'
+import ReplyIcon from 'material-ui-icons/Reply'
 
 const BASE_URL = "https://adbg.herokuapp.com"
 
@@ -36,7 +43,7 @@ export default class FeedbackPage extends React.Component {
                     body: JSON.stringify(msg),
                     headers: headers}
     if(this.state.replyTo){
-      fetch(`${BASE_URL}/messages/${this.state.replyTo}/reply`, options)
+      fetch(`${BASE_URL}/messages/${this.state.replyTo._id}/reply`, options)
         .then(this.loadMessages)
     }else{
       fetch(`${BASE_URL}/messages`, options).then(this.loadMessages)
@@ -49,7 +56,7 @@ export default class FeedbackPage extends React.Component {
   }
 
   handleReply(msg){
-    this.setState({dialogOpen: true, replyTo: msg._id})
+    this.setState({dialogOpen: true, replyTo: msg})
   }
 
   openDialog(){
@@ -63,10 +70,10 @@ export default class FeedbackPage extends React.Component {
   render() {
   return(<div>
     <Toolbar>
-      <ToolbarGroup firstChild={true}>
-        <IconButton style={{float:"left"}} tooltip="Back" onClick={()=>window.history.back()}><BackIcon/></IconButton>
-        <FlatButton label="New Message" onClick={()=>this.openDialog()} icon={<MessageIcon/>} />
-      </ToolbarGroup>
+      <IconButton style={{float:"left"}} tooltip="Back" onClick={()=>window.history.back()}><BackIcon/></IconButton>
+      <Button onClick={()=>this.openDialog()} >
+        <MessageIcon/>New Message
+      </Button>
     </Toolbar>
     <div style={{height: "90%", overflowY:"auto" }}>
       <List style={{width:"70%", margin:"0 auto"}}>
@@ -75,10 +82,24 @@ export default class FeedbackPage extends React.Component {
               onReply={() => this.handleReply(m)} key={i}/>))}
       </List>
       <Dialog
-          modal={false}
+          fullWidth
           open={this.state.dialogOpen}
           onRequestClose={()=>this.closeDialog()}>
-      <MessageEdit onSubmit={this.sendMessage}/>
+          <DialogTitle>{this.state.replyTo ? `Reply to ${this.state.replyTo.author}` :`New Message`}</DialogTitle>
+          <DialogContent>
+          <DialogContentText>
+            {this.state.replyTo ?
+              `Please keep it professional`
+              :`Please share any ideas you have, or tell us about bugs you've encountered.`}
+
+          </DialogContentText>
+            <MessageEdit onSubmit={this.sendMessage}/>
+            <DialogActions>
+              <Button  onClick={this.handleSubmit} >
+                <ReplyIcon /> Send
+              </Button>
+            </DialogActions>
+          </DialogContent>
       </Dialog>
       </div>
   </div>)
