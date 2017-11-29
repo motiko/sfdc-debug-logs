@@ -18,7 +18,7 @@
     "browser_action": {
       "default_icon": "img/16.png"
     },
-    "content_security_policy": "script-src 'self'; object-src 'self'; font-src https://fonts.googleapis.com; connect-src https://adbg.herokuapp.com https://*.force.com https://*.salesforce.com",
+    "content_security_policy": "script-src 'self'; object-src 'self'; connect-src https://adbg.herokuapp.com https://*.force.com https://*.salesforce.com",
     "content_scripts": [
         {
             "css": [

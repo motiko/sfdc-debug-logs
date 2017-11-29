@@ -1,5 +1,4 @@
 // import 'react-devtools'
-// import 'typeface-roboto'
 import SF from './api/sf'
 import React from 'react'
 import ReactDOM from 'react-dom'
