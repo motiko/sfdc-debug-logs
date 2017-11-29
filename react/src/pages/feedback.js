@@ -14,7 +14,9 @@ import Dialog,{
   DialogTitle
 }  from 'material-ui/Dialog'
 import Toolbar from 'material-ui/Toolbar'
+import AppBar from 'material-ui/AppBar'
 import ReplyIcon from 'material-ui-icons/Reply'
+import Grid from 'material-ui/Grid'
 
 const BASE_URL = "https://adbg.herokuapp.com"
 
@@ -68,19 +70,22 @@ export default class FeedbackPage extends React.Component {
   }
 
   render() {
-  return(<div>
-    <Toolbar>
-      <IconButton tooltip="Back" onClick={()=>window.history.back()}><BackIcon/></IconButton>
-      <Button color="primary" onClick={()=>this.openDialog()} >
-        <MessageIcon/>New Message
-      </Button>
-    </Toolbar>
-    <div style={{height: "90%", overflowY:"auto" }}>
-      <List style={{width:"70%", margin:"0 auto"}}>
+  return(<div style={{ paddingTop: 80 }}>
+    <AppBar position="fixed">
+      <Toolbar>
+        <IconButton tooltip="Back" onClick={()=>window.history.back()}><BackIcon/></IconButton>
+        <Button color="contrast" onClick={()=>this.openDialog()} >
+          <MessageIcon/>New Message
+        </Button>
+      </Toolbar>
+    </AppBar>
+
+      <List style={{width: "60%", margin:"auto"}}>
         {this.state.messages.map((m, i)=> (
           <MessageView nested={false} message={m}
               onReply={() => this.handleReply(m)} key={i}/>))}
       </List>
+
       <Dialog
           fullWidth
           open={this.state.dialogOpen}
@@ -101,7 +106,7 @@ export default class FeedbackPage extends React.Component {
             </DialogActions>
           </DialogContent>
       </Dialog>
-      </div>
+
   </div>)
   }
 }

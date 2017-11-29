@@ -14,7 +14,7 @@ import AppBar from 'material-ui/AppBar'
 import Grid from 'material-ui/Grid'
 
 
-class LogsPage extends React.Component {
+  class LogsPage extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
@@ -106,8 +106,8 @@ class LogsPage extends React.Component {
   }
 
   render() {
-    return (<div>
-      <AppBar position="static">
+    return (<div style={{ paddingTop: 80 }} >
+      <AppBar position="fixed">
         <Toolbar>
         <Grid container direction="row" justify="space-between">
           <Grid item xs={12} sm={6}>
@@ -129,7 +129,7 @@ class LogsPage extends React.Component {
         </Grid>
         </Toolbar>
 
-      <Snackbar open={this.state.message != ""} message={this.state.message} onRequestClose={() => this.handleSnackbarClose()}/>
+        <Snackbar open={this.state.message != ""} message={this.state.message} onRequestClose={() => this.handleSnackbarClose()}/>
       </AppBar>
       <Switch>
         <Route path="/logs/:id" render={props => <LogView fetchBody={this.fetchLogBody} {...props}/>}/>
