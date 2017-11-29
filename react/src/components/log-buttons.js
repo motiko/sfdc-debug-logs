@@ -7,13 +7,11 @@ import {styles} from '../styles'
 
 export default function LogButtons(props) {
   const loading = props.loading
-  return (<span style={{
-      display: "inline-block"
-    }}>
-    <IconButton tooltip="(R)eload" onClick={props.handleRefresh} style={styles.medium} iconStyle={styles.mediumIcon}>
+  return (<div>
+    <IconButton tooltip="(R)eload" onClick={props.handleRefresh} >
       <RefreshIcon/>
     </IconButton>
-    <IconButton style={styles.medium} onClick={props.handleDeleteAll} tooltip="Delete (A)ll" iconStyle={styles.mediumIcon}>
+    <IconButton onClick={props.handleDeleteAll} tooltip="Delete (A)ll">
       <DeleteIcon/>
     </IconButton>
     <CircularProgress style={{
@@ -22,5 +20,5 @@ export default function LogButtons(props) {
           : 'none',
         margin: '1em'
       }}/>
-  </span>)
+  </div>)
 }

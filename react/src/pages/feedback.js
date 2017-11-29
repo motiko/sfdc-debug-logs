@@ -6,7 +6,8 @@ import IconButton from 'material-ui/IconButton'
 import MessageIcon from 'material-ui/svg-icons/communication/message'
 import MessageEdit from '../components/message-edit'
 import MessageView from '../components/message-view'
-import Dialog from 'material-ui/Dialog';
+import Dialog from 'material-ui/Dialog'
+import {Toolbar, ToolbarGroup, ToolbarTitle} from 'material-ui/Toolbar'
 
 const BASE_URL = "https://adbg.herokuapp.com"
 
@@ -60,14 +61,15 @@ export default class FeedbackPage extends React.Component {
   }
 
   render() {
-    return(
-    <div style={{width:"80%", margin:"0 auto"}}>
-      <div style={{textAlign: "center", marginBottom: 15}}>
+  return(<div>
+    <Toolbar>
+      <ToolbarGroup firstChild={true}>
         <IconButton style={{float:"left"}} tooltip="Back" onClick={()=>window.history.back()}><BackIcon/></IconButton>
-        <FlatButton style={{margin:"0px auto", width: 250}} label="New Message" onClick={()=>this.openDialog()} icon={<MessageIcon/>} />
-      </div>
-      <List>
-
+        <FlatButton label="New Message" onClick={()=>this.openDialog()} icon={<MessageIcon/>} />
+      </ToolbarGroup>
+    </Toolbar>
+    <div style={{height: "90%", overflowY:"auto" }}>
+      <List style={{width:"70%", margin:"0 auto"}}>
         {this.state.messages.map((m, i)=> (
           <MessageView nested={false} message={m}
               onReply={() => this.handleReply(m)} key={i}/>))}
@@ -78,6 +80,7 @@ export default class FeedbackPage extends React.Component {
           onRequestClose={()=>this.closeDialog()}>
       <MessageEdit onSubmit={this.sendMessage}/>
       </Dialog>
-    </div>)
+      </div>
+  </div>)
   }
 }

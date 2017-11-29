@@ -27,7 +27,7 @@ export default class LogView extends React.Component{
            secondaryText="Jan 17, 2014"/>
         </List>
       </div>
-      <div style={{marginLeft:"30%", overflowY: "auto", height: "85%",}}>
+      <div style={{marginLeft:"30%", overflowY: "auto", height: "80%", width: "100%"}}>
         <IconButton  tooltip="Close" onClick={()=>window.history.back()}><BackIcon/></IconButton>
         <div>
           <p style={{whiteSpace: "pre-line", overflowY: "auto"}}>

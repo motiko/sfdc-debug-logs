@@ -9,6 +9,7 @@ import ChatIcon from 'material-ui/svg-icons/communication/chat'
 import FlatButton from 'material-ui/FlatButton'
 import {Link, Route, Switch} from 'react-router-dom'
 import LogView from '../components/log-view'
+import {Toolbar, ToolbarGroup, ToolbarTitle} from 'material-ui/Toolbar'
 
 export default class LogsPage extends React.Component {
   constructor(props) {
@@ -102,22 +103,23 @@ export default class LogsPage extends React.Component {
   }
 
   render() {
-    return (<div>
-      <div style={{
-          position: "relative"
-        }}>
-        <Search handleSearch={this.search} handleRefresh={this.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
-        <LogButtons handleRefresh={this.refresh} handleDeleteAll={this.deleteAll} loading={this.state.loading}/>
-      </div>
+    return (<div style={{width:"100%"}}>
+      <Toolbar>
+        <ToolbarGroup firstChild={true}>
+          <Search handleSearch={this.search} handleRefresh={this.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
+        </ToolbarGroup>
+        <ToolbarGroup>
+          <LogButtons handleRefresh={this.refresh} handleDeleteAll={this.deleteAll} loading={this.state.loading}/>
+        </ToolbarGroup>
+        <ToolbarGroup lastChild={true}>
+        <TrackingLogs sf={this.props.sf}/>
+        <Link to="/feedback">
+          <FlatButton label="Give Feedback"  icon={<ChatIcon />}/>
+        </Link>
+        </ToolbarGroup>
+      </Toolbar>
       <Snackbar open={this.state.message != ""} message={this.state.message} onRequestClose={() => this.handleSnackbarClose()}/>
-      <TrackingLogs sf={this.props.sf}/>
-      <Link to="/feedback">
-        <FlatButton label="Give Feedback" style={{
-            position: "absolute",
-            top: 7,
-            right: 10
-          }} icon={<ChatIcon />}/>
-      </Link>
+
       <Switch>
         <Route path="/logs/:id" render={props => <LogView fetchBody={this.fetchLogBody} {...props}/>}/>
         <Route render={props => (<LogsTable logs={this.state.logs} refreshLogs={this.refresh} {...props}/>)}/>

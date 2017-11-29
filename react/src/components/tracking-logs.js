@@ -35,14 +35,9 @@ export default class TrackingLogs extends React.Component {
   }
 
   render() {
-    const style = {
-      position: "absolute",
-      top: 7,
-      left: 10
-    }
     if (this.state.isTracking) {
-      return <FlatButton label="Logging Activity" disabled={true} style={style} icon={<CheckIcon />}/>
+      return <FlatButton label="Logging Activity" disabled={true} icon={<CheckIcon />}/>
     }
-    return (<FlatButton label="Start Logging" onClick={this.startLogging} style={style} icon={<CheckBlankIcon />}/>)
+    return (<FlatButton label="Start Logging" onClick={this.startLogging} icon={<CheckBlankIcon />}/>)
   }
 }

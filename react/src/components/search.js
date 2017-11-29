@@ -15,15 +15,13 @@ export default function Search(props) {
   }
 
   const searchTerm = props.searchTerm
-  return (<span style={{
-      display: "inline-block"
-    }}>
+  return (<div >
     <TextField hintText="Search" value={props.searchTerm} style={{
         margin: '0px 1em'
       }} onChange={props.updateSearchTerm} onKeyUp={handleKey}/>
-    <IconButton onClick={props.handleSearch} style={styles.medium} tooltip="Search" iconStyle={styles.mediumIcon}>
+    <IconButton onClick={props.handleSearch}  tooltip="Search" >
       <SearchIcon/>
     </IconButton>
-  </span>)
+  </div>)
 
 }
