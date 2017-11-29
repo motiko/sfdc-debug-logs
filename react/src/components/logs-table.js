@@ -18,7 +18,7 @@ export default function LogsTable(props) {
         : 'table-row'
     }
     const timeString = log.StartTime.match(/T(\d\d:\d\d):/)[1]
-    return (<TableRow hover key={log.Id} logid={log.Id} style={style}>
+    return (<TableRow hover onClick={()=>openLog(index)} key={log.Id} logid={log.Id} style={style}>
       <TableCell>{timeString}</TableCell>
       <TableCell>{log.Operation}</TableCell>
       <TableCell>{log.Status}</TableCell>

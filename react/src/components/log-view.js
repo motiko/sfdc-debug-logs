@@ -1,7 +1,7 @@
 import React from 'react'
 import BackIcon from  'material-ui-icons/Close'
 import IconButton from 'material-ui/IconButton'
-import {List, ListItem} from 'material-ui/List';
+import List, {ListItem, ListItemText} from 'material-ui/List'
 
 export default class LogView extends React.Component{
   constructor(props){
@@ -19,12 +19,12 @@ export default class LogView extends React.Component{
       <div style={{display: "block"}}>
       <div style={{width: "20%", height: "100%", position: "fixed", overflowY:"auto" }}>
         <List>
-          <ListItem
-           primaryText="Photos"
-           secondaryText="Jan 9, 2014"/>
-         <ListItem
-           primaryText="Recipes"
-           secondaryText="Jan 17, 2014"/>
+          <ListItem>
+           <ListItemText primary="Hello" secondary="{secondaryText(m)}"/>
+          </ListItem>
+         <ListItem>
+           <ListItemText primary="Hello" secondary="{secondaryText(m)}"/>
+         </ListItem>
         </List>
       </div>
       <div style={{marginLeft:"30%", overflowY: "auto", height: "80%", width: "100%"}}>
