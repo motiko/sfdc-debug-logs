@@ -15,8 +15,8 @@ export default function Search(props) {
 
   const searchTerm = props.searchTerm
   return (<div >
-    <TextField value={props.searchTerm}  onChange={props.updateSearchTerm} onKeyUp={handleKey}/>
-    <IconButton onClick={props.handleSearch} >
+    <TextField color="accent" value={props.searchTerm}  onChange={props.updateSearchTerm} onKeyUp={handleKey}/>
+    <IconButton color="contrast" onClick={props.handleSearch} >
       <SearchIcon/>
     </IconButton>
   </div>)

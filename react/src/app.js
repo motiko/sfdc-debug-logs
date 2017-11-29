@@ -5,6 +5,9 @@ import ReactDOM from 'react-dom'
 import { MuiThemeProvider, createMuiTheme} from 'material-ui/styles';
 import FeedbackPage from './pages/feedback'
 import LogsPage from './pages/logs'
+import indigo from 'material-ui/colors/indigo';
+import teal from 'material-ui/colors/teal';
+
 import {
   HashRouter as Router,
   Route,
@@ -13,12 +16,6 @@ import {
   Redirect,
   Switch
 } from 'react-router-dom'
-
-const theme = createMuiTheme({
-  palette: {
-    type: 'dark', // Switching the dark mode on is a single property value change.
-  }
-})
 
 class App extends React.Component {
   constructor(props){
@@ -42,4 +39,17 @@ class App extends React.Component {
   }
 }
 
-ReactDOM.render(<App/>, document.getElementById("container"))
+const theme = createMuiTheme({
+  palette: {
+      primary: teal,
+      secondary: indigo,
+      // type: 'dark'
+    }
+ })
+
+const ThemedApp = () => (
+<MuiThemeProvider theme={theme}>
+  <App/>
+</MuiThemeProvider>)
+
+ReactDOM.render(<ThemedApp/>, document.getElementById("container"))

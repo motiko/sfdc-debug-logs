@@ -3,7 +3,7 @@ import Button from 'material-ui/Button'
 import CheckBlankIcon from 'material-ui-icons/CheckBoxOutlineBlank'
 import CheckIcon from 'material-ui-icons/CheckBox'
 
-export default class TrackingLogs extends React.Component {
+class TrackingLogs extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
@@ -35,9 +35,12 @@ export default class TrackingLogs extends React.Component {
   }
 
   render() {
+    const classes = this.props.classes
     if (this.state.isTracking) {
-      return <Button disabled> <CheckIcon/> Logging Activity </Button>
+      return <Button  disabled  > <CheckIcon/> Logging Activity </Button>
     }
     return (<Button onClick={this.startLogging} > <CheckBlankIcon/> Start Logging</Button>)
   }
 }
+
+export default TrackingLogs

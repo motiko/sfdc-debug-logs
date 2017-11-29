@@ -70,8 +70,8 @@ export default class FeedbackPage extends React.Component {
   render() {
   return(<div>
     <Toolbar>
-      <IconButton style={{float:"left"}} tooltip="Back" onClick={()=>window.history.back()}><BackIcon/></IconButton>
-      <Button onClick={()=>this.openDialog()} >
+      <IconButton tooltip="Back" onClick={()=>window.history.back()}><BackIcon/></IconButton>
+      <Button color="primary" onClick={()=>this.openDialog()} >
         <MessageIcon/>New Message
       </Button>
     </Toolbar>
@@ -95,7 +95,7 @@ export default class FeedbackPage extends React.Component {
           </DialogContentText>
             <MessageEdit onSubmit={this.sendMessage}/>
             <DialogActions>
-              <Button  onClick={this.handleSubmit} >
+              <Button  color="primary" onClick={this.handleSubmit} >
                 <ReplyIcon /> Send
               </Button>
             </DialogActions>

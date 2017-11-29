@@ -9,8 +9,12 @@ import Button from 'material-ui/Button'
 import {Link, Route, Switch} from 'react-router-dom'
 import LogView from '../components/log-view'
 import Toolbar from 'material-ui/Toolbar'
+import AppBar from 'material-ui/AppBar'
 
-export default class LogsPage extends React.Component {
+import Grid from 'material-ui/Grid'
+
+
+class LogsPage extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
@@ -102,21 +106,37 @@ export default class LogsPage extends React.Component {
   }
 
   render() {
-    return (<div style={{width:"100%"}}>
-      <Toolbar>
-          <Search handleSearch={this.search} handleRefresh={this.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
-          <LogButtons handleRefresh={this.refresh} handleDeleteAll={this.deleteAll} loading={this.state.loading}/>
-          <TrackingLogs sf={this.props.sf}/>
-          <Link to="/feedback">
-            <Button ><ChatIcon/> Give Feedback</Button>
-          </Link>
-      </Toolbar>
-      <Snackbar open={this.state.message != ""} message={this.state.message} onRequestClose={() => this.handleSnackbarClose()}/>
+    return (<div>
+      <AppBar position="static">
+        <Toolbar>
+        <Grid container direction="row" justify="space-between">
+          <Grid item xs={12} sm={6}>
+            <Grid container direction="row" justify="flex-start">
+              <Grid item>
+                <Search color="contrast" handleSearch={this.search} handleRefresh={this.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
+              </Grid>
+              <Grid item >
+                <LogButtons handleRefresh={this.refresh} handleDeleteAll={this.deleteAll} loading={this.state.loading}/>
+              </Grid>
+            </Grid>
+          </Grid>
+          <Grid item>
+            <Link to="/feedback" >
+              <Button color="contrast" ><ChatIcon/> Give Feedback</Button>
+            </Link>
+            <TrackingLogs sf={this.props.sf}/>
+          </Grid>
+        </Grid>
+        </Toolbar>
 
+      <Snackbar open={this.state.message != ""} message={this.state.message} onRequestClose={() => this.handleSnackbarClose()}/>
+      </AppBar>
       <Switch>
         <Route path="/logs/:id" render={props => <LogView fetchBody={this.fetchLogBody} {...props}/>}/>
         <Route render={props => (<LogsTable logs={this.state.logs} refreshLogs={this.refresh} {...props}/>)}/>
       </Switch>
-    </div>)
+      </div>)
   }
 }
+
+export default LogsPage
