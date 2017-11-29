@@ -3,7 +3,6 @@ import RefreshIcon from 'material-ui-icons/Autorenew'
 import DeleteIcon from 'material-ui-icons/DeleteForever'
 import { CircularProgress } from 'material-ui/Progress';
 import IconButton from 'material-ui/IconButton'
-import {styles} from '../styles'
 
 export default function LogButtons(props) {
   const loading = props.loading

@@ -2,7 +2,6 @@ import React from 'react'
 import TextField from 'material-ui/TextField'
 import SearchIcon from 'material-ui-icons/Search'
 import IconButton from 'material-ui/IconButton'
-import {styles} from '../styles'
 
 export default function Search(props) {
   function handleKey(e) {
