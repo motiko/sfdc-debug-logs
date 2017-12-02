@@ -3,7 +3,7 @@ import SF from './api/sf'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { MuiThemeProvider, createMuiTheme} from 'material-ui/styles';
-import FeedbackPage from './pages/feedback'
+import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs'
 import indigo from 'material-ui/colors/indigo';
 import teal from 'material-ui/colors/teal';

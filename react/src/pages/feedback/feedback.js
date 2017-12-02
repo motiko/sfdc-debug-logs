@@ -1,12 +1,11 @@
 import React from 'react'
-// import {List, ListItem} from 'material-ui/List'
 import List, { ListItem, ListItemText } from 'material-ui/List'
 import Button from 'material-ui/Button'
 import BackIcon from  'material-ui-icons/ArrowBack'
 import IconButton from 'material-ui/IconButton'
 import MessageIcon from 'material-ui-icons/Message'
-import MessageEdit from '../components/message-edit'
-import MessageView from '../components/message-view'
+import MessageEdit from './message-edit'
+import MessageView from './message-view'
 import Dialog,{
   DialogActions,
   DialogContent,
@@ -17,19 +16,33 @@ import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
 import ReplyIcon from 'material-ui-icons/Reply'
 import Grid from 'material-ui/Grid'
+import { createStore } from 'redux'
+import feedback from './reducers'
+import {toggleDialog, replyTo} from './actions'
 
 const BASE_URL = "https://adbg.herokuapp.com"
+
+let store = createStore(feedback)
 
 export default class FeedbackPage extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {dialogOpen: true, replyTo: null, messagesSent: 0, messages: []}
+    this.state = {messagesSent: 0, messages: []}
+    const initDialogState = store.getState().dialogState
+    this.state = {...this.state, ...initDialogState}
+    this.unsubscribe = store.subscribe(() =>
+      this.setState(store.getState().dialogState)
+    )
     this.sendMessage = this.sendMessage.bind(this)
     this.loadMessages = this.loadMessages.bind(this)
   }
 
   componentWillMount(){
     this.loadMessages()
+  }
+
+  componentWillUnmount(){
+    this.unsubscribe()
   }
 
   loadMessages(){
@@ -58,15 +71,16 @@ export default class FeedbackPage extends React.Component {
   }
 
   handleReply(msg){
-    this.setState({dialogOpen: true, replyTo: msg})
+    store.dispatch(toggleDialog())
+    store.dispatch(replyTo(msg))
   }
 
   openDialog(){
-    this.setState({dialogOpen:true})
+    store.dispatch(toggleDialog())
   }
 
   closeDialog(){
-    this.setState({dialogOpen:false})
+    store.dispatch(toggleDialog())
   }
 
   render() {
