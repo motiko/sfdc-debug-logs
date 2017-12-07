@@ -72,6 +72,7 @@ export default class MessageEdit extends React.Component{
           rowsMax="2"
           onKeyDown={(e)=>this.handleKeyDown(e)}
           error={this.state.error.length > 0}
+          helperText={this.state.error}
         />
     </div>)
   }

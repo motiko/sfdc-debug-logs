@@ -16,13 +16,14 @@ import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
 import ReplyIcon from 'material-ui-icons/Reply'
 import Grid from 'material-ui/Grid'
-import { createStore } from 'redux'
+import { createStore, applyMiddleware } from 'redux'
 import feedback from './reducers'
-import {toggleDialog, replyTo} from './actions'
+import {toggleDialog, replyTo, sendMessage} from './actions'
+import {logger, messenger} from './middleware'
 
 const BASE_URL = "https://adbg.herokuapp.com"
 
-let store = createStore(feedback)
+let store = createStore(feedback, applyMiddleware(logger, messenger))
 
 export default class FeedbackPage extends React.Component {
   constructor(props) {
@@ -53,21 +54,23 @@ export default class FeedbackPage extends React.Component {
   }
 
   sendMessage(msg){
-    const headers = {"Content-Type": "application/json"}
-    const options = {method: 'POST',
-                    body: JSON.stringify(msg),
-                    headers: headers}
-    if(this.state.replyTo){
-      fetch(`${BASE_URL}/messages/${this.state.replyTo._id}/reply`, options)
-        .then(this.loadMessages)
-    }else{
-      fetch(`${BASE_URL}/messages`, options).then(this.loadMessages)
-    }
-    this.setState((oldState)=>({
-        messagesSent: oldState.messagesSent + 1,
-        dialogOpen: false,
-        replyTo: null
-    }))
+    debugger
+    store.dispatch(sendMessage(msg))
+    // const headers = {"Content-Type": "application/json"}
+    // const options = {method: 'POST',
+    //                 body: JSON.stringify(msg),
+    //                 headers: headers}
+    // if(this.state.replyTo){
+    //   fetch(`${BASE_URL}/messages/${this.state.replyTo._id}/reply`, options)
+    //     .then(this.loadMessages)
+    // }else{
+    //   fetch(`${BASE_URL}/messages`, options).then(this.loadMessages)
+    // }
+    // this.setState((oldState)=>({
+    //     messagesSent: oldState.messagesSent + 1,
+    //     dialogOpen: false,
+    //     replyTo: null
+    // }))
   }
 
   handleReply(msg){

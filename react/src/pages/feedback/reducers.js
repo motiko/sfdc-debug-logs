@@ -1,4 +1,4 @@
-import {replyTo, toggleDialog} from './actions'
+import {replyTo, toggleDialog, sendMessage} from './actions'
 import { combineReducers } from 'redux'
 
 const initial_state = {
@@ -34,11 +34,15 @@ function messages(messagesState, action){
   switch (action.type) {
     case 'FETCH_MESSAGES_REQUEST':
       return {
-        ...state
+        ...state,
+        isLoading: true
       }
     case 'FETCH_MESSAGES_RESPONSE':
       return  {
-        ...state
+        ...state,
+        isLoading: false,
+        lastUpdated: Date.now(),
+        messages: action.messages
       }
     default:
       return state
