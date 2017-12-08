@@ -49,10 +49,10 @@ function initPage() {
   addReloadControllers();
   addSearchControllers();
   initKeyTraps();
-  let dontShowHint = JSON.parse(localStorage.getItem('dontShowNewAppHint'))
-  if(!dontShowHint){
-    addHint()
-  }
+  // let dontShowHint = JSON.parse(localStorage.getItem('dontShowNewAppHint'))
+  // if(!dontShowHint){
+  //   addHint()
+  // }
 }
 
 initPage();
