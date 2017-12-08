@@ -20,10 +20,11 @@ import { createStore, applyMiddleware } from 'redux'
 import feedback from './reducers'
 import {toggleDialog, replyTo, sendMessage} from './actions'
 import {logger, messenger} from './middleware'
+import thunk from 'redux-thunk'
 
 const BASE_URL = "https://adbg.herokuapp.com"
 
-let store = createStore(feedback, applyMiddleware(logger, messenger))
+let store = createStore(feedback, applyMiddleware(thunk))
 
 export default class FeedbackPage extends React.Component {
   constructor(props) {
@@ -54,7 +55,6 @@ export default class FeedbackPage extends React.Component {
   }
 
   sendMessage(msg){
-    debugger
     store.dispatch(sendMessage(msg))
     // const headers = {"Content-Type": "application/json"}
     // const options = {method: 'POST',
