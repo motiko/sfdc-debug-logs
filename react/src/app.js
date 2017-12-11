@@ -7,7 +7,6 @@ import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs'
 import indigo from 'material-ui/colors/indigo';
 import teal from 'material-ui/colors/teal';
-
 import {
   HashRouter as Router,
   Route,
@@ -16,6 +15,11 @@ import {
   Redirect,
   Switch
 } from 'react-router-dom'
+import thunk from 'redux-thunk'
+import { createStore, applyMiddleware } from 'redux'
+import feedback from './reducers'
+
+let store = createStore(feedback, applyMiddleware(thunk))
 
 class App extends React.Component {
   constructor(props){
@@ -32,7 +36,7 @@ class App extends React.Component {
       <Router history={hashHistory}>
         <Switch>
           <Route path="/logs" render={props => <LogsPage sf={sf} {...props}/>} />
-          <Route exact path="/feedback" render={props => <FeedbackPage sf={sf} {...props}/>}/>
+          <Route exact path="/feedback" render={props => <FeedbackPage store={store} {...props}/>}/>
           <Route render={props => <LogsPage sf={sf} {...props}/>}/>
         </Switch>
       </Router>)

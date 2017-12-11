@@ -16,92 +16,71 @@ import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
 import ReplyIcon from 'material-ui-icons/Reply'
 import Grid from 'material-ui/Grid'
-import { createStore, applyMiddleware } from 'redux'
-import feedback from './reducers'
-import {toggleDialog, setReplyTo, sendMessage, loadMessages} from './actions'
-import thunk from 'redux-thunk'
+import feedback from '../../reducers'
+import {toggleDialog, setReplyTo, sendMessage, loadMessages} from '../../actions'
+import { connect } from 'react-redux'
 
 const BASE_URL = "https://adbg.herokuapp.com"
 
-let store = createStore(feedback, applyMiddleware(thunk))
+const mapStateToProps = (state) =>{
+  return state
+}
 
-export default class FeedbackPage extends React.Component {
-  constructor(props) {
-    super(props)
-    this.state = store.getState()
-    this.unsubscribe = store.subscribe(() =>
-      this.setState(store.getState())
-    )
-    this.sendMessage = this.sendMessage.bind(this)
-    this.loadMessages = this.loadMessages.bind(this)
+const mapDispatchToProps = (dispatch) => ({
+  loadMessages: () => {
+    dispatch(loadMessages())
+  },
+
+  sendMessage: (msg, replyTo) => {
+    dispatch(sendMessage(msg, replyTo ? replyTo._id : null))
+  },
+
+  handleReply: (msg) => {
+    dispatch(toggleDialog())
+    dispatch(setReplyTo(msg))
+  },
+
+  toggleDialog: () => {
+    dispatch(toggleDialog())
   }
+})
 
-  componentWillMount(){
-    this.loadMessages()
-  }
-
-  componentWillUnmount(){
-    this.unsubscribe()
-  }
-
-  loadMessages(){
-    store.dispatch(loadMessages())
-  }
-
-  sendMessage(msg){
-    store.dispatch(sendMessage(msg, this.state.replyTo ? this.state.replyTo._id : null))
-  }
-
-  handleReply(msg){
-    store.dispatch(toggleDialog())
-    store.dispatch(setReplyTo(msg))
-  }
-
-  handleSubmit(){
-
-  }
-
-  openDialog(){
-    store.dispatch(toggleDialog())
-  }
-
-  closeDialog(){
-    store.dispatch(toggleDialog())
-  }
-
-  render() {
+function FeedbackPageComponent(props){
   return(<div style={{ paddingTop: 80 }}>
     <AppBar position="fixed">
       <Toolbar>
         <IconButton tooltip="Back" onClick={()=>window.history.back()}><BackIcon/></IconButton>
-        <Button color="contrast" onClick={()=>this.openDialog()} >
+        <Button color="contrast" onClick={()=>props.toggleDialog()} >
           <MessageIcon/>New Message
         </Button>
       </Toolbar>
     </AppBar>
 
       <List style={{width: "60%", margin:"auto"}}>
-        {this.state.messages.map((m, i)=> (
+        {props.messages.map((m, i)=> (
           <MessageView nested={false} message={m}
-              onReply={() => this.handleReply(m)} key={i}/>))}
+              onReply={() => props.handleReply(m)} key={i}/>))}
       </List>
 
       <Dialog
           fullWidth
-          open={this.state.dialogOpen}
-          onRequestClose={()=>this.closeDialog()}>
-          <DialogTitle>{this.state.replyTo ? `Reply to ${this.state.replyTo.author}` :`New Message`}</DialogTitle>
+          open={props.dialogOpen}
+          onRequestClose={()=>props.toggleDialog()}>
+          <DialogTitle>{props.replyTo ? `Reply to ${props.replyTo.author}` :`New Message`}</DialogTitle>
           <DialogContent>
           <DialogContentText>
-            {this.state.replyTo ?
+            {props.replyTo ?
               `Please keep it professional`
               :`Please share any ideas you have, or tell us about bugs you've encountered.`}
 
           </DialogContentText>
-            <MessageEdit onSubmit={this.sendMessage}/>
+            <MessageEdit onSubmit={(msg) => props.sendMessage(msg, props.replyTo)}/>
           </DialogContent>
       </Dialog>
 
   </div>)
-  }
 }
+
+const FeedbackPage = connect(mapStateToProps, mapDispatchToProps)(FeedbackPageComponent)
+
+export default FeedbackPage
