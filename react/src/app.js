@@ -15,6 +15,7 @@ import {
   Redirect,
   Switch
 } from 'react-router-dom'
+import { Provider } from 'react-redux'
 import thunk from 'redux-thunk'
 import { createStore, applyMiddleware } from 'redux'
 import feedback from './reducers'
@@ -36,7 +37,7 @@ class App extends React.Component {
       <Router history={hashHistory}>
         <Switch>
           <Route path="/logs" render={props => <LogsPage sf={sf} {...props}/>} />
-          <Route exact path="/feedback" render={props => <FeedbackPage store={store} {...props}/>}/>
+          <Route exact path="/feedback" render={props => <FeedbackPage {...props}/>}/>
           <Route render={props => <LogsPage sf={sf} {...props}/>}/>
         </Switch>
       </Router>)
@@ -51,9 +52,11 @@ const theme = createMuiTheme({
     }
  })
 
-const ThemedApp = () => (
+const ProvidedApp = () => (
 <MuiThemeProvider theme={theme}>
-  <App/>
+  <Provider store={store}>
+    <App/>
+  </Provider>
 </MuiThemeProvider>)
 
-ReactDOM.render(<ThemedApp/>, document.getElementById("container"))
+ReactDOM.render(<ProvidedApp/>, document.getElementById("container"))
