@@ -19,12 +19,18 @@ import { Provider } from 'react-redux'
 import thunk from 'redux-thunk'
 import { createStore, applyMiddleware } from 'redux'
 import feedback from './reducers'
+import {loadMessages} from './actions'
 
 let store = createStore(feedback, applyMiddleware(thunk))
 
 class App extends React.Component {
   constructor(props){
     super(props)
+    this.componentWillMount = this.componentWillMount.bind(this)
+  }
+
+  componentWillMount(){
+    this.props.store.dispatch(loadMessages())
   }
 
   render() {
@@ -55,7 +61,7 @@ const theme = createMuiTheme({
 const ProvidedApp = () => (
 <MuiThemeProvider theme={theme}>
   <Provider store={store}>
-    <App/>
+    <App store={store}/>
   </Provider>
 </MuiThemeProvider>)
 
