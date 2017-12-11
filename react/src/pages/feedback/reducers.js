@@ -2,18 +2,12 @@ import {replyTo, toggleDialog, sendMessage} from './actions'
 import { combineReducers } from 'redux'
 
 const initial_state = {
-  dialogState:{
     dialogOpen:true,
-    replyTo: null
-  },
-  messagesState: {
-    isLoading: false,
-    lastUpdated: null,
+    replyTo: null,
     messages: []
-  }
 }
 
-function dialog(state, action){
+export default function feedback(state = initial_state, action){
   switch (action.type) {
     case 'TOGGLE_DIALOG':
       return {
@@ -25,32 +19,14 @@ function dialog(state, action){
         ...state,
         replyTo: action.replyTo
       }
-    default:
-      return state
-  }
-}
-
-function messages(messagesState, action){
-  switch (action.type) {
-    case 'FETCH_MESSAGES_REQUEST':
-      return {
-        ...state,
-        isLoading: true
-      }
     case 'FETCH_MESSAGES_RESPONSE':
-      return  {
-        ...state,
-        isLoading: false,
-        lastUpdated: Date.now(),
-        messages: action.messages
-      }
+        return  {
+          ...state,
+          isLoading: false,
+          lastUpdated: Date.now(),
+          messages: action.messages
+        }
     default:
       return state
   }
-}
-
-export default function feedback(state = initial_state, action) {
-  return {
-    // messagesState: messages(state.messagesState, action),
-    dialogState: dialog(state.dialogState, action)}
 }

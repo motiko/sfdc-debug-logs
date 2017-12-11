@@ -62,6 +62,7 @@ export default class MessageEdit extends React.Component{
           label="Name (Optional)"
           value={this.state.name}
           onChange={(e) => this.handleNameChange(e)}
+          inputRef={element => {this.nameElement = element}}
         />
         <TextField
           label={`Any thoughts (${this.state.body.length}/140)`}
@@ -74,8 +75,11 @@ export default class MessageEdit extends React.Component{
           error={this.state.error.length > 0}
           helperText={this.state.error}
         />
+        <DialogActions>
+          <Button  color="primary" onClick={this.handleSubmit} >
+            <ReplyIcon /> Send
+          </Button>
+        </DialogActions>
     </div>)
   }
 }
-/*
-ref={element => {this.nameElement = element}}*/

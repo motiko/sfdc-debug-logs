@@ -18,8 +18,7 @@ import ReplyIcon from 'material-ui-icons/Reply'
 import Grid from 'material-ui/Grid'
 import { createStore, applyMiddleware } from 'redux'
 import feedback from './reducers'
-import {toggleDialog, replyTo, sendMessage} from './actions'
-import {logger, messenger} from './middleware'
+import {toggleDialog, setReplyTo, sendMessage, loadMessages} from './actions'
 import thunk from 'redux-thunk'
 
 const BASE_URL = "https://adbg.herokuapp.com"
@@ -29,11 +28,9 @@ let store = createStore(feedback, applyMiddleware(thunk))
 export default class FeedbackPage extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {messagesSent: 0, messages: []}
-    const initDialogState = store.getState().dialogState
-    this.state = {...this.state, ...initDialogState}
+    this.state = store.getState()
     this.unsubscribe = store.subscribe(() =>
-      this.setState(store.getState().dialogState)
+      this.setState(store.getState())
     )
     this.sendMessage = this.sendMessage.bind(this)
     this.loadMessages = this.loadMessages.bind(this)
@@ -48,34 +45,20 @@ export default class FeedbackPage extends React.Component {
   }
 
   loadMessages(){
-    return fetch(`${BASE_URL}/messages`)
-      .then(r=>r.json())
-      .then(messages => messages.reverse())
-      .then((messages)=> this.setState({messages}))
+    store.dispatch(loadMessages())
   }
 
   sendMessage(msg){
-    store.dispatch(sendMessage(msg))
-    // const headers = {"Content-Type": "application/json"}
-    // const options = {method: 'POST',
-    //                 body: JSON.stringify(msg),
-    //                 headers: headers}
-    // if(this.state.replyTo){
-    //   fetch(`${BASE_URL}/messages/${this.state.replyTo._id}/reply`, options)
-    //     .then(this.loadMessages)
-    // }else{
-    //   fetch(`${BASE_URL}/messages`, options).then(this.loadMessages)
-    // }
-    // this.setState((oldState)=>({
-    //     messagesSent: oldState.messagesSent + 1,
-    //     dialogOpen: false,
-    //     replyTo: null
-    // }))
+    store.dispatch(sendMessage(msg, this.state.replyTo ? this.state.replyTo._id : null))
   }
 
   handleReply(msg){
     store.dispatch(toggleDialog())
-    store.dispatch(replyTo(msg))
+    store.dispatch(setReplyTo(msg))
+  }
+
+  handleSubmit(){
+
   }
 
   openDialog(){
@@ -116,11 +99,6 @@ export default class FeedbackPage extends React.Component {
 
           </DialogContentText>
             <MessageEdit onSubmit={this.sendMessage}/>
-            <DialogActions>
-              <Button  color="primary" onClick={this.handleSubmit} >
-                <ReplyIcon /> Send
-              </Button>
-            </DialogActions>
           </DialogContent>
       </Dialog>
 

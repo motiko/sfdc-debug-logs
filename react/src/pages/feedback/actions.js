@@ -1,15 +1,14 @@
-
 const BASE_URL = "https://adbg.herokuapp.com"
 
-export function toggleDialog(){
+export function toggleDialog() {
   return {type: 'TOGGLE_DIALOG'}
 }
 
-export function replyTo(msg){
+export function setReplyTo(msg) {
   return {type: 'REPLY_TO', replyTo: msg}
 }
 
-export function sendMessage(message){
+export function sendMessage(message, replyToId) {
   return dispatch => {
     const options = {
       method: 'POST',
@@ -18,26 +17,20 @@ export function sendMessage(message){
         "Content-Type": "application/json"
       }
     }
-    fetch(`${BASE_URL}/messages`, options).then((response) => {
-      console.log('THUNK')
+    const afterSent = (response) => {
+      dispatch(loadMessages())
       dispatch(toggleDialog())
-    })
+      dispatch(setReplyTo(null))
+    }
+    const endpoint = replyToId
+      ? `${BASE_URL}/messages/${replyToId}/reply`
+      : `${BASE_URL}/messages/`
+    fetch(endpoint, options).then(afterSent)
   }
 }
 
-
-
-
-// export function fetchMessagesRequest(){
-//   return {type: 'FETCH_MESSAGES_REQUEST'}
-// }
-//
-// export function fetchMessagesResponse(response){
-//   return {type: 'FETCH_MESSAGES_RESPONSE',
-//   messages: response.reverse()}
-// }
-//
-// export function fetchMessagesError(response){
-//   return {type: 'FETCH_MESSAGES_ERROR',
-//   eror_message: response}
-// }
+export function loadMessages() {
+  return dispatch => {
+    fetch(`${BASE_URL}/messages`).then(r => r.json()).then(messages => messages.reverse()).then(messages => dispatch({type: 'FETCH_MESSAGES_RESPONSE', messages}))
+  }
+}

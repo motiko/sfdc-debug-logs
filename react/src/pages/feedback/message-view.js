@@ -27,11 +27,3 @@ export default function MessageView({message: m, onReply, nested}){
     {repliesList(m.replies)}
   </div>)
 }
-
-
-/*
-
-rightIconButton={replyButton}
-nestedItems={m.replies ?
-m.replies.map((m,i) => MessageView({nested:true, message:m, key:i})) : []}
-*/
