@@ -1,10 +1,7 @@
 // import 'react-devtools'
-import SF from './api/sf'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { MuiThemeProvider, createMuiTheme} from 'material-ui/styles';
-import FeedbackPage from './pages/feedback/feedback'
-import LogsPage from './pages/logs'
 import indigo from 'material-ui/colors/indigo';
 import teal from 'material-ui/colors/teal';
 import {
@@ -18,10 +15,13 @@ import {
 import { Provider } from 'react-redux'
 import thunk from 'redux-thunk'
 import { createStore, applyMiddleware } from 'redux'
-import feedback from './reducers'
-import {loadMessages} from './actions'
+import appReducer from './reducers'
+import {loadMessages} from './pages/feedback/actions'
+import FeedbackPage from './pages/feedback/feedback'
+import LogsPage from './pages/logs/logs'
+import SF from './api/sf'
 
-let store = createStore(feedback, applyMiddleware(thunk))
+const store = createStore(appReducer, applyMiddleware(thunk))
 
 class App extends React.Component {
   constructor(props){

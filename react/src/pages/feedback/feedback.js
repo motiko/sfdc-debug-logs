@@ -11,10 +11,12 @@ import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
 import ReplyIcon from 'material-ui-icons/Reply'
 import Grid from 'material-ui/Grid'
-import {toggleDialog, setReplyTo, sendMessage, loadMessages} from '../../actions'
 import {connect} from 'react-redux'
+import {toggleDialog, setReplyTo, sendMessage, loadMessages} from './actions'
 
-const mapStateToProps = (state) => state
+const mapStateToProps = (state) => {
+  return state.feedback
+}
 
 const mapDispatchToProps = (dispatch) => ({
   loadMessages: () => {

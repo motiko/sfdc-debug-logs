@@ -1,20 +1,18 @@
 import React from 'react'
-import TrackingLogs from '../components/tracking-logs'
-import Search from '../components/search'
-import LogsTable from '../components/logs-table'
-import LogButtons from '../components/log-buttons'
 import Snackbar from 'material-ui/Snackbar'
 import ChatIcon from 'material-ui-icons/Chat'
 import Button from 'material-ui/Button'
 import {Link, Route, Switch} from 'react-router-dom'
-import LogView from '../components/log-view'
 import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
-
 import Grid from 'material-ui/Grid'
+import LogView from './log-view'
+import TrackingLogs from './tracking-logs'
+import Search from './search'
+import LogsTable from './logs-table'
+import LogButtons from './log-buttons'
 
-
-  class LogsPage extends React.Component {
+class LogsPage extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
