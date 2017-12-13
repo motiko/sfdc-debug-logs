@@ -25,8 +25,7 @@ const store = createStore(appReducer, applyMiddleware(thunk))
 
 class App extends React.Component {
   constructor(props){
-    super(props)
-    this.componentWillMount = this.componentWillMount.bind(this)
+      super(props)
   }
 
   componentWillMount(){

@@ -44,7 +44,7 @@ function feedback(state = initial_feedback_state, action){
 
 function logs(state = inital_logs_state, action){
   switch (action.type) {
-    case 'FETCH_MESSAGES_RESPONSE':
+    case 'FETCH_LOGS_RESPONSE':
       return {
         ...state,
         isLoading: false,
