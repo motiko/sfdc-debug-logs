@@ -10,7 +10,8 @@ export default function initRequest(host, sid) {
     }
     return fetch(`https://${host}${path}`, {method, body, headers}).then(result => {
       if (result.ok) {
-        if (response == 'json') {
+        const contentType = result.headers.get('Content-Type')
+        if (contentType && contentType.startsWith('application/json')) {
           return result.json()
         }
         return result
