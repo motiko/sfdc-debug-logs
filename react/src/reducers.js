@@ -1,7 +1,7 @@
-import { combineReducers } from 'redux'
+import {combineReducers} from 'redux'
 
 const initial_feedback_state = {
-  dialogOpen:true,
+  dialogOpen: true,
   replyTo: null,
   messages: []
 }
@@ -14,11 +14,11 @@ const inital_logs_state = {
 }
 
 const initial_state = {
-    feedback: initial_feedback_state,
-    logs: inital_logs_state
+  feedback: initial_feedback_state,
+  logs: inital_logs_state
 }
 
-function feedback(state = initial_feedback_state, action){
+function feedback(state = initial_feedback_state, action) {
   switch (action.type) {
     case 'TOGGLE_DIALOG':
       return {
@@ -31,20 +31,20 @@ function feedback(state = initial_feedback_state, action){
         replyTo: action.replyTo
       }
     case 'FETCH_MESSAGES_RESPONSE':
-        return  {
-          ...state,
-          isLoading: false,
-          lastUpdated: Date.now(),
-          messages: action.messages
-        }
+      return {
+        ...state,
+        isLoading: false,
+        lastUpdated: Date.now(),
+        messages: action.messages
+      }
     default:
       return state
   }
 }
 
-function logs(state = inital_logs_state, action){
+function logs(state = inital_logs_state, action) {
   switch (action.type) {
-    case 'FETCH_LOGS_RESPONSE':
+    case 'FETCH_LOGS_DONE':
       return {
         ...state,
         loading: false,
@@ -53,13 +53,13 @@ function logs(state = inital_logs_state, action){
         message: `Loaded ${action.logs.length} logs`
       }
     case 'FETCH_LOGS_INIT':
-      return{
+      return {
         ...state,
         loading: true,
         searchTerm: ""
       }
     case 'FETCH_LOGS_ERROR':
-      return{
+      return {
         ...state,
         loading: false,
         message: action.message
@@ -70,9 +70,30 @@ function logs(state = inital_logs_state, action){
         message: action.message
       }
     case 'DELETE_LOGS_INIT':
-      return {...state,loading: true, searchTerm: ""}
+      return {
+        ...state,
+        loading: true,
+        logs: [],
+        searchTerm: ""
+      }
     case 'DELETE_LOGS_DONE':
-      return {...state,message: "Removed logs from salesforce", loading: false}
+      return {
+        ...state,
+        message: "Removed logs from salesforce",
+        loading: false
+      }
+    case 'SEARCH_INIT':
+      return {
+        ...state,
+        loading: true
+      }
+    case 'SEARCH_DONE':
+      return {
+        ...state,
+        loading: false,
+        message: `Found ${action.num} matching logs`,
+        logs: action.logs
+      }
     default:
       return state
   }
