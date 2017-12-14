@@ -47,10 +47,32 @@ function logs(state = inital_logs_state, action){
     case 'FETCH_LOGS_RESPONSE':
       return {
         ...state,
-        isLoading: false,
+        loading: false,
         lastUpdated: Date.now(),
-        logs: action.logs
+        logs: action.logs,
+        message: `Loaded ${action.logs.length} logs`
       }
+    case 'FETCH_LOGS_INIT':
+      return{
+        ...state,
+        loading: true,
+        searchTerm: ""
+      }
+    case 'FETCH_LOGS_ERROR':
+      return{
+        ...state,
+        loading: false,
+        message: action.message
+      }
+    case 'MESSAGE':
+      return {
+        ...state,
+        message: action.message
+      }
+    case 'DELETE_LOGS_INIT':
+      return {...state,loading: true, searchTerm: ""}
+    case 'DELETE_LOGS_DONE':
+      return {...state,message: "Removed logs from salesforce", loading: false}
     default:
       return state
   }

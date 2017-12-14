@@ -6,48 +6,46 @@ import {Link, Route, Switch} from 'react-router-dom'
 import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
 import Grid from 'material-ui/Grid'
+import {connect} from 'react-redux'
 import LogView from './log-view'
 import TrackingLogs from './tracking-logs'
 import Search from './search'
 import LogsTable from './logs-table'
 import LogButtons from './log-buttons'
+import {loadLogs, setMessage, deleteAll} from './actions'
 
-class LogsPage extends React.Component {
+const mapStateToProps = (state) => {
+  return state.logs
+}
+
+const mapDispatchToProps = (dispatch) => ({
+  refresh: ((sf) => dispatch(loadLogs(sf))),
+  setMessage: ((msg) => dispatch(setMessage(msg))),
+  deleteAll: ((sf) => dispatch(deleteAll(sf)))
+})
+
+class LogsPageComponent extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
-      logs: [],
       loading: false,
       message: "",
       searchTerm: ""
     }
-    this.refresh = this.refresh.bind(this)
-    this.deleteAll = this.deleteAll.bind(this)
     this.search = this.search.bind(this)
     this.updateSearchTerm = this.updateSearchTerm.bind(this)
     this.fetchLogBody = this.fetchLogBody.bind(this)
+    this.refresh = props.refresh.bind(this,props.sf)
+    this.deleteAll = props.deleteAll.bind(this,props.sf)
   }
 
-  handleSnackbarClose() {
-    this.setState({message: ""})
-  }
-
-  deleteAll() {
-    this.setState({loading: true, searchTerm: ""})
-    this.props.sf.deleteAll().then(() => {
-      this.setState({message: "Removed logs from salesforce", loading: false})
-    })
-    this.setState({logs: []})
-  }
-
-  refresh() {
-    this.setState({loading: true, searchTerm: ""})
-    this.props.sf.requestLogs().then((records) => {
-      this.setState({logs: records, loading: false})
-    }).catch((err) => {
-      this.setState({showMessage: true, message: `Error occured: ${err.message}`, loading: false})
-    })
-  }
+  // deleteAll() {
+  //   this.setState({loading: true, searchTerm: ""})
+  //   this.props.sf.deleteAll().then(() => {
+  //     this.setState({message: "Removed logs from salesforce", loading: false})
+  //   })
+  //   this.setState({logs: []})
+  // }
 
   componentDidCatch(error, info){
     this.setState({message: `Error: ${error}`})
@@ -81,6 +79,7 @@ class LogsPage extends React.Component {
   }
 
   componentDidMount() {
+    const props = this.props
     this.refresh()
     document.body.addEventListener('keyup', (e) => {
       if (e.target.type == "text")
@@ -104,6 +103,7 @@ class LogsPage extends React.Component {
   }
 
   render() {
+    const props = this.props
     return (<div style={{ paddingTop: 80 }} >
       <AppBar position="fixed">
         <Toolbar>
@@ -114,7 +114,7 @@ class LogsPage extends React.Component {
                 <Search color="contrast" handleSearch={this.search} handleRefresh={this.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
               </Grid>
               <Grid item >
-                <LogButtons handleRefresh={this.refresh} handleDeleteAll={this.deleteAll} loading={this.state.loading}/>
+                <LogButtons handleRefresh={this.refresh} handleDeleteAll={this.deleteAll} loading={props.loading}/>
               </Grid>
             </Grid>
           </Grid>
@@ -122,19 +122,21 @@ class LogsPage extends React.Component {
             <Link to="/feedback" >
               <Button color="contrast" ><ChatIcon/> Give Feedback</Button>
             </Link>
-            <TrackingLogs sf={this.props.sf}/>
+            <TrackingLogs sf={props.sf}/>
           </Grid>
         </Grid>
         </Toolbar>
 
-        <Snackbar open={this.state.message != ""} message={this.state.message} onRequestClose={() => this.handleSnackbarClose()}/>
+        <Snackbar open={props.message != ""} message={props.message} onRequestClose={() => props.setMessage("")}/>
       </AppBar>
       <Switch>
-        <Route path="/logs/:id" render={props => <LogView fetchBody={this.fetchLogBody} {...props}/>}/>
-        <Route render={props => (<LogsTable logs={this.state.logs} refreshLogs={this.refresh} {...props}/>)}/>
+        <Route path="/logs/:id" render={ownProps => <LogView fetchBody={this.fetchLogBody} {...ownProps}/>}/>
+        <Route render={ownProps => (<LogsTable logs={props.logs} refreshLogs={this.refresh} {...ownProps}/>)}/>
       </Switch>
       </div>)
   }
 }
+
+const LogsPage = connect(mapStateToProps, mapDispatchToProps)(LogsPageComponent)
 
 export default LogsPage
