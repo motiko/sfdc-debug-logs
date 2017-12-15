@@ -6,6 +6,10 @@ import {Link, Route, Switch} from 'react-router-dom'
 import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
 import Grid from 'material-ui/Grid'
+import RefreshIcon from 'material-ui-icons/Autorenew'
+import DeleteIcon from 'material-ui-icons/DeleteForever'
+import { CircularProgress } from 'material-ui/Progress';
+import IconButton from 'material-ui/IconButton'
 import {connect} from 'react-redux'
 import LogView from './log-view'
 import TrackingLogs from './tracking-logs'
@@ -72,7 +76,15 @@ class LogsPageRaw extends React.Component {
                   <Search color="contrast" handleSearch={() => props.search(this.state.searchTerm)} handleRefresh={props.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
                 </Grid>
                 <Grid item="item">
-                  <LogButtons handleRefresh={props.refresh} handleDeleteAll={props.deleteAll} loading={props.loading}/>
+                  <div>
+                    <IconButton color="contrast" onClick={props.refresh} >
+                      <RefreshIcon/>
+                    </IconButton>
+                    <IconButton color="contrast" onClick={props.deleteAll} >
+                      <DeleteIcon/>
+                    </IconButton>
+                    {props.loading ? <CircularProgress color="contrast"/> : null}
+                  </div>
                 </Grid>
               </Grid>
             </Grid>

@@ -24,9 +24,9 @@ class LogViewRaw extends React.Component{
       <div>
         <IconButton  tooltip="Close" onClick={()=>window.history.back()}><BackIcon/></IconButton>
         <div>
-          <p style={{whiteSpace: "pre-line"}}>
+          <code style={{whiteSpace: "pre-line"}} className="lang-css">
             {this.logBodyById(props.match.params.id)}
-          </p>
+          </code>
         </div>
       </div>
     )}
