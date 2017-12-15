@@ -1,4 +1,4 @@
-import regeneratorRuntime from 'regenerator-runtime'
+import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
 import initRequest from './request'
 import Tooling from './tooling'
 import Batch from './batch'

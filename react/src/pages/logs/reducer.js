@@ -1,11 +1,11 @@
 
-const inital_logs_state = {
+const initalLogsState = {
   logs: [],
   loading: false,
   message: ''
 }
 
-export default function logs (state = inital_logs_state, action) {
+export default function logs (state = initalLogsState, action) {
   switch (action.type) {
     case 'FETCH_LOGS_DONE':
       return {

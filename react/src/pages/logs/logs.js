@@ -45,7 +45,7 @@ class LogsPageRaw extends React.Component {
     const props = this.props
     props.refresh()
     document.body.addEventListener('keyup', (e) => {
-      if (e.target.type == 'text') { return }
+      if (e.target.type === 'text') { return }
       const key = e.key
       const funMap = {
         'r': props.refresh,
@@ -94,7 +94,7 @@ class LogsPageRaw extends React.Component {
             </Grid>
           </Grid>
         </Toolbar>
-        <Snackbar open={props.message != ''} message={props.message} onRequestClose={() => props.setMessage('')} />
+        <Snackbar open={props.message !== ''} message={props.message} onRequestClose={() => props.setMessage('')} />
       </AppBar>
       <Switch>
         <Route path='/logs/:id' render={ownProps => <LogView fetchBody={props.fetchLogBody} {...ownProps} />} />

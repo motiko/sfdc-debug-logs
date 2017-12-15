@@ -1,11 +1,11 @@
 
-const initial_feedback_state = {
+const initialFeedbackState = {
   dialogOpen: true,
   replyTo: null,
   messages: []
 }
 
-export default function feedback (state = initial_feedback_state, action) {
+export default function feedback (state = initialFeedbackState, action) {
   switch (action.type) {
     case 'TOGGLE_DIALOG':
       return {

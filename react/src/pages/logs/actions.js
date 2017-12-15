@@ -1,4 +1,4 @@
-import regeneratorRuntime from 'regenerator-runtime'
+import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
 
 const normalize = (logsArray) => {
   return logsArray.reduce((acc, cur) => {
@@ -54,13 +54,13 @@ export function search (searchTerm) {
   return async (dispatch, getState, sf) => {
     dispatch({type: 'SEARCH_INIT'})
     const logs = getState().logs.logs
-    const escapeRegExp = (str) => str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&')
+    const escapeRegExp = (str) => str.replace(/[-[]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&')
     const searchRegex = new RegExp(escapeRegExp(searchTerm), 'gi')
     const logsWithoutBodies = Object.values(logs).filter(l => !l.body)
     const promises = logsWithoutBodies.map(l => sf.logBody(l.Id)
-        .then(body => ({Id: l.Id, ...l, body })))
+        .then(body => ({ Id: l.Id, ...l, body })))
     const missingBodies = await Promise.all(promises)
-    const filledLogs = {...logs, ...normalize(missingBodies) }
+    const filledLogs = { ...logs, ...normalize(missingBodies) }
     const newLogs = Object.values(filledLogs).reduce((acc, cur) => ({
       ...acc,
       [cur.Id]: {

@@ -2,15 +2,10 @@ import React from 'react'
 import {connect} from 'react-redux'
 import BackIcon from 'material-ui-icons/Close'
 import IconButton from 'material-ui/IconButton'
-import List, {ListItem, ListItemText} from 'material-ui/List'
 import Grid from 'material-ui/Grid'
 import {getLogBody} from './actions'
 
 class LogViewRaw extends React.Component {
-  constructor (props) {
-    super(props)
-  }
-
   componentWillMount () {
     this.props.fetchBody(this.props.match.params.id)
   }

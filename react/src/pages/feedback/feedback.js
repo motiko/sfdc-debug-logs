@@ -1,16 +1,14 @@
 import React from 'react'
-import List, {ListItem, ListItemText} from 'material-ui/List'
+import List from 'material-ui/List'
 import Button from 'material-ui/Button'
 import BackIcon from 'material-ui-icons/ArrowBack'
 import IconButton from 'material-ui/IconButton'
 import MessageIcon from 'material-ui-icons/Message'
 import MessageEdit from './message-edit'
 import MessageView from './message-view'
-import Dialog, {DialogActions, DialogContent, DialogContentText, DialogTitle} from 'material-ui/Dialog'
+import Dialog, {DialogContent, DialogContentText, DialogTitle} from 'material-ui/Dialog'
 import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
-import ReplyIcon from 'material-ui-icons/Reply'
-import Grid from 'material-ui/Grid'
 import {connect} from 'react-redux'
 import {toggleDialog, setReplyTo, sendMessage, loadMessages} from './actions'
 
@@ -36,10 +34,6 @@ const mapDispatchToProps = (dispatch) => ({
 })
 
 class FeedbackPageComponent extends React.Component {
-  constructor (props) {
-    super(props)
-  }
-
   componentWillMount () {
     this.props.loadMessages()
   }

@@ -1,13 +1,9 @@
 import React from 'react'
 import ReplyIcon from 'material-ui-icons/Reply'
-import MessageIcon from 'material-ui-icons/Message'
 import Button from 'material-ui/Button'
 import TextField from 'material-ui/TextField'
 import {
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle
+  DialogActions
 } from 'material-ui/Dialog'
 
 export default class MessageEdit extends React.Component {
@@ -38,7 +34,7 @@ export default class MessageEdit extends React.Component {
   }
 
   handleSubmit () {
-    if (this.state.body.trim() == '' || this.state.body.length < 5) {
+    if (this.state.body.trim() === '' || this.state.body.length < 5) {
       this.setState({error: 'This field is required (at least 5 characters)'})
       return
     }
@@ -50,7 +46,7 @@ export default class MessageEdit extends React.Component {
   }
 
   handleKeyDown (e) {
-    if (e.keyCode == 13) {
+    if (e.keyCode === 13) {
       if (e.altKey || e.shiftKey || e.ctrlKey || e.metaKey) this.handleSubmit()
     }
   }

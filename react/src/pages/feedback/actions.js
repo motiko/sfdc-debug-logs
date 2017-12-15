@@ -25,12 +25,12 @@ export function sendMessage (message, replyToId) {
     const endpoint = replyToId
       ? `${BASE_URL}/messages/${replyToId}/reply`
       : `${BASE_URL}/messages/`
-    fetch(endpoint, options).then(afterSent)
+    window.fetch(endpoint, options).then(afterSent)
   }
 }
 
 export function loadMessages () {
   return dispatch => {
-    fetch(`${BASE_URL}/messages`).then(r => r.json()).then(messages => messages.reverse()).then(messages => dispatch({type: 'FETCH_MESSAGES_RESPONSE', messages}))
+    window.fetch(`${BASE_URL}/messages`).then(r => r.json()).then(messages => messages.reverse()).then(messages => dispatch({type: 'FETCH_MESSAGES_RESPONSE', messages}))
   }
 }

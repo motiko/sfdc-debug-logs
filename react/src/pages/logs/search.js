@@ -5,8 +5,8 @@ import IconButton from 'material-ui/IconButton'
 
 export default function Search (props) {
   function handleKey (e) {
-    if (e.keyCode == 13) { props.handleSearch() }
-    if (e.keyCode == 27) {
+    if (e.keyCode === 13) { props.handleSearch() }
+    if (e.keyCode === 27) {
       props.handleRefresh()
       props.updateSearchTerm({target: {value: ''}})
     }
@@ -14,7 +14,7 @@ export default function Search (props) {
 
   const searchTerm = props.searchTerm
   return (<div >
-    <TextField color='accent' value={props.searchTerm} onChange={props.updateSearchTerm} onKeyUp={handleKey} />
+    <TextField color='accent' value={searchTerm} onChange={props.updateSearchTerm} onKeyUp={handleKey} />
     <IconButton color='contrast' onClick={props.handleSearch} >
       <SearchIcon />
     </IconButton>

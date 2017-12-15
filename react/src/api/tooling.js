@@ -25,7 +25,7 @@ export default class Tooling {
       if (existingDebugLevel.records.length > 0) {
         return existingDebugLevel.records[0].Id
       } else {
-        return request('/services/data/v36.0/tooling/sobjects/DebugLevel', 'POST', headers, debugLevelPayload).then(result => result.id)
+        return this.request('/services/data/v36.0/tooling/sobjects/DebugLevel', 'POST', headers, debugLevelPayload).then(result => result.id)
       }
     })
   }
@@ -41,6 +41,7 @@ export default class Tooling {
     return this.request('/services/data/v41.0/tooling/sobjects/TraceFlag', 'POST', {},
       Object.assign({ExpirationDate: expirationDate}, payload))
           .catch((err) => { // fallback, try without expiration date
+            console.info(err)
             this.request('/services/data/v41.0/tooling/sobjects/TraceFlag', 'POST', {}, payload)
           })
   }

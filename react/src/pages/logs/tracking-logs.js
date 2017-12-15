@@ -6,10 +6,6 @@ import CheckIcon from 'material-ui-icons/CheckBox'
 import {startLogging, checkIsLogging, checkIsLoggingAndStart} from './actions'
 
 class TrackingLogsComponent extends React.Component {
-  constructor (props) {
-    super(props)
-  }
-
   componentDidMount () {
     this.props.checkIsLoggingAndStart()
   }

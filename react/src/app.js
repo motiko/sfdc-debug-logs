@@ -1,15 +1,13 @@
 // import 'react-devtools'
 import React from 'react'
 import ReactDOM from 'react-dom'
-import { MuiThemeProvider, createMuiTheme} from 'material-ui/styles'
+import { MuiThemeProvider, createMuiTheme } from 'material-ui/styles'
 import indigo from 'material-ui/colors/indigo'
 import teal from 'material-ui/colors/teal'
 import {
   HashRouter as Router,
   Route,
-  Link,
   hashHistory,
-  Redirect,
   Switch
 } from 'react-router-dom'
 import { Provider } from 'react-redux'
@@ -22,17 +20,13 @@ import LogsPage from './pages/logs/logs'
 import SF from './api/sf'
 
 function getParam (s) {
-  const url = new URL(location.href)
+  const url = new window.URL(window.location.href)
   return url.searchParams.get(s)
 }
 const sf = new SF(getParam('host'), getParam('sid'))
 const store = createStore(appReducer, applyMiddleware(thunk.withExtraArgument(sf)))
 
 class App extends React.Component {
-  constructor (props) {
-    super(props)
-  }
-
   componentWillMount () {
     this.props.store.dispatch(loadMessages())
   }
