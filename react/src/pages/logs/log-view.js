@@ -3,6 +3,7 @@ import {connect} from 'react-redux'
 import BackIcon from  'material-ui-icons/Close'
 import IconButton from 'material-ui/IconButton'
 import List, {ListItem, ListItemText} from 'material-ui/List'
+import Grid from 'material-ui/Grid'
 import {getLogBody} from './actions'
 
 class LogViewRaw extends React.Component{
@@ -21,14 +22,14 @@ class LogViewRaw extends React.Component{
   render(){
     const props = this.props
     return (
-      <div>
+      <Grid container="container" direction="column" justify="flex-start">
         <IconButton  tooltip="Close" onClick={()=>window.history.back()}><BackIcon/></IconButton>
-        <div>
-          <code style={{whiteSpace: "pre-line"}} className="lang-css">
+        <pre style={{overflowY:"auto", height: "80%"}}>
+          <code style={{whiteSpace: "pre-line"}} className="language-json">
             {this.logBodyById(props.match.params.id)}
           </code>
-        </div>
-      </div>
+        </pre>
+      </Grid>
     )}
 }
 
