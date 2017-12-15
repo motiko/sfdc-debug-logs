@@ -6,19 +6,19 @@ import Table,{
   TableCell
 } from 'material-ui/Table'
 
-export default function LogsTable(props) {
-  function openLog(index) {
-    props.history.push(`/logs/${props.logs[index].Id}`)
+export default function LogsTable({history, logs}) {
+  function openLog(logId) {
+    history.push(`/logs/${logId}`)
   }
 
-  const toLogView = (log, index) => {
+  const toLogView = (log) => {
     const style = {
       display: log['not_matches_search']
         ? 'none'
         : 'table-row'
     }
     const timeString = log.StartTime.match(/T(\d\d:\d\d):/)[1]
-    return (<TableRow hover onClick={()=>openLog(index)} key={log.Id} logid={log.Id} style={style}>
+    return (<TableRow hover onClick={()=>openLog(log.Id)} key={log.Id} logid={log.Id} style={style}>
       <TableCell>{timeString}</TableCell>
       <TableCell>{log.Operation}</TableCell>
       <TableCell>{log.Status}</TableCell>
@@ -40,7 +40,7 @@ export default function LogsTable(props) {
       </TableRow>
     </TableHead>
     <TableBody>
-      {props.logs.map(toLogView)}
+      {Object.values(logs).map(toLogView)}
     </TableBody>
   </Table>)
 }

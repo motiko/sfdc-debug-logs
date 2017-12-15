@@ -25,7 +25,7 @@ const mapDispatchToProps = (dispatch) => ({
   search: ((searchTerm) => dispatch(search(searchTerm)))
 })
 
-class LogsPageComponent extends React.Component {
+class LogsPageRaw extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
@@ -33,9 +33,6 @@ class LogsPageComponent extends React.Component {
     }
     this.updateSearchTerm = this.updateSearchTerm.bind(this)
     this.fetchLogBody = this.fetchLogBody.bind(this)
-    // this.refresh = props.refresh.bind(this, props.sf)
-    this.deleteAll = props.deleteAll.bind(this, props.sf)
-    this.search = props.search.bind(this, props.sf)
   }
 
   componentDidCatch(error, info) {
@@ -66,10 +63,6 @@ class LogsPageComponent extends React.Component {
     this.setState({searchTerm: e.target.value})
   }
 
-  logById(id) {
-    this.state.logs.find(l => l.Id == id)
-  }
-
   render() {
     const props = this.props
     return (<div style={{
@@ -97,7 +90,6 @@ class LogsPageComponent extends React.Component {
             </Grid>
           </Grid>
         </Toolbar>
-
         <Snackbar open={props.message != ""} message={props.message} onRequestClose={() => props.setMessage("")}/>
       </AppBar>
       <Switch>
@@ -108,6 +100,6 @@ class LogsPageComponent extends React.Component {
   }
 }
 
-const LogsPage = connect(mapStateToProps, mapDispatchToProps)(LogsPageComponent)
+const LogsPage = connect(mapStateToProps, mapDispatchToProps)(LogsPageRaw)
 
 export default LogsPage

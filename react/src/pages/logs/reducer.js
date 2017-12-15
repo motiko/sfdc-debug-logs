@@ -13,7 +13,7 @@ export default function logs(state = inital_logs_state, action) {
         loading: false,
         lastUpdated: Date.now(),
         logs: action.logs,
-        message: `Loaded ${action.logs.length} logs`
+        message: `Loaded ${Object.keys(action.logs).length} logs`
       }
     case 'FETCH_LOGS_INIT':
       return {
@@ -61,6 +61,17 @@ export default function logs(state = inital_logs_state, action) {
       return {
         ...state,
         isLogging: action.isLogging
+      }
+    case 'FETCH_LOG_BODY_INIT':
+      return {
+        ...state,
+        loading: true
+      }
+    case 'FETCH_LOG_BODY_DONE':
+      return {
+        ...state,
+        loading: false,
+        logs: action.logs
       }
     default:
       return state

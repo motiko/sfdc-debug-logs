@@ -1,8 +1,37 @@
+import regeneratorRuntime from 'regenerator-runtime'
+
+const normalize = (logsArray) => {
+  return logsArray.reduce((acc, cur) => {
+    return {...acc, [cur.Id]: cur}
+  }, {})
+}
+
+export function getLogBody(logId) {
+  return async (dispatch, getState, sf) => {
+    const logs = getState().logs.logs
+    const ourLog = logs[logId]
+    if(!ourLog){
+      await dispatch(loadLogs())
+      console.info('Reloading all..')
+      return dispatch(getLogBody(logId))
+    }
+    if(ourLog.body){
+      console.info('Preloaded..')
+      return
+    }
+    dispatch({type: 'FETCH_LOG_BODY_INIT'})
+    return sf.logBody(logId).then((body) => {
+      const updatedLogs = {...logs, [logId]: {...ourLog, body}}
+      dispatch({type: 'FETCH_LOG_BODY_DONE', logs: updatedLogs})
+    })
+  }
+}
+
 export function loadLogs() {
-  return(dispatch, getState, sf) => {
+  return (dispatch, getState, sf) => {
     dispatch({type: 'FETCH_LOGS_INIT'})
-    sf.requestLogs().then((records) => {
-      dispatch({type: 'FETCH_LOGS_DONE', logs: records})
+    return sf.requestLogs().then((records) => {
+      dispatch({type: 'FETCH_LOGS_DONE', logs: normalize(records)})
     }).catch((err) => {
       dispatch({type: 'FETCH_LOGS_ERROR', message: `Error occured: ${err.message}`})
     })
@@ -16,7 +45,6 @@ export function setMessage(message) {
 export function deleteAll() {
   return(dispatch, getState, sf) => {
     dispatch({type: 'DELETE_LOGS_INIT'})
-    debugger
     sf.deleteAll().then(() => {
       dispatch({type: 'DELETE_LOGS_DONE'})
     })
@@ -24,25 +52,28 @@ export function deleteAll() {
 }
 
 export function search(searchTerm) {
-  return(dispatch, getState, sf) => {
+  return async (dispatch, getState, sf) => {
     dispatch({type: 'SEARCH_INIT'})
-    debugger
-    const {logs} = getState()
+    const logs = getState().logs.logs
     const escapeRegExp = (str) => str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
     const searchRegex = new RegExp(escapeRegExp(searchTerm), 'gi');
-    const logBodyPromises = logs.map(x => x.Id).map(x => ({id: x, promise: sf.logBody(x)}))
-    const resultPromise = logBodyPromises.map((lbp) => lbp.promise.then((logBody) => ({id: lbp.id, found: searchRegex.test(logBody), body: logBody})))
-    Promise.all(resultPromise).then((results) => {
-      const foundIds = results.filter(r => r.found).map(r => r.id)
-      dispatch({
-        type: 'SEARCH_DONE',
-        logs: logs.map(l => {
-          l['not_matches_search'] = foundIds.indexOf(l.Id) == -1
-          l['Body'] = results.find(r => r.id == l.Id)['Body']
-          return l
-        }),
-        num: foundIds.length
-      })
+    const logsWithoutBodies = Object.values(logs).filter(l => !l.body)
+    const promises = logsWithoutBodies.map(l => sf.logBody(l.Id)
+        .then(body => ({Id: l.Id, ...l,body })))
+    const missingBodies = await Promise.all(promises)
+    const filledLogs = {...logs, ...normalize(missingBodies) }
+    const newLogs = Object.values(filledLogs).reduce((acc, cur)=> ({
+        ...acc,
+        [cur.Id]: {
+          ...cur,
+          not_matches_search: !searchRegex.test(cur.body)
+        }
+    }),{})
+    const foundIds = Object.values(filledLogs).filter(r => r.not_matches_search)
+    dispatch({
+      type: 'SEARCH_DONE',
+      logs: newLogs,
+      num: foundIds.length
     })
   }
 }
