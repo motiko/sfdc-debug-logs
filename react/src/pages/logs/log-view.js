@@ -15,32 +15,19 @@ class LogViewRaw extends React.Component{
   }
 
   logBodyById(id){
-    if(!this.props.logs[id]) return ""
-    return this.props.logs[id].body
+    return this.props.logs[id] ? this.props.logs[id]['body'] : ''
   }
 
   render(){
     const props = this.props
     return (
-      <div style={{display: "block"}}>
-      <div style={{width: "20%", height: "100%", position: "fixed", overflowY:"auto" }}>
-        <List>
-          <ListItem>
-           <ListItemText primary="Hello" secondary="{secondaryText(m)}"/>
-          </ListItem>
-         <ListItem>
-           <ListItemText primary="Hello" secondary="{secondaryText(m)}"/>
-         </ListItem>
-        </List>
-      </div>
-      <div style={{marginLeft:"30%", overflowY: "auto", height: "80%", width: "100%"}}>
+      <div>
         <IconButton  tooltip="Close" onClick={()=>window.history.back()}><BackIcon/></IconButton>
         <div>
-          <p style={{whiteSpace: "pre-line", overflowY: "auto"}}>
+          <p style={{whiteSpace: "pre-line"}}>
             {this.logBodyById(props.match.params.id)}
           </p>
         </div>
-      </div>
       </div>
     )}
 }

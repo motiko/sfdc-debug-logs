@@ -32,15 +32,10 @@ class LogsPageRaw extends React.Component {
       searchTerm: ""
     }
     this.updateSearchTerm = this.updateSearchTerm.bind(this)
-    this.fetchLogBody = this.fetchLogBody.bind(this)
   }
 
   componentDidCatch(error, info) {
     setMessage(`Error: ${error}`)
-  }
-
-  fetchLogBody(id) {
-    return this.props.sf.logBody(id)
   }
 
   componentDidMount() {
@@ -93,7 +88,7 @@ class LogsPageRaw extends React.Component {
         <Snackbar open={props.message != ""} message={props.message} onRequestClose={() => props.setMessage("")}/>
       </AppBar>
       <Switch>
-        <Route path="/logs/:id" render={ownProps => <LogView fetchBody={this.fetchLogBody} {...ownProps}/>}/>
+        <Route path="/logs/:id" render={ownProps => <LogView fetchBody={props.fetchLogBody} {...ownProps}/>}/>
         <Route render={ownProps => (<LogsTable logs={props.logs} refreshLogs={props.refresh} {...ownProps}/>)}/>
       </Switch>
     </div>)

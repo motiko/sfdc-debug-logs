@@ -12,11 +12,9 @@ export function getLogBody(logId) {
     const ourLog = logs[logId]
     if(!ourLog){
       await dispatch(loadLogs())
-      console.info('Reloading all..')
       return dispatch(getLogBody(logId))
     }
     if(ourLog.body){
-      console.info('Preloaded..')
       return
     }
     dispatch({type: 'FETCH_LOG_BODY_INIT'})
@@ -29,9 +27,10 @@ export function getLogBody(logId) {
 
 export function loadLogs() {
   return (dispatch, getState, sf) => {
+    const oldLogs = getState().logs.logs
     dispatch({type: 'FETCH_LOGS_INIT'})
     return sf.requestLogs().then((records) => {
-      dispatch({type: 'FETCH_LOGS_DONE', logs: normalize(records)})
+      dispatch({type: 'FETCH_LOGS_DONE', logs: {...normalize(records), ...oldLogs}})
     }).catch((err) => {
       dispatch({type: 'FETCH_LOGS_ERROR', message: `Error occured: ${err.message}`})
     })
