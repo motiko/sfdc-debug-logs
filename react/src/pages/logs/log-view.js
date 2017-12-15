@@ -10,6 +10,18 @@ class LogViewRaw extends React.Component {
     this.props.fetchBody(this.props.match.params.id)
   }
 
+  componentDidMount () {
+    this.highlight()
+  }
+
+  componentDidUpdate () {
+    this.highlight()
+  }
+
+  highlight () {
+    if (window.Prism) window.Prism.highlightElement(this.preElement)
+  }
+
   logBodyById (id) {
     return this.props.logs[id] ? this.props.logs[id]['body'] : ''
   }
@@ -19,8 +31,8 @@ class LogViewRaw extends React.Component {
     return (
       <Grid container='container' direction='column' justify='flex-start'>
         <IconButton tooltip='Close' onClick={() => window.history.back()}><BackIcon /></IconButton>
-        <pre style={{overflowY: 'auto', height: '80%'}}>
-          <code style={{whiteSpace: 'pre-line'}} className='language-json'>
+        <pre style={{overflowY: 'auto', height: '80%', whiteSpace: 'pre-line'}} className='language-json' ref={element => { this.preElement = element }}>
+          <code>
             {this.logBodyById(props.match.params.id)}
           </code>
         </pre>

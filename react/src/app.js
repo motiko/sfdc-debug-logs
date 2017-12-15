@@ -19,13 +19,6 @@ import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs/logs'
 import SF from './api/sf'
 
-function getParam (s) {
-  const url = new window.URL(window.location.href)
-  return url.searchParams.get(s)
-}
-const sf = new SF(getParam('host'), getParam('sid'))
-const store = createStore(appReducer, applyMiddleware(thunk.withExtraArgument(sf)))
-
 class App extends React.Component {
   componentWillMount () {
     this.props.store.dispatch(loadMessages())
@@ -51,11 +44,20 @@ const theme = createMuiTheme({
   }
 })
 
+function getParam (s) {
+  const url = new window.URL(window.location.href)
+  return url.searchParams.get(s)
+}
+
+const sf = new SF(getParam('host'), getParam('sid'))
+const store = createStore(appReducer, applyMiddleware(thunk.withExtraArgument(sf)))
+
 const ProvidedApp = () => (
   <MuiThemeProvider theme={theme}>
     <Provider store={store}>
       <App store={store} />
     </Provider>
   </MuiThemeProvider>)
+
 
 ReactDOM.render(<ProvidedApp />, document.getElementById('container'))
