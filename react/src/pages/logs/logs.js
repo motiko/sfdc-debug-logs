@@ -19,10 +19,10 @@ const mapStateToProps = (state) => {
 }
 
 const mapDispatchToProps = (dispatch) => ({
-  refresh: ((sf) => dispatch(loadLogs(sf))),
+  refresh: (() => dispatch(loadLogs())),
   setMessage: ((msg) => dispatch(setMessage(msg))),
-  deleteAll: ((sf) => dispatch(deleteAll(sf))),
-  search: ((sf, logs, searchTerm) => dispatch(search(sf, logs, searchTerm)))
+  deleteAll: (() => dispatch(deleteAll())),
+  search: ((searchTerm) => dispatch(search(searchTerm)))
 })
 
 class LogsPageComponent extends React.Component {
@@ -33,7 +33,7 @@ class LogsPageComponent extends React.Component {
     }
     this.updateSearchTerm = this.updateSearchTerm.bind(this)
     this.fetchLogBody = this.fetchLogBody.bind(this)
-    this.refresh = props.refresh.bind(this, props.sf)
+    // this.refresh = props.refresh.bind(this, props.sf)
     this.deleteAll = props.deleteAll.bind(this, props.sf)
     this.search = props.search.bind(this, props.sf)
   }
@@ -48,14 +48,14 @@ class LogsPageComponent extends React.Component {
 
   componentDidMount() {
     const props = this.props
-    this.refresh()
+    props.refresh()
     document.body.addEventListener('keyup', (e) => {
       if (e.target.type == "text")
         return
       const key = e.key
       const funMap = {
-        'r': this.refresh,
-        'a': this.deleteAll
+        'r': props.refresh,
+        'a': props.deleteAll
       }
       if (funMap[key])
         funMap[key]()
@@ -81,10 +81,10 @@ class LogsPageComponent extends React.Component {
             <Grid item="item" xs={12} sm={6}>
               <Grid container="container" direction="row" justify="flex-start">
                 <Grid item="item">
-                  <Search color="contrast" handleSearch={() => this.search(props.logs, this.state.searchTerm)} handleRefresh={this.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
+                  <Search color="contrast" handleSearch={() => props.search(this.state.searchTerm)} handleRefresh={props.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
                 </Grid>
                 <Grid item="item">
-                  <LogButtons handleRefresh={this.refresh} handleDeleteAll={this.deleteAll} loading={props.loading}/>
+                  <LogButtons handleRefresh={props.refresh} handleDeleteAll={props.deleteAll} loading={props.loading}/>
                 </Grid>
               </Grid>
             </Grid>
@@ -102,7 +102,7 @@ class LogsPageComponent extends React.Component {
       </AppBar>
       <Switch>
         <Route path="/logs/:id" render={ownProps => <LogView fetchBody={this.fetchLogBody} {...ownProps}/>}/>
-        <Route render={ownProps => (<LogsTable logs={props.logs} refreshLogs={this.refresh} {...ownProps}/>)}/>
+        <Route render={ownProps => (<LogsTable logs={props.logs} refreshLogs={props.refresh} {...ownProps}/>)}/>
       </Switch>
     </div>)
   }

@@ -21,7 +21,12 @@ import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs/logs'
 import SF from './api/sf'
 
-const store = createStore(appReducer, applyMiddleware(thunk))
+function getParam(s) {
+  const url = new URL(location.href)
+  return url.searchParams.get(s)
+}
+const sf = new SF(getParam("host"), getParam("sid"))
+const store = createStore(appReducer, applyMiddleware(thunk.withExtraArgument(sf)))
 
 class App extends React.Component {
   constructor(props){
@@ -33,17 +38,12 @@ class App extends React.Component {
   }
 
   render() {
-    function getParam(s) {
-      const url = new URL(location.href)
-      return url.searchParams.get(s)
-    }
-    const sf = new SF(getParam("host"), getParam("sid"))
     return (
       <Router history={hashHistory}>
         <Switch>
-          <Route path="/logs" render={props => <LogsPage sf={sf} {...props}/>} />
-          <Route exact path="/feedback" render={props => <FeedbackPage {...props}/>}/>
-          <Route render={props => <LogsPage sf={sf} {...props}/>}/>
+          <Route path="/logs" render={ownProps => <LogsPage {...ownProps}/>} />
+          <Route exact path="/feedback" render={ownProps => <FeedbackPage {...ownProps}/>}/>
+          <Route render={ownProps => <LogsPage {...ownProps}/>}/>
         </Switch>
       </Router>)
   }

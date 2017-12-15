@@ -1,46 +1,36 @@
 import React from 'react'
 import Button from 'material-ui/Button'
 import CheckBlankIcon from 'material-ui-icons/CheckBoxOutlineBlank'
+import {connect} from 'react-redux'
 import CheckIcon from 'material-ui-icons/CheckBox'
+import {startLogging, checkIsLogging, checkIsLoggingAndStart} from './actions'
 
-class TrackingLogs extends React.Component {
+
+class TrackingLogsComponent extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {
-      isTracking: false
-    }
-    this.startLogging = this.startLogging.bind(this)
-    this.sf = props.sf
-  }
-
-  startLogging() {
-    this.sf.startLogging().then((res) => {
-      if(res && res.success)
-        this.setState({isTracking: true})
-      else
-        this.checkIsLogging()
-    })
-  }
-
-  checkIsLogging(){
-    this.sf.isLogging().then((isTracking)=> this.setState({isTracking}))
   }
 
   componentDidMount() {
-    this.sf.isLogging().then((isTracking) => {
-      this.setState({isTracking})
-      if (!isTracking)
-        this.startLogging()
-    })
+    this.props.checkIsLoggingAndStart()
   }
 
   render() {
-    const classes = this.props.classes
-    if (this.state.isTracking) {
+    if (this.props.isLogging) {
       return <Button  disabled  > <CheckIcon/> Logging Activity </Button>
     }
-    return (<Button onClick={this.startLogging} > <CheckBlankIcon/> Start Logging</Button>)
+    return (<Button onClick={this.props.startLogging} > <CheckBlankIcon/> Start Logging</Button>)
   }
 }
+
+const mapStateToProps = (state) => ({isLogging: state.logs.isLogging})
+
+const mapDispatchToProps = (dispatch) => ({
+  checkIsLoggingAndStart: (() => dispatch(checkIsLoggingAndStart())),
+  checkIsLogging: (() => dispatch(checkIsLogging())),
+  startLogging: (() => dispatch(startLogging())),
+})
+
+const TrackingLogs = connect(mapStateToProps, mapDispatchToProps)(TrackingLogsComponent)
 
 export default TrackingLogs
