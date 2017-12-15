@@ -2,10 +2,10 @@
 const inital_logs_state = {
   logs: [],
   loading: false,
-  message: ""
+  message: ''
 }
 
-export default function logs(state = inital_logs_state, action) {
+export default function logs (state = inital_logs_state, action) {
   switch (action.type) {
     case 'FETCH_LOGS_DONE':
       return {
@@ -19,7 +19,7 @@ export default function logs(state = inital_logs_state, action) {
       return {
         ...state,
         loading: true,
-        searchTerm: ""
+        searchTerm: ''
       }
     case 'FETCH_LOGS_ERROR':
       return {
@@ -37,12 +37,12 @@ export default function logs(state = inital_logs_state, action) {
         ...state,
         loading: true,
         logs: [],
-        searchTerm: ""
+        searchTerm: ''
       }
     case 'DELETE_LOGS_DONE':
       return {
         ...state,
-        message: "Removed logs from salesforce",
+        message: 'Removed logs from salesforce',
         loading: false
       }
     case 'SEARCH_INIT':

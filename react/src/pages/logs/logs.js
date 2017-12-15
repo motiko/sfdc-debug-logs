@@ -8,14 +8,13 @@ import AppBar from 'material-ui/AppBar'
 import Grid from 'material-ui/Grid'
 import RefreshIcon from 'material-ui-icons/Autorenew'
 import DeleteIcon from 'material-ui-icons/DeleteForever'
-import { CircularProgress } from 'material-ui/Progress';
+import { CircularProgress } from 'material-ui/Progress'
 import IconButton from 'material-ui/IconButton'
 import {connect} from 'react-redux'
 import LogView from './log-view'
 import TrackingLogs from './tracking-logs'
 import Search from './search'
 import LogsTable from './logs-table'
-import LogButtons from './log-buttons'
 import {loadLogs, setMessage, deleteAll, search} from './actions'
 
 const mapStateToProps = (state) => {
@@ -23,85 +22,83 @@ const mapStateToProps = (state) => {
 }
 
 const mapDispatchToProps = (dispatch) => ({
-  refresh: (() => dispatch(loadLogs())),
-  setMessage: ((msg) => dispatch(setMessage(msg))),
-  deleteAll: (() => dispatch(deleteAll())),
-  search: ((searchTerm) => dispatch(search(searchTerm)))
+  refresh: () => dispatch(loadLogs()),
+  setMessage: (msg) => dispatch(setMessage(msg)),
+  deleteAll: () => dispatch(deleteAll()),
+  search: (searchTerm) => dispatch(search(searchTerm))
 })
 
 class LogsPageRaw extends React.Component {
-  constructor(props) {
+  constructor (props) {
     super(props)
     this.state = {
-      searchTerm: ""
+      searchTerm: ''
     }
     this.updateSearchTerm = this.updateSearchTerm.bind(this)
   }
 
-  componentDidCatch(error, info) {
+  componentDidCatch (error, info) {
     setMessage(`Error: ${error}`)
   }
 
-  componentDidMount() {
+  componentDidMount () {
     const props = this.props
     props.refresh()
     document.body.addEventListener('keyup', (e) => {
-      if (e.target.type == "text")
-        return
+      if (e.target.type == 'text') { return }
       const key = e.key
       const funMap = {
         'r': props.refresh,
         'a': props.deleteAll
       }
-      if (funMap[key])
-        funMap[key]()
+      if (funMap[key]) { funMap[key]() }
     })
   }
 
-  updateSearchTerm(e) {
+  updateSearchTerm (e) {
     this.setState({searchTerm: e.target.value})
   }
 
-  render() {
+  render () {
     const props = this.props
     return (<div style={{
-        paddingTop: 80
-      }}>
-      <AppBar position="fixed">
+      paddingTop: 80
+    }}>
+      <AppBar position='fixed'>
         <Toolbar>
-          <Grid container="container" direction="row" justify="space-between">
-            <Grid item="item" xs={12} sm={6}>
-              <Grid container="container" direction="row" justify="flex-start">
-                <Grid item="item">
-                  <Search color="contrast" handleSearch={() => props.search(this.state.searchTerm)} handleRefresh={props.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm}/>
+          <Grid container='container' direction='row' justify='space-between'>
+            <Grid item='item' xs={12} sm={6}>
+              <Grid container='container' direction='row' justify='flex-start'>
+                <Grid item='item'>
+                  <Search color='contrast' handleSearch={() => props.search(this.state.searchTerm)} handleRefresh={props.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm} />
                 </Grid>
-                <Grid item="item">
+                <Grid item='item'>
                   <div>
-                    <IconButton color="contrast" onClick={props.refresh} >
-                      <RefreshIcon/>
+                    <IconButton color='contrast' onClick={props.refresh} >
+                      <RefreshIcon />
                     </IconButton>
-                    <IconButton color="contrast" onClick={props.deleteAll} >
-                      <DeleteIcon/>
+                    <IconButton color='contrast' onClick={props.deleteAll} >
+                      <DeleteIcon />
                     </IconButton>
-                    {props.loading ? <CircularProgress color="contrast"/> : null}
+                    {props.loading ? <CircularProgress color='contrast' /> : null}
                   </div>
                 </Grid>
               </Grid>
             </Grid>
-            <Grid item="item">
-              <Link to="/feedback">
-                <Button color="contrast"><ChatIcon/>
+            <Grid item='item'>
+              <Link to='/feedback'>
+                <Button color='contrast'><ChatIcon />
                   Give Feedback</Button>
               </Link>
-              <TrackingLogs sf={props.sf}/>
+              <TrackingLogs sf={props.sf} />
             </Grid>
           </Grid>
         </Toolbar>
-        <Snackbar open={props.message != ""} message={props.message} onRequestClose={() => props.setMessage("")}/>
+        <Snackbar open={props.message != ''} message={props.message} onRequestClose={() => props.setMessage('')} />
       </AppBar>
       <Switch>
-        <Route path="/logs/:id" render={ownProps => <LogView fetchBody={props.fetchLogBody} {...ownProps}/>}/>
-        <Route render={ownProps => (<LogsTable logs={props.logs} refreshLogs={props.refresh} {...ownProps}/>)}/>
+        <Route path='/logs/:id' render={ownProps => <LogView fetchBody={props.fetchLogBody} {...ownProps} />} />
+        <Route render={ownProps => (<LogsTable logs={props.logs} refreshLogs={props.refresh} {...ownProps} />)} />
       </Switch>
     </div>)
   }

@@ -1,12 +1,12 @@
 export default class Tooling {
-  constructor(request) {
+  constructor (request) {
     this.request = request
   }
 
-  getOrCreateDebugLevel() {
-    const LOG_LEVEL_NAME = "ApexDebugger"
+  getOrCreateDebugLevel () {
+    const LOG_LEVEL_NAME = 'ApexDebugger'
     const headers = {
-      "Accept": "*/*"
+      'Accept': '*/*'
     }
     const query = encodeURIComponent("Select Id From DebugLevel Where DeveloperName = '" + LOG_LEVEL_NAME + "'")
     var debugLevelPayload = {
@@ -30,7 +30,7 @@ export default class Tooling {
     })
   }
 
-  createTraceFlag(userId, debugLevelId) {
+  createTraceFlag (userId, debugLevelId) {
     const MS_IN_DAY = 1000 * 60 * 60 * 23
     let expirationDate = new Date(Date.now() + MS_IN_DAY)
     var payload = {
@@ -38,18 +38,18 @@ export default class Tooling {
       DebugLevelId: debugLevelId,
       LogType: 'DEVELOPER_LOG'
     }
-    return this.request('/services/data/v41.0/tooling/sobjects/TraceFlag', 'POST',{},
+    return this.request('/services/data/v41.0/tooling/sobjects/TraceFlag', 'POST', {},
       Object.assign({ExpirationDate: expirationDate}, payload))
-          .catch((err)=>{ // fallback, try without expiration date
+          .catch((err) => { // fallback, try without expiration date
             this.request('/services/data/v41.0/tooling/sobjects/TraceFlag', 'POST', {}, payload)
           })
   }
 
-  getLogBody(logId) {
+  getLogBody (logId) {
     return this.request(`/services/data/v32.0/tooling/sobjects/ApexLog/${logId}/Body`, 'GET', {}, undefined, 'text').then(r => r.text())
   }
 
-  query(query) {
+  query (query) {
     return this.request(`/services/data/v36.0/tooling/query?q=${query}`)
   }
 }

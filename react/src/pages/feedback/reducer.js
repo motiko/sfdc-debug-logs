@@ -5,7 +5,7 @@ const initial_feedback_state = {
   messages: []
 }
 
-export default function feedback(state = initial_feedback_state, action) {
+export default function feedback (state = initial_feedback_state, action) {
   switch (action.type) {
     case 'TOGGLE_DIALOG':
       return {

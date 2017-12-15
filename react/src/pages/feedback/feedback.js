@@ -36,31 +36,31 @@ const mapDispatchToProps = (dispatch) => ({
 })
 
 class FeedbackPageComponent extends React.Component {
-  constructor(props){
+  constructor (props) {
     super(props)
   }
 
-  componentWillMount(){
+  componentWillMount () {
     this.props.loadMessages()
   }
 
-  render(){
+  render () {
     return (<div style={{paddingTop: 80}}>
-      <AppBar position="fixed">
+      <AppBar position='fixed'>
         <Toolbar>
-          <IconButton tooltip="Back" onClick={() => window.history.back()}><BackIcon/></IconButton>
-          <Button color="contrast" onClick={() => this.props.toggleDialog()}>
-            <MessageIcon/>New Message
+          <IconButton tooltip='Back' onClick={() => window.history.back()}><BackIcon /></IconButton>
+          <Button color='contrast' onClick={() => this.props.toggleDialog()}>
+            <MessageIcon />New Message
           </Button>
         </Toolbar>
       </AppBar>
       <List style={{
-          width: "60%",
-          margin: "auto"
-        }}>
-        {this.props.messages.map((m, i) => (<MessageView nested={false} message={m} onReply={() => this.props.handleReply(m)} key={i}/>))}
+        width: '60%',
+        margin: 'auto'
+      }}>
+        {this.props.messages.map((m, i) => (<MessageView nested={false} message={m} onReply={() => this.props.handleReply(m)} key={i} />))}
       </List>
-      <Dialog fullWidth="fullWidth" open={this.props.dialogOpen} onRequestClose={() => this.props.toggleDialog()}>
+      <Dialog fullWidth='fullWidth' open={this.props.dialogOpen} onRequestClose={() => this.props.toggleDialog()}>
         <DialogTitle>{
             this.props.replyTo
               ? `Reply to ${this.props.replyTo.author}`
@@ -73,8 +73,8 @@ class FeedbackPageComponent extends React.Component {
                 ? `Please keep it professional`
                 : `Please share any ideas you have, or tell us about bugs you've encountered.`
             }
-            </DialogContentText>
-          <MessageEdit onSubmit={(msg) => this.props.sendMessage(msg, this.props.replyTo)}/>
+          </DialogContentText>
+          <MessageEdit onSubmit={(msg) => this.props.sendMessage(msg, this.props.replyTo)} />
         </DialogContent>
       </Dialog>
     </div>)

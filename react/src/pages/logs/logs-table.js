@@ -1,13 +1,13 @@
 import React from 'react'
-import Table,{
+import Table, {
   TableBody,
   TableHead,
   TableRow,
   TableCell
 } from 'material-ui/Table'
 
-export default function LogsTable({history, logs}) {
-  function openLog(logId) {
+export default function LogsTable ({history, logs}) {
+  function openLog (logId) {
     history.push(`/logs/${logId}`)
   }
 
@@ -18,18 +18,18 @@ export default function LogsTable({history, logs}) {
         : 'table-row'
     }
     const timeString = log.StartTime.match(/T(\d\d:\d\d):/)[1]
-    return (<TableRow hover onClick={()=>openLog(log.Id)} key={log.Id} style={style}>
+    return (<TableRow hover onClick={() => openLog(log.Id)} key={log.Id} style={style}>
       <TableCell>{timeString}</TableCell>
       <TableCell>{log.Operation}</TableCell>
       <TableCell>{log.Status}</TableCell>
       <TableCell>{log.LogUser.Name}</TableCell>
-      <TableCell>{log.DurationMilliseconds + "ms"}</TableCell>
+      <TableCell>{log.DurationMilliseconds + 'ms'}</TableCell>
       <TableCell>{`${log.LogLength / 1000} k`}</TableCell>
     </TableRow>)
   }
 
-  return (<Table  >
-    <TableHead  >
+  return (<Table >
+    <TableHead >
       <TableRow>
         <TableCell >Time</TableCell>
         <TableCell >Operation</TableCell>
