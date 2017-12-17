@@ -71,11 +71,11 @@ class LogsPageRaw extends React.Component {
             <Grid item='item' xs={12} sm={6}>
               <Grid container='container' direction='row' justify='flex-start'>
                 <Grid item='item'>
-                <Link to='/'>
-                  <IconButton color='contrast' >
-                    <HomeIcon />
-                  </IconButton>
-                </Link>
+                  <Link to='/'>
+                    <IconButton color='contrast' >
+                      <HomeIcon />
+                    </IconButton>
+                  </Link>
                 </Grid>
                 <Grid item='item'>
                   <Search color='contrast' handleSearch={() => props.search(this.state.searchTerm)} handleRefresh={props.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm} />

@@ -8,22 +8,22 @@ Prism.languages.apexlog = {
     alias: 'comment'
   },
   'cpu-time': {
-      pattern: /\(\d+\)(?=\|)/,
-      alias: 'comment'
+    pattern: /\(\d+\)(?=\|)/,
+    alias: 'comment'
   },
-  'timestamp' :{
+  'timestamp': {
     pattern: /^\d\d:\d\d:\d\d\.\d/m,
     alias: 'comment'
-  } ,
-	'user-debug': {
+  },
+  'user-debug': {
     pattern: /(\|USER_DEBUG\|\[\d+\]\|\w+\|)[^\u0011-\u0014]+[\u0011-\u0014]/,
     lookbehind: true,
     inside: {
-      'json':{
+      'json': {
         pattern: /[\s\S]+[\u0011-\u0012]/,
         inside: Prism.languages.json
       },
-      'xml':{
+      'xml': {
         pattern: /[\s\S]+[\u0013-\u0014]/,
         inside: Prism.languages.markup
       }
@@ -37,9 +37,9 @@ Prism.languages.apexlog = {
 }
 
 Prism.hooks.add('wrap', (env) => {
-	if (/^apex-id$/.test(env.type)) {
-		env.tag = 'a';
+  if (/^apex-id$/.test(env.type)) {
+    env.tag = 'a'
     var id = env.content
-    env.attributes.href = `https://${globalSf.hostname}/${id}`;
-	}
+    env.attributes.href = `https://${globalSf.hostname}/${id}`
+  }
 })

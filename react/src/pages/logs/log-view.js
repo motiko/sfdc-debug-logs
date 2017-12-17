@@ -24,7 +24,6 @@ class LogViewRaw extends React.Component {
     return this.props.logs[id] ? this.props.logs[id]['body'] : ''
   }
 
-
   render () {
     const props = this.props
     return (

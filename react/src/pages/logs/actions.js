@@ -13,7 +13,7 @@ export function getLogBody (logId) {
     const ourLog = logs[logId]
     if (!ourLog) {
       const loadLogsRes = await dispatch(loadLogs())
-      if(loadLogsRes.type == 'FETCH_LOGS_ERROR') {return}
+      if (loadLogsRes.type == 'FETCH_LOGS_ERROR') { return }
       return dispatch(getLogBody(logId))
     }
     if (ourLog.body) {

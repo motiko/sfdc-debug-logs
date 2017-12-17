@@ -20,7 +20,6 @@ import LogsPage from './pages/logs/logs'
 import globalSf from './global-sf'
 import './prism-apexlog'
 
-
 class App extends React.Component {
   componentWillMount () {
     this.props.store.dispatch(loadMessages())
@@ -46,7 +45,6 @@ const theme = createMuiTheme({
   }
 })
 
-
 const store = createStore(appReducer, applyMiddleware(thunk.withExtraArgument(globalSf)))
 
 const ProvidedApp = () => (
@@ -55,6 +53,5 @@ const ProvidedApp = () => (
       <App store={store} />
     </Provider>
   </MuiThemeProvider>)
-
 
 ReactDOM.render(<ProvidedApp />, document.getElementById('container'))
