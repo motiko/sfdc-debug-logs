@@ -28,7 +28,7 @@ class LogViewRaw extends React.Component {
     const props = this.props
     return (
       <Grid container='container' direction='column' justify='flex-start'>
-        <pre style={{ whiteSpace: 'pre-wrap'}} className='language-apexlog' ref={element => { this.preElement = element }}>
+        <pre style={{ whiteSpace: 'pre-wrap' }} className='language-apexlog' ref={element => { this.preElement = element }}>
           <code>
             {this.displayLogBody(props.match.params.id)}
           </code>

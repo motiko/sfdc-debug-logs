@@ -1,7 +1,7 @@
-// Prism.plugins.customClass.prefix('pr-')
+// window.Prism.plugins.customClass.prefix('pr-')
 import globalSf from './global-sf'
 
-Prism.languages.apexlog = {
+window.Prism.languages.apexlog = {
   'apex-id': /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/,
   'execute-anonymous': {
     pattern: /Execute Anonymous:[^\n]+/,
@@ -21,22 +21,22 @@ Prism.languages.apexlog = {
     inside: {
       'json': {
         pattern: /[\s\S]+[\u0011-\u0012]/,
-        inside: Prism.languages.json
+        inside: window.Prism.languages.json
       },
       'xml': {
         pattern: /[\s\S]+[\u0013-\u0014]/,
-        inside: Prism.languages.markup
+        inside: window.Prism.languages.markup
       }
     }
   },
   'soql': {
     pattern: /(\|SOQL_EXECUTE_BEGIN\|\[\d+]\|Aggregations:\d+\|)[^\n]+/,
     lookbehind: true,
-    inside: Prism.languages.sql
+    inside: window.Prism.languages.sql
   }
 }
 
-Prism.hooks.add('wrap', (env) => {
+window.Prism.hooks.add('wrap', (env) => {
   if (/^apex-id$/.test(env.type)) {
     env.tag = 'a'
     var id = env.content
