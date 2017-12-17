@@ -1,6 +1,7 @@
 import React from 'react'
 import Snackbar from 'material-ui/Snackbar'
 import ChatIcon from 'material-ui-icons/Chat'
+import HomeIcon from 'material-ui-icons/Home'
 import Button from 'material-ui/Button'
 import {Link, Route, Switch} from 'react-router-dom'
 import Toolbar from 'material-ui/Toolbar'
@@ -69,6 +70,13 @@ class LogsPageRaw extends React.Component {
           <Grid container='container' direction='row' justify='space-between'>
             <Grid item='item' xs={12} sm={6}>
               <Grid container='container' direction='row' justify='flex-start'>
+                <Grid item='item'>
+                <Link to='/'>
+                  <IconButton color='contrast' >
+                    <HomeIcon />
+                  </IconButton>
+                </Link>
+                </Grid>
                 <Grid item='item'>
                   <Search color='contrast' handleSearch={() => props.search(this.state.searchTerm)} handleRefresh={props.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm} />
                 </Grid>

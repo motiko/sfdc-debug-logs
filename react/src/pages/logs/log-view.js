@@ -1,7 +1,5 @@
 import React from 'react'
 import {connect} from 'react-redux'
-import BackIcon from 'material-ui-icons/Close'
-import IconButton from 'material-ui/IconButton'
 import Grid from 'material-ui/Grid'
 import {getLogBody} from './actions'
 
@@ -22,22 +20,21 @@ class LogViewRaw extends React.Component {
     if (window.Prism) window.Prism.highlightElement(this.preElement)
   }
 
-  logBodyById (id) {
+  displayLogBody (id) {
     return this.props.logs[id] ? this.props.logs[id]['body'] : ''
   }
+
 
   render () {
     const props = this.props
     return (
       <Grid container='container' direction='column' justify='flex-start'>
-        <IconButton tooltip='Close' onClick={() => window.history.back()}><BackIcon /></IconButton>
-        <pre style={{overflowY: 'auto', height: '80%', whiteSpace: 'pre-line'}} className='language-json' ref={element => { this.preElement = element }}>
+        <pre style={{ whiteSpace: 'pre-wrap'}} className='language-apexlog' ref={element => { this.preElement = element }}>
           <code>
-            {this.logBodyById(props.match.params.id)}
+            {this.displayLogBody(props.match.params.id)}
           </code>
         </pre>
-      </Grid>
-    )
+      </Grid>)
   }
 }
 

@@ -5,6 +5,7 @@ import Batch from './batch'
 
 export default class SF {
   constructor (host, sid) {
+    this.hostname = host
     this.request = initRequest(host, sid)
     this.batch = new Batch(this.request)
     this.tooling = new Tooling(this.request)

@@ -1,4 +1,5 @@
 import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
+import beautifyLog from './log-transform'
 
 const normalize = (logsArray) => {
   return logsArray.reduce((acc, cur) => {
@@ -11,7 +12,8 @@ export function getLogBody (logId) {
     const logs = getState().logs.logs
     const ourLog = logs[logId]
     if (!ourLog) {
-      await dispatch(loadLogs())
+      const loadLogsRes = await dispatch(loadLogs())
+      if(loadLogsRes.type == 'FETCH_LOGS_ERROR') {return}
       return dispatch(getLogBody(logId))
     }
     if (ourLog.body) {
@@ -19,7 +21,8 @@ export function getLogBody (logId) {
     }
     dispatch({type: 'FETCH_LOG_BODY_INIT'})
     return sf.logBody(logId).then((body) => {
-      const updatedLogs = {...logs, [logId]: {...ourLog, body}}
+      const beautifiedBody = beautifyLog(body)
+      const updatedLogs = {...logs, [logId]: {...ourLog, body: beautifiedBody}}
       dispatch({type: 'FETCH_LOG_BODY_DONE', logs: updatedLogs})
     })
   }
@@ -30,9 +33,9 @@ export function loadLogs () {
     const oldLogs = getState().logs.logs
     dispatch({type: 'FETCH_LOGS_INIT'})
     return sf.requestLogs().then((records) => {
-      dispatch({type: 'FETCH_LOGS_DONE', logs: {...normalize(records), ...oldLogs}})
+      return dispatch({type: 'FETCH_LOGS_DONE', logs: {...normalize(records), ...oldLogs}})
     }).catch((err) => {
-      dispatch({type: 'FETCH_LOGS_ERROR', message: `Error occured: ${err.message}`})
+      return dispatch({type: 'FETCH_LOGS_ERROR', message: `Error occured: ${err.message}`})
     })
   }
 }

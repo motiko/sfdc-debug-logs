@@ -17,7 +17,9 @@ import appReducer from './reducers'
 import {loadMessages} from './pages/feedback/actions'
 import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs/logs'
-import SF from './api/sf'
+import globalSf from './global-sf'
+import './prism-apexlog'
+
 
 class App extends React.Component {
   componentWillMount () {
@@ -44,13 +46,8 @@ const theme = createMuiTheme({
   }
 })
 
-function getParam (s) {
-  const url = new window.URL(window.location.href)
-  return url.searchParams.get(s)
-}
 
-const sf = new SF(getParam('host'), getParam('sid'))
-const store = createStore(appReducer, applyMiddleware(thunk.withExtraArgument(sf)))
+const store = createStore(appReducer, applyMiddleware(thunk.withExtraArgument(globalSf)))
 
 const ProvidedApp = () => (
   <MuiThemeProvider theme={theme}>
