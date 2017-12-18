@@ -1,0 +1,63 @@
+40.0 APEX_CODE,DEBUG;APEX_PROFILING,DEBUG;CALLOUT,DEBUG;DB,DEBUG;SYSTEM,DEBUG;VALIDATION,DEBUG;VISUALFORCE,DEBUG;WAVE,INFO;WORKFLOW,DEBUG
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: // MyHelloWorld.testAll();
+Execute Anonymous: System.debug('<span class="token debug">{     "glossary": {         "title": "example glossary", 		"GlossDiv": {             "title": "S", 			"GlossList": {                 "GlossEntry": {                     "ID": "SGML", 					"SortAs": "SGML", 					"GlossTerm": "Standard Generalized Markup Language", 					"Acronym": "SGML", 					"Abbrev": "ISO 8879:1986", 					"GlossDef": {                         "para": "A meta-markup language, used to create markup languages such as DocBook.", 						"GlossSeeAlso": ["GML", "XML"]                     }, 					"GlossSee": "markup"                 }             }         }     } } </span>');
+03:15:30.0 (998022)|USER_INFO|[EXTERNAL]|0051I000000wAM1|mo@ad.com|Pacific Standard Time|GMT-08:00
+03:15:30.0 (1138697)|EXECUTION_STARTED
+03:15:30.0 (1144049)|CODE_UNIT_STARTED|[EXTERNAL]|execute_anonymous_apex
+03:15:30.0 (1656779)|USER_DEBUG|[17]|DEBUG|
+                    < span class = "token debug" > {
+                        "glossary": {
+                            "title": "example glossary",
+                            "GlossDiv": {
+                                "title": "S",
+                                "GlossList": {
+                                    "GlossEntry": {
+                                        "ID": "SGML",
+                                        "SortAs": "SGML",
+                                        "GlossTerm": "Standard Generalized Markup Language",
+                                        "Acronym": "SGML",
+                                        "Abbrev": "ISO 8879:1986",
+                                        "GlossDef": {
+                                            "para": "A meta-markup language, used to create markup languages such as DocBook.",
+                                            "GlossSeeAlso": ["GML", "XML"]
+                                        },
+                                        "GlossSee": "markup"
+                                    }
+                                }
+                            }
+                        }
+                    } < /span>
+03:15:30.1 (1713939)|CUMULATIVE_LIMIT_USAGE
+03:15:30.1 (1713939)|LIMIT_USAGE_FOR_NS|(default)|
+  Number of SOQL queries: 0 out of 100
+  Number of query rows: 0 out of 50000
+  Number of SOSL queries: 0 out of 20
+  Number of DML statements: 0 out of 150
+  Number of DML rows: 0 out of 10000
+  Maximum CPU time: 0 out of 10000
+  Maximum heap size: 0 out of 6000000
+  Number of callouts: 0 out of 100
+  Number of Email Invocations: 0 out of 10
+  Number of future calls: 0 out of 50
+  Number of queueable jobs added to the queue: 0 out of 50
+  Number of Mobile Apex push calls: 0 out of 10
+
+03:15:30.1 (1713939)|CUMULATIVE_LIMIT_USAGE_END
+
+03:15:30.0 (1747256)|CODE_UNIT_FINISHED|execute_anonymous_apex
+03:15:30.0 (2459715)|EXECUTION_FINISHED

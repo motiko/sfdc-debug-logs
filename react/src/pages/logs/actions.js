@@ -7,14 +7,14 @@ const normalize = (logsArray) => {
   }, {})
 }
 
-export function getLogBody (logId) {
+export function fetchLogBody (logId) {
   return async (dispatch, getState, sf) => {
     const logs = getState().logs.logs
     const ourLog = logs[logId]
     if (!ourLog) {
       const loadLogsRes = await dispatch(loadLogs())
       if (loadLogsRes.type === 'FETCH_LOGS_ERROR') { return }
-      return dispatch(getLogBody(logId))
+      return dispatch(fetchLogBody(logId))
     }
     if (ourLog.body) {
       return

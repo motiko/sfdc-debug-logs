@@ -1,6 +1,5 @@
 
 export default function beautifyLog (logBody) {
-  // const udLang = Prism.languages.apexlog['user-debug']
   const userDebugRe = /(\|USER_DEBUG\|\[\d+\]\|\w+\|)([^\n]+)/g
   const sfObjectRe = /\w+:{\w+=.+,?\s*}/
   const jsonRe = /({.+})|(\[.+\])/
