@@ -3,14 +3,12 @@ import React from 'react'
 export default class LogBody extends React.Component {
   componentDidMount () {
     if (this.props.body && this.props.body.length > 0) {
-      console.log('highlight in mount')
       window.Prism.highlightAll()
     }
   }
 
   componentDidUpdate (prevProps, prevState) {
     if (this.props.body && this.props.body.length > 0) {
-      console.log('highlight update')
       window.Prism.highlightAll()
     }
   }

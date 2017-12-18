@@ -13,12 +13,17 @@ export function toggleSideLogs () {
 
 export function fetchLogBody (logId) {
   return async (dispatch, getState, sf) => {
-    const logs = getState().logs.logs
-    const ourLog = logs[logId]
+    let logs = getState().logs.logs
+    let ourLog = logs[logId]
     if (!ourLog) {
       const loadLogsRes = await dispatch(loadLogs())
       if (loadLogsRes.type === 'FETCH_LOGS_ERROR') { return }
-      return dispatch(fetchLogBody(logId))
+      if (loadLogsRes.logs[logId]) {
+        logs = loadLogsRes.logs
+        ourLog = loadLogsRes.logs[logId]
+      } else {
+        return dispatch({type: 'FETCH_LOGS_ERROR', message: `Log with id ${logId} wasn't found` })
+      }
     }
     if (ourLog.body) {
       return
@@ -34,9 +39,9 @@ export function fetchLogBody (logId) {
 
 export function loadLogs () {
   return (dispatch, getState, sf) => {
-    const oldLogs = getState().logs.logs
     dispatch({type: 'FETCH_LOGS_INIT'})
     return sf.requestLogs().then((records) => {
+      const oldLogs = getState().logs.logs
       return dispatch({type: 'FETCH_LOGS_DONE', logs: {...normalize(records), ...oldLogs}})
     }).catch((err) => {
       return dispatch({type: 'FETCH_LOGS_ERROR', message: `Error occured: ${err.message}`})
