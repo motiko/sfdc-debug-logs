@@ -22,6 +22,7 @@ class LogViewRaw extends React.Component {
     const timeFormatter = Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false })
     const props = this.props
     const sideLogsOpen = this.props.sideLogsOpen
+    const curLogId = props.match.params.id
     const openLog = (logId) => {
       props.fetchBody(logId)
       props.history.push(`/logs/${logId}`)
@@ -29,8 +30,9 @@ class LogViewRaw extends React.Component {
     const toListItem = (log) => {
       const rawdate = new Date(log.StartTime)
       const dateStr = timeFormatter.format(rawdate)
+      const isCurLog = log.Id === curLogId
       return (
-        <ListItem button onClick={() => openLog(log.Id)} key={log.Id}>
+        <ListItem button={!isCurLog} onClick={() => openLog(log.Id)} key={log.Id} style={isCurLog ? {boxShadow: '-4px 0 gray'} : {}}>
           <ListItemText primary={`${dateStr}    ${log.DurationMilliseconds}ms`} secondary={`${log.Operation}    ${log.LogLength / 1000}k`} />
         </ListItem>
       )
@@ -46,7 +48,7 @@ class LogViewRaw extends React.Component {
           <Button fab mini onClick={props.toggleSideLogs} style={{position: 'fixed', left: '-15px', top: '64px'}}>
             {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
           </Button>
-          <LogBody body={this.getBody(props.match.params.id)} />
+          <LogBody body={this.getBody(curLogId)} />
         </div>
       </div>)
   }
