@@ -11,13 +11,13 @@ export default function LogsTable ({history, logs}) {
     history.push(`/logs/${logId}`)
   }
 
-  const toLogView = (log) => {
+  const toTableRow = (log) => {
     const style = {
       display: log['not_matches_search']
         ? 'none'
         : 'table-row'
     }
-    const timeString = log.StartTime.match(/T(\d\d:\d\d):/)[1]
+    const timeString = log.StartTime.match(/T(\d\d:\d\d:\d\d)/)[1]
     return (<TableRow hover onClick={() => openLog(log.Id)} key={log.Id} style={style}>
       <TableCell>{timeString}</TableCell>
       <TableCell>{log.Operation}</TableCell>
@@ -40,7 +40,7 @@ export default function LogsTable ({history, logs}) {
       </TableRow>
     </TableHead>
     <TableBody>
-      {Object.values(logs).map(toLogView)}
+      {Object.values(logs).map(toTableRow)}
     </TableBody>
   </Table>)
 }

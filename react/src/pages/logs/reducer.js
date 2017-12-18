@@ -1,6 +1,6 @@
 
 const initalLogsState = {
-  logs: [],
+  logs: {},
   loading: false,
   message: ''
 }

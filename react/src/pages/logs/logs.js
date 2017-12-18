@@ -3,7 +3,7 @@ import Snackbar from 'material-ui/Snackbar'
 import ChatIcon from 'material-ui-icons/Chat'
 import HomeIcon from 'material-ui-icons/Home'
 import Button from 'material-ui/Button'
-import {Link, Route, Switch} from 'react-router-dom'
+import { Link, Route, Switch } from 'react-router-dom'
 import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
 import Grid from 'material-ui/Grid'
@@ -11,12 +11,12 @@ import RefreshIcon from 'material-ui-icons/Autorenew'
 import DeleteIcon from 'material-ui-icons/DeleteForever'
 import { CircularProgress } from 'material-ui/Progress'
 import IconButton from 'material-ui/IconButton'
-import {connect} from 'react-redux'
+import { connect } from 'react-redux'
 import LogView from './log-view'
 import TrackingLogs from './tracking-logs'
 import Search from './search'
 import LogsTable from './logs-table'
-import {loadLogs, setMessage, deleteAll, search} from './actions'
+import { loadLogs, setMessage, deleteAll, search } from './actions'
 
 const mapStateToProps = (state) => {
   return state.logs
@@ -62,12 +62,10 @@ class LogsPageRaw extends React.Component {
 
   render () {
     const props = this.props
-    return (<div style={{
-      paddingTop: 80
-    }}>
-      <AppBar position='fixed'>
+    return (<Grid container direction='column' style={{ paddingTop: '64px' }}>
+      <AppBar position='fixed' style={{height: '64px'}}>
         <Toolbar>
-          <Grid container='container' direction='row' justify='space-between'>
+          <Grid container direction='row' justify='space-between'>
             <Grid item='item' xs={12} sm={6}>
               <Grid container='container' direction='row' justify='flex-start'>
                 <Grid item='item'>
@@ -108,7 +106,7 @@ class LogsPageRaw extends React.Component {
         <Route path='/logs/:id' render={ownProps => <LogView fetchBody={props.fetchLogBody} {...ownProps} />} />
         <Route render={ownProps => (<LogsTable logs={props.logs} refreshLogs={props.refresh} {...ownProps} />)} />
       </Switch>
-    </div>)
+    </Grid>)
   }
 }
 
