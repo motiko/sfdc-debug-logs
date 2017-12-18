@@ -62,7 +62,7 @@ class LogsPageRaw extends React.Component {
 
   render () {
     const props = this.props
-    return (<Grid container direction='column' style={{ paddingTop: '64px' }}>
+    return (<Grid container direction='column' style={{ paddingTop: '64px', overflow: 'hidden' }}>
       <AppBar position='fixed' style={{height: '64px'}}>
         <Toolbar>
           <Grid container direction='row' justify='space-between'>
@@ -103,7 +103,7 @@ class LogsPageRaw extends React.Component {
         <Snackbar open={props.message !== ''} autoHideDuration={1000} onClose={() => props.setMessage('')} message={props.message} />
       </AppBar>
       <Switch>
-        <Route path='/logs/:id' render={ownProps => <LogView fetchBody={props.fetchLogBody} {...ownProps} />} />
+        <Route path='/logs/:id' render={ownProps => <LogView {...ownProps} />} />
         <Route render={ownProps => (<LogsTable logs={props.logs} refreshLogs={props.refresh} {...ownProps} />)} />
       </Switch>
     </Grid>)

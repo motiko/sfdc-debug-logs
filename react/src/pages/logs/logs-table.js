@@ -7,17 +7,17 @@ import Table, {
 } from 'material-ui/Table'
 
 export default function LogsTable ({history, logs}) {
-  function openLog (logId) {
+  const timeFormatter = Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false })
+  const openLog = (logId) => {
     history.push(`/logs/${logId}`)
   }
-
   const toTableRow = (log) => {
     const style = {
       display: log['not_matches_search']
         ? 'none'
         : 'table-row'
     }
-    const timeString = log.StartTime.match(/T(\d\d:\d\d:\d\d)/)[1]
+    const timeString = timeFormatter.format(new Date(log.StartTime))
     return (<TableRow hover onClick={() => openLog(log.Id)} key={log.Id} style={style}>
       <TableCell>{timeString}</TableCell>
       <TableCell>{log.Operation}</TableCell>

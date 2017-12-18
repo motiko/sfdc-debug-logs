@@ -7,6 +7,10 @@ const normalize = (logsArray) => {
   }, {})
 }
 
+export function toggleSideLogs () {
+  return {type: 'TOGGLE_SIDE_LOGS'}
+}
+
 export function fetchLogBody (logId) {
   return async (dispatch, getState, sf) => {
     const logs = getState().logs.logs

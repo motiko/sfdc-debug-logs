@@ -2,11 +2,17 @@
 const initalLogsState = {
   logs: {},
   loading: false,
-  message: ''
+  message: '',
+  sideLogsOpen: true
 }
 
 export default function logs (state = initalLogsState, action) {
   switch (action.type) {
+    case 'TOGGLE_SIDE_LOGS':
+      return {
+        ...state,
+        sideLogsOpen: !state.sideLogsOpen
+      }
     case 'FETCH_LOGS_DONE':
       return {
         ...state,
