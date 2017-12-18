@@ -54,7 +54,7 @@ class FeedbackPageComponent extends React.Component {
       }}>
         {this.props.messages.map((m, i) => (<MessageView nested={false} message={m} onReply={() => this.props.handleReply(m)} key={i} />))}
       </List>
-      <Dialog fullWidth='fullWidth' open={this.props.dialogOpen} onRequestClose={() => this.props.toggleDialog()}>
+      <Dialog fullWidth open={this.props.dialogOpen} onClose={() => this.props.toggleDialog()}>
         <DialogTitle>{
             this.props.replyTo
               ? `Reply to ${this.props.replyTo.author}`

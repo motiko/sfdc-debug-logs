@@ -66,19 +66,19 @@ class LogsPageRaw extends React.Component {
       <AppBar position='fixed' style={{height: '64px'}}>
         <Toolbar>
           <Grid container direction='row' justify='space-between'>
-            <Grid item='item' xs={12} sm={6}>
-              <Grid container='container' direction='row' justify='flex-start'>
-                <Grid item='item'>
+            <Grid item xs={12} sm={6}>
+              <Grid container direction='row' justify='flex-start'>
+                <Grid item>
                   <Link to='/'>
                     <IconButton color='contrast' >
                       <HomeIcon />
                     </IconButton>
                   </Link>
                 </Grid>
-                <Grid item='item'>
+                <Grid item>
                   <Search color='contrast' handleSearch={() => props.search(this.state.searchTerm)} handleRefresh={props.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm} />
                 </Grid>
-                <Grid item='item'>
+                <Grid item>
                   <div>
                     <IconButton color='contrast' onClick={props.refresh} >
                       <RefreshIcon />
@@ -86,12 +86,12 @@ class LogsPageRaw extends React.Component {
                     <IconButton color='contrast' onClick={props.deleteAll} >
                       <DeleteIcon />
                     </IconButton>
-                    {props.loading ? <CircularProgress color='contrast' /> : null}
+                    {props.loading ? <CircularProgress style={{color: 'white'}} /> : null}
                   </div>
                 </Grid>
               </Grid>
             </Grid>
-            <Grid item='item'>
+            <Grid item>
               <Link to='/feedback'>
                 <Button color='contrast'><ChatIcon />
                   Give Feedback</Button>
@@ -100,7 +100,7 @@ class LogsPageRaw extends React.Component {
             </Grid>
           </Grid>
         </Toolbar>
-        <Snackbar open={props.message !== ''} message={props.message} onRequestClose={() => props.setMessage('')} />
+        <Snackbar open={props.message !== ''} autoHideDuration={1000} onClose={() => props.setMessage('')} message={props.message} />
       </AppBar>
       <Switch>
         <Route path='/logs/:id' render={ownProps => <LogView fetchBody={props.fetchLogBody} {...ownProps} />} />

@@ -41,25 +41,17 @@ class LogViewRaw extends React.Component {
         </ListItem>
       )
     }
-    const sideLogsView = () => (
-      <div style={{ paddingLeft: 0, position: 'fixed', left: 0, top: 64, bottom: 0, overflowY: 'scroll', width: sideLogsOpen ? '25%' : '0%' }}>
-        <List style={{ borderRightSize: '1px', width: '100%' }}>
-          <ListSubheader style={{textAlign: 'right'}} >
-            <Button fab mini onClick={this.toggleSideLogs} >
-              <CloseIcon />
-            </Button>
-          </ListSubheader>
-          {props.logs ? Object.values(props.logs).map(toListItem) : null}
-        </List>
-      </div>)
     return (
       <div>
-        { sideLogsView()}
+        <div style={{ paddingLeft: 0, position: 'fixed', left: 0, top: 64, bottom: 0, overflowY: 'scroll', width: sideLogsOpen ? '25%' : '0%' }}>
+          <List style={{ borderRightSize: '1px', width: '100%', paddingLeft: 25 }}>
+            {props.logs ? Object.values(props.logs).map(toListItem) : null}
+          </List>
+        </div>
         <div style={{overflowY: 'scroll', position: 'fixed', right: 0, top: 64, bottom: 0, width: sideLogsOpen ? '75%' : '100%'}}>
-          { !sideLogsOpen ? <Button fab mini onClick={this.toggleSideLogs} style={{position: 'fixed', left: '-25px', top: '74px'}}>
-            <OpenIcon />
-          </Button> : null
-        }
+          <Button fab mini onClick={this.toggleSideLogs} style={{position: 'fixed', left: '-15px', top: '64px'}}>
+            {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
+          </Button>
           <LogBody body={this.getBody(props.match.params.id)} />
         </div>
       </div>)
