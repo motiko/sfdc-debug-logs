@@ -2,6 +2,10 @@ a{
   text-decoration: none;
 }
 
+#container{
+  overflow-x: hidden;
+}
+
 
 @font-face {
   font-family: 'Roboto';
