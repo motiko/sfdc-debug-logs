@@ -16,7 +16,7 @@ import LogView from './log-view'
 import TrackingLogs from './tracking-logs'
 import Search from './search'
 import LogsTable from './logs-table'
-import { loadLogs, setMessage, deleteAll, search } from './actions'
+import { loadLogs, setMessage, deleteAll, search, updateSearchTerm } from './actions'
 
 const mapStateToProps = (state) => {
   return state.logs
@@ -26,17 +26,11 @@ const mapDispatchToProps = (dispatch) => ({
   refresh: () => dispatch(loadLogs()),
   setMessage: (msg) => dispatch(setMessage(msg)),
   deleteAll: () => dispatch(deleteAll()),
-  search: (searchTerm) => dispatch(search(searchTerm))
+  search: (searchTerm) => dispatch(search(searchTerm)),
+  updateSearchTerm: (newTerm) => dispatch(updateSearchTerm(newTerm))
 })
 
 class LogsPageRaw extends React.Component {
-  constructor (props) {
-    super(props)
-    this.state = {
-      searchTerm: ''
-    }
-    this.updateSearchTerm = this.updateSearchTerm.bind(this)
-  }
 
   componentDidCatch (error, info) {
     setMessage(`Error: ${error}`)
@@ -56,10 +50,6 @@ class LogsPageRaw extends React.Component {
     })
   }
 
-  updateSearchTerm (e) {
-    this.setState({searchTerm: e.target.value})
-  }
-
   render () {
     const props = this.props
     return (<Grid container direction='column' style={{ paddingTop: '64px', overflow: 'hidden' }}>
@@ -76,7 +66,7 @@ class LogsPageRaw extends React.Component {
                   </Link>
                 </Grid>
                 <Grid item>
-                  <Search color='contrast' handleSearch={() => props.search(this.state.searchTerm)} handleRefresh={props.refresh} searchTerm={this.state.searchTerm} updateSearchTerm={this.updateSearchTerm} />
+                  <Search color='contrast' handleSearch={() => props.search(props.searchTerm)} handleRefresh={props.refresh} searchTerm={props.searchTerm} updateSearchTerm={props.updateSearchTerm} />
                 </Grid>
                 <Grid item>
                   <div>

@@ -3,11 +3,24 @@ const initalLogsState = {
   logs: {},
   loading: false,
   message: '',
-  sideLogsOpen: true
+  sideLogsOpen: true,
+  searchTerm: ''
 }
 
 export default function logs (state = initalLogsState, action) {
   switch (action.type) {
+    case 'RESET_SEARCH':
+      return {
+        ...state,
+        logs: Object.values(state.logs)
+                .reduce((acc, cur) => ({...acc, [cur.Id]: {...cur, not_matches_search: false}}), {}),
+        searchTerm: ''
+      }
+    case 'UPDATE_SEARCH_TERM':
+      return {
+        ...state,
+        searchTerm: action.searchTerm
+      }
     case 'TOGGLE_SIDE_LOGS':
       return {
         ...state,
@@ -24,8 +37,7 @@ export default function logs (state = initalLogsState, action) {
     case 'FETCH_LOGS_INIT':
       return {
         ...state,
-        loading: true,
-        searchTerm: ''
+        loading: true
       }
     case 'FETCH_LOGS_ERROR':
       return {

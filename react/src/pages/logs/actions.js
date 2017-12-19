@@ -40,6 +40,7 @@ export function fetchLogBody (logId) {
 export function loadLogs () {
   return (dispatch, getState, sf) => {
     dispatch({type: 'FETCH_LOGS_INIT'})
+    dispatch({type: 'RESET_SEARCH'})
     return sf.requestLogs().then((records) => {
       const oldLogs = getState().logs.logs
       return dispatch({type: 'FETCH_LOGS_DONE', logs: {...normalize(records), ...oldLogs}})
@@ -80,7 +81,7 @@ export function search (searchTerm) {
         not_matches_search: !searchRegex.test(cur.body)
       }
     }), {})
-    const foundIds = Object.values(filledLogs).filter(r => r.not_matches_search)
+    const foundIds = Object.values(newLogs).filter(r => !r.not_matches_search)
     dispatch({
       type: 'SEARCH_DONE',
       logs: newLogs,
@@ -109,4 +110,8 @@ export function checkIsLoggingAndStart () {
       if (!res.isLogging) dispatch(startLogging())
     })
   }
+}
+
+export function updateSearchTerm (newTerm) {
+  return {type: 'UPDATE_SEARCH_TERM', searchTerm: newTerm}
 }

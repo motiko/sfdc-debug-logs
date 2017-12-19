@@ -8,13 +8,13 @@ export default function Search (props) {
     if (e.keyCode === 13) { props.handleSearch() }
     if (e.keyCode === 27) {
       props.handleRefresh()
-      props.updateSearchTerm({target: {value: ''}})
+      props.updateSearchTerm('')
     }
   }
 
   const searchTerm = props.searchTerm
   return (<div >
-    <TextField color='accent' value={searchTerm} onChange={props.updateSearchTerm} onKeyUp={handleKey} />
+    <TextField color='accent' value={searchTerm} onChange={(e) => props.updateSearchTerm(e.target.value)} onKeyUp={handleKey} />
     <IconButton color='contrast' onClick={props.handleSearch} >
       <SearchIcon />
     </IconButton>
