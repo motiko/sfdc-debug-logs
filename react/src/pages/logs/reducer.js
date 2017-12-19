@@ -4,7 +4,8 @@ const initalLogsState = {
   loading: false,
   message: '',
   sideLogsOpen: true,
-  searchTerm: ''
+  searchTerm: '',
+  maxLogs: 50
 }
 
 export default function logs (state = initalLogsState, action) {
@@ -15,6 +16,11 @@ export default function logs (state = initalLogsState, action) {
         logs: Object.values(state.logs)
                 .reduce((acc, cur) => ({...acc, [cur.Id]: {...cur, not_matches_search: false}}), {}),
         searchTerm: ''
+      }
+    case 'UPDATE_MAX_LOGS':
+      return {
+        ...state,
+        maxLogs: action.maxLogs
       }
     case 'UPDATE_SEARCH_TERM':
       return {

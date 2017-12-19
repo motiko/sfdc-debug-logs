@@ -9,14 +9,16 @@ import AppBar from 'material-ui/AppBar'
 import Grid from 'material-ui/Grid'
 import RefreshIcon from 'material-ui-icons/Autorenew'
 import DeleteIcon from 'material-ui-icons/DeleteForever'
+import TextField from 'material-ui/TextField'
 import { CircularProgress } from 'material-ui/Progress'
 import IconButton from 'material-ui/IconButton'
+import Typography from 'material-ui/Typography'
 import { connect } from 'react-redux'
 import LogView from './log-view'
 import TrackingLogs from './tracking-logs'
 import Search from './search'
 import LogsTable from './logs-table'
-import { loadLogs, setMessage, deleteAll, search, updateSearchTerm } from './actions'
+import { loadLogs, setMessage, deleteAll, search, updateSearchTerm, updateMaxLogs } from './actions'
 
 const mapStateToProps = (state) => {
   return state.logs
@@ -27,7 +29,8 @@ const mapDispatchToProps = (dispatch) => ({
   setMessage: (msg) => dispatch(setMessage(msg)),
   deleteAll: () => dispatch(deleteAll()),
   search: (searchTerm) => dispatch(search(searchTerm)),
-  updateSearchTerm: (newTerm) => dispatch(updateSearchTerm(newTerm))
+  updateSearchTerm: (newTerm) => dispatch(updateSearchTerm(newTerm)),
+  updateMaxLogs: (newMaxLogs) => dispatch(updateMaxLogs(newMaxLogs))
 })
 
 class LogsPageRaw extends React.Component {
@@ -82,6 +85,7 @@ class LogsPageRaw extends React.Component {
               </Grid>
             </Grid>
             <Grid item>
+              <TextField value={props.maxLogs} type='number' onChange={(e) => props.updateMaxLogs(e.target.value)} label='Max Logs' placeholder='1' style={{width: '6em', marginBottom: 2}} onBlur={props.refresh} />
               <Link to='/feedback'>
                 <Button color='contrast'><ChatIcon />
                   Give Feedback</Button>

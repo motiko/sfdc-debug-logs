@@ -41,9 +41,16 @@ export function loadLogs () {
   return (dispatch, getState, sf) => {
     dispatch({type: 'FETCH_LOGS_INIT'})
     dispatch({type: 'RESET_SEARCH'})
-    return sf.requestLogs().then((records) => {
+    let maxLogs = getState().logs.maxLogs
+    if (!maxLogs || maxLogs < 1) {
+      dispatch({type: 'UPDATE_MAX_LOGS', maxLogs: 1})
+      maxLogs = 1
+    }
+    return sf.requestLogs(maxLogs).then((records) => {
       const oldLogs = getState().logs.logs
-      return dispatch({type: 'FETCH_LOGS_DONE', logs: {...normalize(records), ...oldLogs}})
+      const newLogs = {...normalize(records), ...oldLogs} // preserving fetched bodies TODO: hold in different object
+      const limitedLogs = normalize(Object.values(newLogs).slice(0,maxLogs))
+      return dispatch({type: 'FETCH_LOGS_DONE', logs: limitedLogs})
     }).catch((err) => {
       return dispatch({type: 'FETCH_LOGS_ERROR', message: `Error occured: ${err.message}`})
     })
@@ -114,4 +121,8 @@ export function checkIsLoggingAndStart () {
 
 export function updateSearchTerm (newTerm) {
   return {type: 'UPDATE_SEARCH_TERM', searchTerm: newTerm}
+}
+
+export function updateMaxLogs (maxLogs) {
+  return {type: 'UPDATE_MAX_LOGS', maxLogs}
 }
