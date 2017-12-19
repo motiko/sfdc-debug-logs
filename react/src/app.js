@@ -1,65 +1,57 @@
-import SF from './api/sf'
+// import 'react-devtools'
 import React from 'react'
 import ReactDOM from 'react-dom'
-import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
-import FeedbackPage from './pages/feedback'
-import LogsPage from './pages/logs'
-import {getParam} from './utils'
-
-const sf = new SF(getParam("host"), getParam("sid"))
-
+import { MuiThemeProvider, createMuiTheme } from 'material-ui/styles'
+import indigo from 'material-ui/colors/indigo'
+import teal from 'material-ui/colors/teal'
+import {
+  HashRouter as Router,
+  Route,
+  hashHistory,
+  Switch
+} from 'react-router-dom'
+import { Provider } from 'react-redux'
+import thunk from 'redux-thunk'
+import { createStore, applyMiddleware } from 'redux'
+import appReducer from './reducers'
+import {loadMessages} from './pages/feedback/actions'
+import FeedbackPage from './pages/feedback/feedback'
+import LogsPage from './pages/logs/logs'
+import globalSf from './global-sf'
+import './prism-apexlog'
 
 class App extends React.Component {
-  constructor(props){
-    super(props)
-    this.state = {pageName: "LogsPage"}
-    this.handlePageChange = this.handlePageChange.bind(this)
+  componentWillMount () {
+    this.props.store.dispatch(loadMessages())
   }
 
-  handlePageChange(newPage){
-    document.location.hash = newPage
-    this.setPage(newPage)
-  }
-
-  setPage(pageName){
-    if(this.isLegalPage(pageName)){
-      this.setState({pageName})
-    }else{
-      this.setState({pageName: "LogsPage"})
-    }
-  }
-
-  componentWillMount(){
-    const firstPage = document.location.hash.slice(1)
-    this.setPage(firstPage)
-    window.addEventListener("popstate", (e) =>{
-      const newPage = document.location.hash.slice(1)
-      this.setPage(newPage)
-    })
-  }
-
-  isLegalPage(pageName){
-    return Object.keys(this.nameToPage()).indexOf(pageName) > -1
-  }
-
-  nameToPage(){
-    return {
-      LogsPage: <LogsPage changePage={this.handlePageChange} sf={sf}/>,
-      FeedbackPage: <FeedbackPage changePage={this.handlePageChange}/>
-    }
-  }
-
-  render() {
-    let page = this.nameToPage()[this.state.pageName]
+  render () {
     return (
-      <MuiThemeProvider>
-        {page}
-      </MuiThemeProvider>)
+      <Router history={hashHistory}>
+        <Switch>
+          <Route path='/logs' render={ownProps => <LogsPage {...ownProps} />} />
+          <Route exact path='/feedback' render={ownProps => <FeedbackPage {...ownProps} />} />
+          <Route render={ownProps => <LogsPage {...ownProps} />} />
+        </Switch>
+      </Router>)
   }
 }
 
-function render() {
-  ReactDOM.render(<App/>, document.getElementById("container"))
-}
+const theme = createMuiTheme({
+  palette: {
+    primary: teal,
+    secondary: indigo
+      // type: 'dark'
+  }
+})
 
-render()
+const store = createStore(appReducer, applyMiddleware(thunk.withExtraArgument(globalSf)))
+
+const ProvidedApp = () => (
+  <MuiThemeProvider theme={theme}>
+    <Provider store={store}>
+      <App store={store} />
+    </Provider>
+  </MuiThemeProvider>)
+
+ReactDOM.render(<ProvidedApp />, document.getElementById('container'))

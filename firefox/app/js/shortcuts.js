@@ -28,7 +28,6 @@ browser.storage.sync.get('shortcuts')
     shortcuts = default_shortcuts
   }) {
     shortcuts.forEach(shortcutUrl)
-    debugger
     Mousetrap.bind('shift+w', openApp);
   });
 
