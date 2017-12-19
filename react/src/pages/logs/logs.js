@@ -12,7 +12,6 @@ import DeleteIcon from 'material-ui-icons/DeleteForever'
 import TextField from 'material-ui/TextField'
 import { CircularProgress } from 'material-ui/Progress'
 import IconButton from 'material-ui/IconButton'
-import Typography from 'material-ui/Typography'
 import { connect } from 'react-redux'
 import LogView from './log-view'
 import TrackingLogs from './tracking-logs'
@@ -34,7 +33,6 @@ const mapDispatchToProps = (dispatch) => ({
 })
 
 class LogsPageRaw extends React.Component {
-
   componentDidCatch (error, info) {
     setMessage(`Error: ${error}`)
   }

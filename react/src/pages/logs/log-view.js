@@ -1,7 +1,6 @@
 import React from 'react'
 import { connect } from 'react-redux'
 import List, { ListItem, ListItemText } from 'material-ui/List'
-import ListSubheader from 'material-ui/List/ListSubheader'
 import Button from 'material-ui/Button'
 import CloseIcon from 'material-ui-icons/KeyboardArrowLeft'
 import OpenIcon from 'material-ui-icons/KeyboardArrowRight'
@@ -9,7 +8,6 @@ import { fetchLogBody, toggleSideLogs } from './actions'
 import LogBody from './log-body.js'
 
 class LogViewRaw extends React.Component {
-
   componentWillMount () {
     this.props.fetchBody(this.props.match.params.id)
   }

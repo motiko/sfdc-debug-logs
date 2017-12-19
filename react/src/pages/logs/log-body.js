@@ -14,8 +14,8 @@ export default class LogBody extends React.Component {
   }
 
   render () {
-    return (<pre className='language-apexlog' style={{ paddingLeft: '25px'}}>
-      <code style={{ whiteSpace: 'pre-wrap', overflowY: 'scroll'}}>
+    return (<pre className='language-apexlog' style={{ paddingLeft: '25px' }}>
+      <code style={{ whiteSpace: 'pre-wrap', overflowY: 'scroll' }}>
         {this.props.body}
       </code>
     </pre>)

@@ -22,7 +22,7 @@ export function fetchLogBody (logId) {
         logs = loadLogsRes.logs
         ourLog = loadLogsRes.logs[logId]
       } else {
-        return dispatch({type: 'FETCH_LOGS_ERROR', message: `Log with id ${logId} wasn't found` })
+        return dispatch({ type: 'FETCH_LOGS_ERROR', message: `Log with id ${logId} wasn't found` })
       }
     }
     if (ourLog.body) {
@@ -32,7 +32,7 @@ export function fetchLogBody (logId) {
     return sf.logBody(logId).then((body) => {
       const beautifiedBody = beautifyLog(body)
       const updatedLogs = {...logs, [logId]: {...ourLog, body: beautifiedBody}}
-      dispatch({type: 'FETCH_LOG_BODY_DONE', logs: updatedLogs})
+      dispatch({ type: 'FETCH_LOG_BODY_DONE', logs: updatedLogs })
     })
   }
 }
@@ -49,7 +49,7 @@ export function loadLogs () {
     return sf.requestLogs(maxLogs).then((records) => {
       const oldLogs = getState().logs.logs
       const newLogs = {...normalize(records), ...oldLogs} // preserving fetched bodies TODO: hold in different object
-      const limitedLogs = normalize(Object.values(newLogs).slice(0,maxLogs))
+      const limitedLogs = normalize(Object.values(newLogs).slice(0, maxLogs))
       return dispatch({type: 'FETCH_LOGS_DONE', logs: limitedLogs})
     }).catch((err) => {
       return dispatch({type: 'FETCH_LOGS_ERROR', message: `Error occured: ${err.message}`})
