@@ -5,7 +5,7 @@ const initalLogsState = {
   message: '',
   sideLogsOpen: true,
   searchTerm: '',
-  maxLogs: 50
+  maxLogs: 500
 }
 
 export default function logs (state = initalLogsState, action) {

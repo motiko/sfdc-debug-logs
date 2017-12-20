@@ -32,8 +32,22 @@ window.Prism.languages.apexlog = {
   'soql': {
     pattern: /(\|SOQL_EXECUTE_BEGIN\|\[\d+]\|Aggregations:\d+\|)[^\n]+/,
     lookbehind: true,
-    inside: window.Prism.languages.sql
+    inside: window.Prism.languages.soql
   }
+}
+
+window.Prism.languages.soql = {
+  'string': {
+    pattern: /(^|[^@\\])("|')(?:\\[\s\S]|(?!\2)[^\\])*\2/,
+    greedy: true,
+    lookbehind: true
+  },
+  'function': /\b(?:COUNT|SUM|AVG|MIN|MAX|FIRST|LAST|UCASE|LCASE|MID|LEN|ROUND|NOW|FORMAT)(?=\s*\()/i, // Should we highlight user defined functions too?
+  'keyword': /\b(?:SELECT|TYPEOF|END|FROM|USING|SCOPE|WHERE|WITH|DATA|CATEGORY|GROUP|BY|ROLLUP|CUBE|HAVING|ORDER|BY|ASC|DESC|NULLS|FIRST|LAST|LIMIT|OFFSET|FOR|VIEW|REFERENCE|UPDATE|TRACKING|VIEWSTAT)\b/i,
+  'boolean': /\b(?:TRUE|FALSE|NULL)\b/i,
+  'number': /\b-?(?:0x)?\d*\.?[\da-f]+\b/,
+  'operator': /[-+*\/=%^~]|&&?|\|\|?|!=?|<(?:=>?|<|>)?|>[>=]?|\b(?:AND|BETWEEN|IN|LIKE|NOT|OR|IS|DIV|REGEXP|RLIKE|SOUNDS LIKE|XOR)\b/i,
+  'punctuation': /[;[\]()`,.]/
 }
 
 window.Prism.hooks.add('wrap', (env) => {
