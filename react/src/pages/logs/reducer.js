@@ -1,4 +1,4 @@
-import beautifyLog from './log-transform'
+import transformLogBody from './log-transform'
 
 const initalLogsState = {
   logs: {},
@@ -98,7 +98,7 @@ export default function logs (state = initalLogsState, action) {
       return {
         ...state,
         loading: false,
-        logBodies: { ...state.logBodies, [action.logId]: beautifyLog(action.logBody)}
+        logBodies: { ...state.logBodies, [action.logId]: transformLogBody(action.logBody)}
       }
     default:
       return state
