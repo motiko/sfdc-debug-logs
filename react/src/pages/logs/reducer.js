@@ -1,11 +1,13 @@
+import beautifyLog from './log-transform'
 
 const initalLogsState = {
   logs: {},
+  logBodies: {},
   loading: false,
   message: '',
   sideLogsOpen: true,
   searchTerm: '',
-  maxLogs: 500
+  maxLogs: 50
 }
 
 export default function logs (state = initalLogsState, action) {
@@ -79,7 +81,8 @@ export default function logs (state = initalLogsState, action) {
         ...state,
         loading: false,
         message: `Found ${action.num} matching logs`,
-        logs: action.logs
+        logs: action.logs,
+        logBodies: action.logBodies
       }
     case 'SET_LOGGING':
       return {
@@ -95,7 +98,7 @@ export default function logs (state = initalLogsState, action) {
       return {
         ...state,
         loading: false,
-        logs: action.logs
+        logBodies: { ...state.logBodies, [action.logId]: beautifyLog(action.logBody)}
       }
     default:
       return state

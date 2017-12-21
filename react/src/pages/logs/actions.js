@@ -1,5 +1,5 @@
 import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
-import beautifyLog from './log-transform'
+import idbKeyval from 'idb-keyval'
 
 const normalize = (logsArray) => {
   return logsArray.reduce((acc, cur) => {
@@ -13,26 +13,20 @@ export function toggleSideLogs () {
 
 export function fetchLogBody (logId) {
   return async (dispatch, getState, sf) => {
-    let logs = getState().logs.logs
-    let ourLog = logs[logId]
-    if (!ourLog) {
-      const loadLogsRes = await dispatch(loadLogs())
-      if (loadLogsRes.type === 'FETCH_LOGS_ERROR') { return }
-      if (loadLogsRes.logs[logId]) {
-        logs = loadLogsRes.logs
-        ourLog = loadLogsRes.logs[logId]
-      } else {
-        return dispatch({ type: 'FETCH_LOGS_ERROR', message: `Log with id ${logId} wasn't found` })
-      }
-    }
-    if (ourLog.body) {
+    const logBodies = getState().logs.logBodies
+    if (logBodies[logId]) {
       return
     }
     dispatch({type: 'FETCH_LOG_BODY_INIT'})
+    const body = await idbKeyval.get(logId)
+    if (body) {
+      return dispatch({ type: 'FETCH_LOG_BODY_DONE', logId, logBody: body })
+    }
     return sf.logBody(logId).then((body) => {
-      const beautifiedBody = beautifyLog(body)
-      const updatedLogs = {...logs, [logId]: {...ourLog, body: beautifiedBody}}
-      dispatch({ type: 'FETCH_LOG_BODY_DONE', logs: updatedLogs })
+      idbKeyval.set(logId, body)
+      dispatch({ type: 'FETCH_LOG_BODY_DONE', logId, logBody: body })
+    }).catch((err) => {
+      return dispatch({type: 'FETCH_LOGS_ERROR', message: `Error occured: ${err.message}`})
     })
   }
 }
@@ -72,27 +66,37 @@ export function deleteAll () {
 
 export function search (searchTerm) {
   return async (dispatch, getState, sf) => {
-    dispatch({type: 'SEARCH_INIT'})
-    const logs = getState().logs.logs
+    dispatch({ type: 'SEARCH_INIT' })
+    const logsState = getState().logs
+    const logs = logsState.logs
+    let logBodies = logsState.logBodies
+    const fillbodiesFrom = (fillFun) => {
+      const logIdsWithoutBodies = Object.keys(logs).filter(id => Object.keys(logBodies).indexOf(id) == -1)
+      let promises = logIdsWithoutBodies.map(fillFun)
+      return Promise.all(promises)
+    }
     const escapeRegExp = (str) => str.replace(/[-[]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&')
     const searchRegex = new RegExp(escapeRegExp(searchTerm), 'gi')
-    const logsWithoutBodies = Object.values(logs).filter(l => !l.body)
-    const promises = logsWithoutBodies.map(l => sf.logBody(l.Id)
-        .then(body => ({ Id: l.Id, ...l, body })))
-    const missingBodies = await Promise.all(promises)
-    const filledLogs = { ...logs, ...normalize(missingBodies) }
-    const newLogs = Object.values(filledLogs).reduce((acc, cur) => ({
+    await fillbodiesFrom(id => idbKeyval.get(id)
+        .then(body => { if (body) logBodies[id] = body }))
+    await fillbodiesFrom(id => sf.logBody(id)
+        .then(body => {
+          idbKeyval.set(id, body)
+          logBodies[id] = body
+        }))
+    const newLogs = Object.values(logs).reduce((acc, cur) => ({
       ...acc,
       [cur.Id]: {
         ...cur,
-        not_matches_search: !searchRegex.test(cur.body)
+        not_matches_search: !searchRegex.test(logBodies[cur.Id])
       }
     }), {})
     const foundIds = Object.values(newLogs).filter(r => !r.not_matches_search)
     dispatch({
       type: 'SEARCH_DONE',
       logs: newLogs,
-      num: foundIds.length
+      num: foundIds.length,
+      logBodies
     })
   }
 }
