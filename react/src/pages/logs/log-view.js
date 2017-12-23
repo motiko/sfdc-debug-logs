@@ -13,7 +13,7 @@ class LogViewRaw extends React.Component {
   }
 
   getBody (id) {
-    return this.props.logBodies[id] ? this.props.logBodies[id] : []
+    return this.props.logBodies[id] ? this.props.logBodies[id] : ""
   }
 
   render () {

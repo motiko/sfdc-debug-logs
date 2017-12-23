@@ -6,6 +6,84 @@ a{
   overflow: hidden;
 }
 
+#debugText {
+  font-size: 16;
+  margin-top: 10px;
+  font-family:'Courier New','Courier',mono;
+}
+
+#debugText div{
+    margin-left: 0.6em;
+    margin-top: 0.1em;
+}
+
+pre .monokai {
+  background-color: #292724;
+}
+pre .monokai .debug, pre .monokai .debug a {
+  color: #a6e22e;
+}
+pre .monokai .soql, pre .monokai .soql a {
+  color: #66d9ef;
+}
+pre .monokai .callout, pre .monokai .callout a {
+  color: #ae81ff;
+}
+pre .monokai .system, pre .monokai .system a {
+  color: #75715e;
+}
+pre .monokai .rest, pre .monokai .rest a {
+  color: #f8f8f2;
+}
+pre .monokai .method, pre .monokai .method a {
+  color: #e6db74;
+}
+pre .monokai .err, pre .monokai .err a {
+  color: #f92672;
+}
+pre .emacs {
+  background-color: #ffffcc;
+}
+pre .emacs .debug, pre .emacs .debug a {
+  color: #0000FF;
+  font-weight: bold;
+}
+pre .emacs .soql, pre .emacs .soql a {
+  color: #AA22FF;
+  font-style: italic;
+}
+pre .emacs .callout, pre .emacs .callout a {
+  color: #A0A000;
+}
+pre .emacs .system, pre .emacs .system a {
+  color: #008800;
+}
+pre .emacs .rest, pre .emacs .rest a {
+  color: #880000;
+}
+pre .emacs .method, pre .emacs .method a {
+  color: #BB4444;
+}
+pre .emacs .err, pre .emacs .err a {
+  color: #f92672;
+}
+pre .bw {
+  background-color: #ffffff;
+}
+pre .bw .debug, pre .bw .debug a {
+  font-weight: bold;
+}
+pre .bw .soql, pre .bw .soql a {
+  font-style: italic;
+  font-weight: 600;
+}
+pre .bw .callout, pre .bw .callout a {
+  font-style: oblique;
+}
+pre .bw .err, pre .bw .err a {
+  color: #f92672;
+}
+
 
 @font-face {
   font-family: 'Roboto';

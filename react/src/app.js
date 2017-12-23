@@ -18,7 +18,7 @@ import {loadMessages} from './pages/feedback/actions'
 import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs/logs'
 import globalSf from './global-sf'
-import './prism-apexlog'
+// import './prism-apexlog'
 
 class App extends React.Component {
   componentWillMount () {
