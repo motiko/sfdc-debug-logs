@@ -30,7 +30,6 @@
     "babel-preset-env": "^1.6.1",
     "babel-preset-react": "^6.24.1",
     "babelify": "^8.0.0",
-    "react-devtools": "^3.0.0",
     "reactify": "^1.1.1",
     "standard": "^10.0.3"
   }
