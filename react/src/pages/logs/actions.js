@@ -23,8 +23,8 @@ export function fetchLogBody (logId) {
       return dispatch({ type: 'FETCH_LOG_BODY_DONE', logId, logBody: body })
     }
     return sf.logBody(logId).then((body) => {
-      idbKeyval.set(logId, body)
       dispatch({ type: 'FETCH_LOG_BODY_DONE', logId, logBody: body })
+      idbKeyval.set(logId, body)
     }).catch((err) => {
       return dispatch({type: 'FETCH_LOGS_ERROR', message: `Error occured: ${err.message}`})
     })

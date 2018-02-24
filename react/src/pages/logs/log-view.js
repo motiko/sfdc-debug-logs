@@ -43,7 +43,7 @@ class LogViewRaw extends React.Component {
             {props.logs ? Object.values(props.logs).map(toListItem) : null}
           </List>
         </div>
-        <div style={{overflowY: 'scroll', position: 'fixed', right: 0, top: 64, bottom: 0, width: sideLogsOpen ? '80%' : '100%'}}>
+        <div style={{overflowY: 'scroll', position: 'fixed', right: 0, top: 64, bottom: 0,  backgroundColor: '#292724', width: sideLogsOpen ? '80%' : '100%'}}>
           <Button fab mini onClick={props.toggleSideLogs} style={{position: 'fixed', left: '-15px', top: '64px'}}>
             {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
           </Button>

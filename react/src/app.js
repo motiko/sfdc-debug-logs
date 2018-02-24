@@ -18,11 +18,16 @@ import {loadMessages} from './pages/feedback/actions'
 import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs/logs'
 import globalSf from './global-sf'
-// import './prism-apexlog'
+import idbKeyval from 'idb-keyval'
 
 class App extends React.Component {
   componentWillMount () {
     this.props.store.dispatch(loadMessages())
+    navigator.storage.estimate().then((usageData)=>{
+      if(usageData.usage / usageData.quota > 0.1){
+        idbKeyval.clear()
+      }
+    })
   }
 
   render () {

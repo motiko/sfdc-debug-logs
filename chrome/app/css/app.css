@@ -41,49 +41,6 @@ pre .monokai .method, pre .monokai .method a {
 pre .monokai .err, pre .monokai .err a {
   color: #f92672;
 }
-pre .emacs {
-  background-color: #ffffcc;
-}
-pre .emacs .debug, pre .emacs .debug a {
-  color: #0000FF;
-  font-weight: bold;
-}
-pre .emacs .soql, pre .emacs .soql a {
-  color: #AA22FF;
-  font-style: italic;
-}
-pre .emacs .callout, pre .emacs .callout a {
-  color: #A0A000;
-}
-pre .emacs .system, pre .emacs .system a {
-  color: #008800;
-}
-pre .emacs .rest, pre .emacs .rest a {
-  color: #880000;
-}
-pre .emacs .method, pre .emacs .method a {
-  color: #BB4444;
-}
-pre .emacs .err, pre .emacs .err a {
-  color: #f92672;
-}
-pre .bw {
-  background-color: #ffffff;
-}
-pre .bw .debug, pre .bw .debug a {
-  font-weight: bold;
-}
-pre .bw .soql, pre .bw .soql a {
-  font-style: italic;
-  font-weight: 600;
-}
-pre .bw .callout, pre .bw .callout a {
-  font-style: oblique;
-}
-pre .bw .err, pre .bw .err a {
-  color: #f92672;
-}
-
 
 @font-face {
   font-family: 'Roboto';

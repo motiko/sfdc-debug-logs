@@ -191,6 +191,10 @@ function expandUserDebug () {
   }
 }
 
+function haltEvent (event) {
+  event.stopPropagation();
+}
+
 function withLegalIdLink (id) {
   if (isLegalId(id)) {
     return '<a href="/' + id + '" class="idLink">' + id + '</a>'
