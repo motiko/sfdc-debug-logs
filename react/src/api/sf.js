@@ -16,7 +16,6 @@ export default class SF {
   }
 
   requestLogs (numLimit = 50) {
-    console.log(numLimit)
     var query = `SELECT LogUser.Name,Application,DurationMilliseconds,Id,\
 LastModifiedDate,Location,LogLength,LogUserId,Operation,Request,StartTime,\
 Status,SystemModstamp From ApexLog \

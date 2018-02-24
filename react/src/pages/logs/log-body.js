@@ -1,23 +1,22 @@
 import React from 'react'
+import {parseLog, addExpansionButtons} from './parse-log'
 
 export default class LogBody extends React.Component {
-  componentDidMount () {
-    if (this.props.body && this.props.body.length > 0) {
-      window.Prism.highlightAll()
-    }
+
+  componentDidUpdate(oldProps){
+    const body = this.props.body
+    if(this.props.body && this.props.body.length > 0 && body != oldProps.body)
+      addExpansionButtons()
   }
 
-  componentDidUpdate (prevProps, prevState) {
-    if (this.props.body && this.props.body.length > 0) {
-      window.Prism.highlightAll()
-    }
-  }
+  componentDidMount () {
+     addExpansionButtons()
+   }
 
   render () {
-    return (<pre className='language-apexlog' style={{ paddingLeft: '25px' }}>
-      <code style={{ whiteSpace: 'pre-wrap', overflowY: 'scroll' }}>
-        {this.props.body}
-      </code>
-    </pre>)
+    const body = this.props.body
+    return (
+      <pre style={{ paddingLeft: '25px'}} dangerouslySetInnerHTML={parseLog(body)}>
+      </pre>)
   }
 }

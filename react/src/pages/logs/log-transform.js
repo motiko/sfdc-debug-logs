@@ -1,5 +1,33 @@
+export default function transformLogBody (body){
+  return chunkify(body).map(beautifyLog)
+}
 
-export default function beautifyLog (logBody) {
+function chunkify (body) {
+  const CHUNK_MAX_SIZE = 400000
+  if (body.length < CHUNK_MAX_SIZE) {
+    return [body]
+  } else {
+    let chunks = [], pos = CHUNK_MAX_SIZE, lastPos = 0
+    while (pos < body.length) {
+      console.log(pos)
+      pos = body.lastIndexOf('\n', pos)
+      if (pos <= lastPos) {
+        pos = body.indexOf('\n', lastPos + 1)
+      }
+      if(pos <= lastPos){
+        pos = body.length
+      }
+      chunks.push(body.substring(lastPos, pos))
+      console.log(chunks)
+      lastPos = pos
+      pos += CHUNK_MAX_SIZE
+    }
+    chunks.push(body.substring(lastPos, body.length))
+    return chunks
+  }
+}
+
+function beautifyLog (logBody) {
   const userDebugRe = /(\|USER_DEBUG\|\[\d+\]\|\w+\|)([^\n]+)/g
   const sfObjectRe = /\w+:{\w+=.+,?\s*}/
   const jsonRe = /({.+})|(\[.+\])/

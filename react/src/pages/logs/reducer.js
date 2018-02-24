@@ -1,6 +1,7 @@
 
 const initalLogsState = {
   logs: {},
+  logBodies: {},
   loading: false,
   message: '',
   sideLogsOpen: true,
@@ -79,7 +80,8 @@ export default function logs (state = initalLogsState, action) {
         ...state,
         loading: false,
         message: `Found ${action.num} matching logs`,
-        logs: action.logs
+        logs: action.logs,
+        logBodies: action.logBodies
       }
     case 'SET_LOGGING':
       return {
@@ -95,7 +97,7 @@ export default function logs (state = initalLogsState, action) {
       return {
         ...state,
         loading: false,
-        logs: action.logs
+        logBodies: { ...state.logBodies, [action.logId]: action.logBody}
       }
     default:
       return state

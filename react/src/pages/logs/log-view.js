@@ -9,11 +9,11 @@ import LogBody from './log-body.js'
 
 class LogViewRaw extends React.Component {
   componentWillMount () {
-    this.props.fetchBody(this.props.match.params.id)
+    this.props.fetchLogBody(this.props.match.params.id)
   }
 
   getBody (id) {
-    return this.props.logs[id] ? this.props.logs[id]['body'] : ''
+    return this.props.logBodies[id] ? this.props.logBodies[id] : ""
   }
 
   render () {
@@ -22,7 +22,7 @@ class LogViewRaw extends React.Component {
     const sideLogsOpen = this.props.sideLogsOpen
     const curLogId = props.match.params.id
     const openLog = (logId) => {
-      props.fetchBody(logId)
+      props.fetchLogBody(logId)
       props.history.push(`/logs/${logId}`)
     }
     const toListItem = (log) => {
@@ -43,7 +43,7 @@ class LogViewRaw extends React.Component {
             {props.logs ? Object.values(props.logs).map(toListItem) : null}
           </List>
         </div>
-        <div style={{overflowY: 'scroll', position: 'fixed', right: 0, top: 64, bottom: 0, width: sideLogsOpen ? '80%' : '100%'}}>
+        <div style={{overflowY: 'scroll', position: 'fixed', right: 0, top: 64, bottom: 0,  backgroundColor: '#292724', width: sideLogsOpen ? '80%' : '100%'}}>
           <Button fab mini onClick={props.toggleSideLogs} style={{position: 'fixed', left: '-15px', top: '64px'}}>
             {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
           </Button>
@@ -53,10 +53,10 @@ class LogViewRaw extends React.Component {
   }
 }
 
-const mapStateToProps = (state) => ({logs: state.logs.logs, sideLogsOpen: state.logs.sideLogsOpen})
+const mapStateToProps = (state) => ({logs: state.logs.logs, sideLogsOpen: state.logs.sideLogsOpen, logBodies: state.logs.logBodies})
 
 const mapDispatchToProps = (dispatch) => ({
-  fetchBody: (logId) => dispatch(fetchLogBody(logId)),
+  fetchLogBody: (logId) => dispatch(fetchLogBody(logId)),
   toggleSideLogs: () => dispatch(toggleSideLogs())
 })
 

@@ -6,6 +6,41 @@ a{
   overflow: hidden;
 }
 
+#debugText {
+  font-size: 16;
+  margin-top: 10px;
+  font-family:'Courier New','Courier',mono;
+}
+
+#debugText div{
+    margin-left: 0.6em;
+    margin-top: 0.1em;
+}
+
+pre .monokai {
+  background-color: #292724;
+}
+pre .monokai .debug, pre .monokai .debug a {
+  color: #a6e22e;
+}
+pre .monokai .soql, pre .monokai .soql a {
+  color: #66d9ef;
+}
+pre .monokai .callout, pre .monokai .callout a {
+  color: #ae81ff;
+}
+pre .monokai .system, pre .monokai .system a {
+  color: #75715e;
+}
+pre .monokai .rest, pre .monokai .rest a {
+  color: #f8f8f2;
+}
+pre .monokai .method, pre .monokai .method a {
+  color: #e6db74;
+}
+pre .monokai .err, pre .monokai .err a {
+  color: #f92672;
+}
 
 @font-face {
   font-family: 'Roboto';

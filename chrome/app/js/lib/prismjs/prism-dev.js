@@ -249,12 +249,12 @@ var _ = _self.Prism = {
 
 			_.hooks.run('before-insert', env);
 
-			env.element.innerHTML = env.highlightedCode;
+			setTimeout( () => {env.element.innerHTML = env.highlightedCode;
 
 			callback && callback.call(element);
 
 			_.hooks.run('after-highlight', env);
-			_.hooks.run('complete', env);
+			_.hooks.run('complete', env);},0)
 		}
 	},
 
@@ -711,37 +711,6 @@ Prism.languages.sql= {
 //
 // })();
 // ENDOF autolinker
-(function(){
-
-if (
-	(typeof self === 'undefined' || !self.Prism) &&
-	(typeof global === 'undefined' || !global.Prism)
-) {
-	return;
-}
-
-var options = {
-	classMap: {}
-};
-Prism.plugins.customClass = {
-	map: function map(cm) {
-		options.classMap = cm;
-	},
-	prefix: function prefix(string) {
-		options.prefixString = string;
-	}
-}
-
-Prism.hooks.add('wrap', function (env) {
-	if (!options.classMap && !options.prefixString) {
-		return;
-	}
-	env.classes = env.classes.map(function(c) {
-		return (options.prefixString || '') + (options.classMap[c] || c);
-	});
-});
-
-})();
 
 (function(){
 
@@ -758,5 +727,78 @@ Prism.hooks.add('wrap', function(env) {
 	}
 	env.classes.push('keyword-' + env.content);
 });
+
+//
+// (function(){
+//
+// if (
+//    (typeof self === 'undefined' || !self.Prism) &&
+//    (typeof global === 'undefined' || !global.Prism)
+// ) {
+//    return;
+// }
+//
+// Prism.languages.apexlog = {
+//   'apex-id': /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/,
+//   'execute-anonymous': {
+//     pattern: /Execute Anonymous:[^\n]+/,
+//     alias: 'comment'
+//   },
+//   'cpu-time': {
+//     pattern: /\(\d+\)(?=\|)/,
+//     alias: 'comment'
+//   },
+//   'timestamp': {
+//     pattern: /^\d\d:\d\d:\d\d\.\d/m,
+//     alias: 'comment'
+//   },
+//   'user-debug': {
+//     pattern: /(\|USER_DEBUG\|\[\d+\]\|\w+\|)[^\u0011-\u0014]+[\u0011-\u0014]/,
+//     lookbehind: true,
+//     inside: {
+//       'json': {
+//         pattern: /[\s\S]+[\u0011-\u0012]/,
+//         inside: Prism.languages.json
+//       },
+//       'xml': {
+//         pattern: /[\s\S]+[\u0013-\u0014]/,
+//         inside: Prism.languages.markup
+//       }
+//     }
+//   },
+//   'soql': {
+//     pattern: /(\|SOQL_EXECUTE_BEGIN\|\[\d+]\|Aggregations:\d+\|)[^\n]+/,
+//     lookbehind: true,
+//     inside: Prism.languages.soql
+//   }
+// }
+//
+// Prism.languages.soql = {
+//   'string': {
+//     pattern: /(^|[^@\\])("|')(?:\\[\s\S]|(?!\2)[^\\])*\2/,
+//     greedy: true,
+//     lookbehind: true
+//   },
+//   'function': /\b(?:COUNT|SUM|AVG|MIN|MAX|FIRST|LAST|UCASE|LCASE|MID|LEN|ROUND|NOW|FORMAT)(?=\s*\()/i, // Should we highlight user defined functions too?
+//   'keyword': /\b(?:SELECT|TYPEOF|END|FROM|USING|SCOPE|WHERE|WITH|DATA|CATEGORY|GROUP|BY|ROLLUP|CUBE|HAVING|ORDER|BY|ASC|DESC|NULLS|FIRST|LAST|LIMIT|OFFSET|FOR|VIEW|REFERENCE|UPDATE|TRACKING|VIEWSTAT)\b/i,
+//   'boolean': /\b(?:TRUE|FALSE|NULL)\b/i,
+//   'number': /\b-?(?:0x)?\d*\.?[\da-f]+\b/,
+//   'operator': /[-+*\/=%^~]|&&?|\|\|?|!=?|<(?:=>?|<|>)?|>[>=]?|\b(?:AND|BETWEEN|IN|LIKE|NOT|OR|IS|DIV|REGEXP|RLIKE|SOUNDS LIKE|XOR)\b/i,
+//   'punctuation': /[;[\]()`,.]/
+// }
+//
+// const sfHost = 'na73.salesforce.com'
+//
+// Prism.hooks.add('wrap', (env) => {
+//   if (/^apex-id$/.test(env.type)) {
+//     env.tag = 'a'
+//     var id = env.content
+//     env.attributes.href = `https://${sfHost}/${id}`
+//   }
+// })
+//
+// })()
+
+
 
 })();

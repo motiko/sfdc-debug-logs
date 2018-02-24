@@ -13,6 +13,7 @@
     "test": "standard"
   },
   "dependencies": {
+    "idb-keyval": "^2.3.0",
     "material-ui": "^1.0.0-beta.24",
     "material-ui-icons": "^1.0.0-beta.17",
     "react": "^16.1.1",
