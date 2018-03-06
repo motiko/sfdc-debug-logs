@@ -3,7 +3,11 @@ import Button from 'material-ui/Button'
 import CheckBlankIcon from 'material-ui-icons/CheckBoxOutlineBlank'
 import { connect } from 'react-redux'
 import CheckIcon from 'material-ui-icons/CheckBox'
-import { startLogging, checkIsLogging, checkIsLoggingAndStart } from './actions'
+import {
+  startLogging,
+  checkIsLogging,
+  checkIsLoggingAndStart
+} from '../actions'
 
 class TrackingLogsComponent extends React.Component {
   componentDidMount() {
@@ -28,7 +32,7 @@ class TrackingLogsComponent extends React.Component {
   }
 }
 
-const mapStateToProps = state => ({ isLogging: state.logs.isLogging })
+const mapStateToProps = state => ({ isLogging: state.logsPage.isLogging })
 
 const mapDispatchToProps = dispatch => ({
   checkIsLoggingAndStart: () => dispatch(checkIsLoggingAndStart()),

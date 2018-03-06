@@ -14,11 +14,11 @@ import TextField from 'material-ui/TextField'
 import { CircularProgress } from 'material-ui/Progress'
 import IconButton from 'material-ui/IconButton'
 import { connect } from 'react-redux'
-import LogView from './log-view'
-import TrackingLogs from './tracking-logs'
-import Search from './search'
-import LogsTable from './logs-table'
-import FilterDialog from './filter-dialog'
+import LogView from './components/log-view'
+import TrackingLogs from './components/tracking-logs'
+import Search from './components/search'
+import LogsTable from './components/logs-table'
+import FilterDialog from './components/filter-dialog'
 import {
   loadLogs,
   setMessage,
@@ -28,9 +28,10 @@ import {
   updateMaxLogs,
   toggleFiltersDialog
 } from './actions'
+import { filterLogs } from './utils'
 
 const mapStateToProps = state => {
-  return state.logs
+  return state.logsPage
 }
 
 const mapDispatchToProps = dispatch => ({
@@ -179,7 +180,7 @@ class LogsPageRaw extends React.Component {
           <Route
             render={ownProps => (
               <LogsTable
-                logs={props.logs}
+                logs={filterLogs(props.logs, props.filtersDialog)}
                 refreshLogs={props.refresh}
                 {...ownProps}
               />

@@ -13,7 +13,7 @@ export function toggleSideLogs() {
 
 export function fetchLogBody(logId) {
   return async (dispatch, getState, sf) => {
-    const logBodies = getState().logs.logBodies
+    const logBodies = getState().logsPage.logBodies
     if (logBodies[logId]) {
       return
     }
@@ -41,7 +41,7 @@ export function loadLogs() {
   return (dispatch, getState, sf) => {
     dispatch({ type: 'FETCH_LOGS_INIT' })
     dispatch({ type: 'RESET_SEARCH' })
-    let maxLogs = getState().logs.maxLogs
+    let maxLogs = getState().logsPage.maxLogs
     if (!maxLogs || maxLogs < 1) {
       dispatch({ type: 'UPDATE_MAX_LOGS', maxLogs: 1 })
       maxLogs = 1
@@ -49,7 +49,7 @@ export function loadLogs() {
     return sf
       .requestLogs(maxLogs)
       .then(records => {
-        const oldLogs = getState().logs.logs
+        const oldLogs = getState().logsPage.logs
         const newLogs = { ...normalize(records), ...oldLogs } // preserving fetched bodies TODO: hold in different object
         const limitedLogs = normalize(Object.values(newLogs).slice(0, maxLogs))
         return dispatch({ type: 'FETCH_LOGS_DONE', logs: limitedLogs })

@@ -17,7 +17,7 @@ import { connect } from 'react-redux'
 import { toggleDialog, setReplyTo, sendMessage, loadMessages } from './actions'
 
 const mapStateToProps = state => {
-  return state.feedback
+  return state.feedbackPage
 }
 
 const mapDispatchToProps = dispatch => ({

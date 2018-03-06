@@ -4,8 +4,9 @@ import List, { ListItem, ListItemText } from 'material-ui/List'
 import Button from 'material-ui/Button'
 import CloseIcon from 'material-ui-icons/KeyboardArrowLeft'
 import OpenIcon from 'material-ui-icons/KeyboardArrowRight'
-import { fetchLogBody, toggleSideLogs } from './actions'
 import LogBody from './log-body.js'
+import { fetchLogBody, toggleSideLogs } from '../actions'
+import { filterLogs } from '../utils'
 
 class LogViewRaw extends React.Component {
   componentWillMount() {
@@ -71,7 +72,9 @@ class LogViewRaw extends React.Component {
           <List
             style={{ borderRightSize: '1px', width: '100%', paddingLeft: 15 }}
           >
-            {props.logs ? Object.values(props.logs).map(toListItem) : null}
+            {props.logs
+              ? filterLogs(Object.values(props.logs)).map(toListItem)
+              : null}
           </List>
         </div>
         <div
@@ -101,9 +104,10 @@ class LogViewRaw extends React.Component {
 }
 
 const mapStateToProps = state => ({
-  logs: state.logs.logs,
-  sideLogsOpen: state.logs.sideLogsOpen,
-  logBodies: state.logs.logBodies
+  logs: state.logsPage.logs,
+  sideLogsOpen: state.logsPage.sideLogsOpen,
+  logBodies: state.logsPage.logBodies,
+  filters: state.logsPage.filtersDialog
 })
 
 const mapDispatchToProps = dispatch => ({
