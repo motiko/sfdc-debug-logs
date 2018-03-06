@@ -11,7 +11,7 @@ import { FormControl, FormHelperText } from 'material-ui/Form'
 import Select from 'material-ui/Select'
 import Input, { InputLabel } from 'material-ui/Input'
 import { connect } from 'react-redux'
-import { toggleFiltersDialog } from './actions'
+import { toggleFiltersDialog, updateFilter, clearFilters } from './actions'
 import MenuItem from 'material-ui/Menu/MenuItem'
 import { withStyles } from 'material-ui/styles'
 
@@ -20,7 +20,10 @@ const mapStateToProps = state => {
 }
 
 const mapDispatchToProps = dispatch => ({
-  toggleFiltersDialog: () => dispatch(toggleFiltersDialog())
+  toggleFiltersDialog: () => dispatch(toggleFiltersDialog()),
+  updateFilter: fieldName => event =>
+    dispatch(updateFilter(fieldName, event.target.value)),
+  clearFilters: () => dispatch(clearFilters())
 })
 
 const styles = theme => ({
@@ -37,16 +40,15 @@ class FilterDialogRaw extends React.Component {
     let props = this.props
     const filterBy = (fieldName, fieldLabel) => (
       <TextField
-        id="select-field"
         select
         label={fieldLabel}
-        value={props.user}
-        onChange={() => {}}
+        value={props[fieldName]}
+        onChange={props.updateFilter(fieldName)}
         className={props.classes.textField}
         SelectProps={{
           MenuProps: {}
         }}
-        helperText="Please select"
+        helperText={`Only show logs when ${fieldLabel} is:`}
         margin="normal"
       >
         <MenuItem key="" value="">
@@ -77,11 +79,11 @@ class FilterDialogRaw extends React.Component {
             </form>
           </DialogContent>
           <DialogActions>
-            <Button onClick={props.handleClose} color="primary">
+            <Button onClick={props.clearFilters} color="primary">
               Clear filters
             </Button>
-            <Button onClick={props.handleClose} color="primary">
-              Apply
+            <Button onClick={props.toggleFiltersDialog} color="primary">
+              Close
             </Button>
           </DialogActions>
         </Dialog>

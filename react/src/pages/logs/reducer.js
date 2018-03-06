@@ -114,6 +114,19 @@ export default function logs(state = initalLogsState, action) {
         ...state,
         filtersDialogOpen: !state.filtersDialogOpen
       }
+    case 'UPDATE_FILTER':
+      return {
+        ...state,
+        filtersDialog: {
+          ...state.filtersDialog,
+          [action.filterName]: action.newValue
+        }
+      }
+    case 'CLEAR_FILTERS':
+      return {
+        ...state,
+        filtersDialog: initalLogsState.filtersDialog
+      }
     default:
       return state
   }
