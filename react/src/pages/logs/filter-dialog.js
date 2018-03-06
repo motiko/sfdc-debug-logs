@@ -16,7 +16,7 @@ import MenuItem from 'material-ui/Menu/MenuItem'
 import { withStyles } from 'material-ui/styles'
 
 const mapStateToProps = state => {
-  return state.logs.filters
+  return state.logs.filtersDialog
 }
 
 const mapDispatchToProps = dispatch => ({
@@ -32,8 +32,33 @@ const styles = theme => ({
 })
 
 class FilterDialogRaw extends React.Component {
+  filterBy() {}
   render() {
     let props = this.props
+    const filterBy = (fieldName, fieldLabel) => (
+      <TextField
+        id="select-field"
+        select
+        label={fieldLabel}
+        value={props.user}
+        onChange={() => {}}
+        className={props.classes.textField}
+        SelectProps={{
+          MenuProps: {}
+        }}
+        helperText="Please select"
+        margin="normal"
+      >
+        <MenuItem key="" value="">
+          All
+        </MenuItem>
+        {props.possibleFieldValues[fieldName].map(value => (
+          <MenuItem key={value} value={value}>
+            {value}
+          </MenuItem>
+        ))}
+      </TextField>
+    )
     return (
       <div>
         <Dialog
@@ -46,31 +71,9 @@ class FilterDialogRaw extends React.Component {
           <DialogContent>
             <DialogContentText>Pick Fields to filter by:</DialogContentText>
             <form>
-              <TextField
-                id="select-field"
-                select
-                label="Select"
-                value={1}
-                onChange={() => {}}
-                className={props.classes.textField}
-                SelectProps={{
-                  MenuProps: {}
-                }}
-                helperText="Please select your currency"
-                margin="normal"
-              >
-                {[
-                  {
-                    value: 1,
-                    label: 'qwe'
-                  }
-                ].map(option => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField margin="normal" id="name" label="User" />
+              {filterBy('user', 'User')}
+              {filterBy('operation', 'Operation')}
+              {filterBy('status', 'Status')}
             </form>
           </DialogContent>
           <DialogActions>

@@ -66,6 +66,30 @@ class LogsPageRaw extends React.Component {
     })
   }
 
+  possibleFieldValues() {
+    const unique = (value, index, array) => {
+      return array.indexOf(value) === index
+    }
+    const logs = this.props.logs
+    const allValues = Object.values(logs).reduce(
+      (acc, cur) => ({
+        operation: [...acc.operation, cur.Operation],
+        status: [...acc.status, cur.Status],
+        user: [...acc.user, cur.LogUser.Name]
+      }),
+      {
+        operation: [],
+        status: [],
+        user: []
+      }
+    )
+    return {
+      operation: allValues.operation.filter(unique),
+      status: allValues.status.filter(unique),
+      user: allValues.user.filter(unique)
+    }
+  }
+
   render() {
     const props = this.props
     return (
@@ -116,7 +140,10 @@ class LogsPageRaw extends React.Component {
                   </Grid>
                 </Grid>
               </Grid>
-              <FilterDialog open={props.filtersDialogOpen} />
+              <FilterDialog
+                open={props.filtersDialogOpen}
+                possibleFieldValues={this.possibleFieldValues()}
+              />
               <Grid item>
                 <TextField
                   value={props.maxLogs}

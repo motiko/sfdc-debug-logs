@@ -6,8 +6,12 @@ const initalLogsState = {
   sideLogsOpen: true,
   searchTerm: '',
   maxLogs: 50,
-  filtersDialogOpen: false,
-  filters: {}
+  filtersDialogOpen: true,
+  filtersDialog: {
+    user: '',
+    operation: '',
+    status: ''
+  }
 }
 
 export default function logs(state = initalLogsState, action) {
