@@ -180,7 +180,7 @@ class LogsPageRaw extends React.Component {
           <Route
             render={ownProps => (
               <LogsTable
-                logs={filterLogs(props.logs, props.filtersDialog)}
+                logs={filterLogs(props.logs, props.filters)}
                 refreshLogs={props.refresh}
                 {...ownProps}
               />

@@ -7,7 +7,7 @@ const initalLogsState = {
   searchTerm: '',
   maxLogs: 50,
   filtersDialogOpen: true,
-  filtersDialog: {
+  filters: {
     user: '',
     operation: '',
     status: ''
@@ -117,15 +117,15 @@ export default function logs(state = initalLogsState, action) {
     case 'UPDATE_FILTER':
       return {
         ...state,
-        filtersDialog: {
-          ...state.filtersDialog,
+        filters: {
+          ...state.filters,
           [action.filterName]: action.newValue
         }
       }
     case 'CLEAR_FILTERS':
       return {
         ...state,
-        filtersDialog: initalLogsState.filtersDialog
+        filters: initalLogsState.filters
       }
     default:
       return state

@@ -79,9 +79,9 @@ export function deleteAll() {
 export function search(searchTerm) {
   return async (dispatch, getState, sf) => {
     dispatch({ type: 'SEARCH_INIT' })
-    const logsState = getState().logs
-    const logs = logsState.logs
-    let logBodies = logsState.logBodies
+    const logsPage = getState().logsPage
+    const logs = logsPage.logs
+    let logBodies = logsPage.logBodies
     const fillbodiesFrom = fillFun => {
       const logIdsWithoutBodies = Object.keys(logs).filter(
         id => Object.keys(logBodies).indexOf(id) == -1

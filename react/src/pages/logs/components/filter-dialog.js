@@ -16,7 +16,7 @@ import { withStyles } from 'material-ui/styles'
 import { toggleFiltersDialog, updateFilter, clearFilters } from '../actions'
 
 const mapStateToProps = state => {
-  return state.logsPage.filtersDialog
+  return state.logsPage.filters
 }
 
 const mapDispatchToProps = dispatch => ({
