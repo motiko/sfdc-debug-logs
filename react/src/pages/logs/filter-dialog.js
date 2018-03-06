@@ -39,15 +39,16 @@ class FilterDialogRaw extends React.Component {
         <Dialog
           open={props.open}
           onClose={props.toggleFiltersDialog}
-          fullWidth={true}
-          aria-labelledby="form-dialog-title">
+          fullWidth
+          aria-labelledby="form-dialog-title"
+        >
           <DialogTitle id="form-dialog-title">Filters</DialogTitle>
           <DialogContent>
             <DialogContentText>Pick Fields to filter by:</DialogContentText>
             <form>
               <TextField
                 id="select-field"
-                select={true}
+                select
                 label="Select"
                 value={1}
                 onChange={() => {}}
@@ -56,7 +57,8 @@ class FilterDialogRaw extends React.Component {
                   MenuProps: {}
                 }}
                 helperText="Please select your currency"
-                margin="normal">
+                margin="normal"
+              >
                 {[
                   {
                     value: 1,
