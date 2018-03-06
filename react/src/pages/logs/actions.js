@@ -130,3 +130,7 @@ export function updateSearchTerm (newTerm) {
 export function updateMaxLogs (maxLogs) {
   return {type: 'UPDATE_MAX_LOGS', maxLogs}
 }
+
+export function toggleFiltersDialog () {
+  return {type: 'TOGGLE_FILTERS_DIALOG'}
+}

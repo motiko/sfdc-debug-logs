@@ -7,7 +7,8 @@
   "main": "",
   "private": true,
   "scripts": {
-    "watch": "watchify -t [ babelify --presets [ env react ] --plugins [ transform-object-rest-spread ] ] src/*.js -o '| tee ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js > /dev/null'",
+    "watch":
+      "watchify -t [ babelify --presets [ env react ] --plugins [ transform-object-rest-spread ] ] src/*.js -o '| tee ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js > /dev/null'",
     "clean": "rm ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js",
     "react-devtools": "react-devtools",
     "test": "standard"
@@ -31,7 +32,7 @@
     "babel-preset-env": "^1.6.1",
     "babel-preset-react": "^6.24.1",
     "babelify": "^8.0.0",
-    "reactify": "^1.1.1",
-    "standard": "^10.0.3"
+    "prettier": "^1.11.1",
+    "reactify": "^1.1.1"
   }
 }

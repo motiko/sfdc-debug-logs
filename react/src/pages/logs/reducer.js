@@ -6,7 +6,9 @@ const initalLogsState = {
   message: '',
   sideLogsOpen: true,
   searchTerm: '',
-  maxLogs: 50
+  maxLogs: 50,
+  filtersDialogOpen: false,
+  filters: {}
 }
 
 export default function logs (state = initalLogsState, action) {
@@ -98,6 +100,11 @@ export default function logs (state = initalLogsState, action) {
         ...state,
         loading: false,
         logBodies: { ...state.logBodies, [action.logId]: action.logBody}
+      }
+    case 'TOGGLE_FILTERS_DIALOG':
+      return {
+        ...state,
+        filtersDialogOpen: !state.filtersDialogOpen
       }
     default:
       return state

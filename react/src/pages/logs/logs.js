@@ -9,6 +9,7 @@ import AppBar from 'material-ui/AppBar'
 import Grid from 'material-ui/Grid'
 import RefreshIcon from 'material-ui-icons/Autorenew'
 import DeleteIcon from 'material-ui-icons/DeleteForever'
+import FilterList from 'material-ui-icons/FilterList'
 import TextField from 'material-ui/TextField'
 import { CircularProgress } from 'material-ui/Progress'
 import IconButton from 'material-ui/IconButton'
@@ -17,7 +18,8 @@ import LogView from './log-view'
 import TrackingLogs from './tracking-logs'
 import Search from './search'
 import LogsTable from './logs-table'
-import { loadLogs, setMessage, deleteAll, search, updateSearchTerm, updateMaxLogs } from './actions'
+import FilterDialog from './filter-dialog'
+import { loadLogs, setMessage, deleteAll, search, updateSearchTerm, updateMaxLogs, toggleFiltersDialog } from './actions'
 
 const mapStateToProps = (state) => {
   return state.logs
@@ -29,7 +31,8 @@ const mapDispatchToProps = (dispatch) => ({
   deleteAll: () => dispatch(deleteAll()),
   search: (searchTerm) => dispatch(search(searchTerm)),
   updateSearchTerm: (newTerm) => dispatch(updateSearchTerm(newTerm)),
-  updateMaxLogs: (newMaxLogs) => dispatch(updateMaxLogs(newMaxLogs))
+  updateMaxLogs: (newMaxLogs) => dispatch(updateMaxLogs(newMaxLogs)),
+  toggleFiltersDialog: () => dispatch(toggleFiltersDialog())
 })
 
 class LogsPageRaw extends React.Component {
@@ -71,6 +74,9 @@ class LogsPageRaw extends React.Component {
                 </Grid>
                 <Grid item>
                   <div>
+                    <IconButton color='contrast' onClick={props.toggleFiltersDialog} >
+                      <FilterList />
+                    </IconButton>
                     <IconButton color='contrast' onClick={props.refresh} >
                       <RefreshIcon />
                     </IconButton>
@@ -82,6 +88,7 @@ class LogsPageRaw extends React.Component {
                 </Grid>
               </Grid>
             </Grid>
+            <FilterDialog open={props.filtersDialogOpen} />
             <Grid item>
               <TextField value={props.maxLogs} type='number' onChange={(e) => props.updateMaxLogs(e.target.value)} label='Max Logs' placeholder='1' style={{width: '6em', marginBottom: 2}} onBlur={props.refresh} />
               <Link to='/feedback'>
