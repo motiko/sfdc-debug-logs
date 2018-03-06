@@ -1,7 +1,7 @@
-import React from "react"
-import TextField from "material-ui/TextField"
-import SearchIcon from "material-ui-icons/Search"
-import IconButton from "material-ui/IconButton"
+import React from 'react'
+import TextField from 'material-ui/TextField'
+import SearchIcon from 'material-ui-icons/Search'
+import IconButton from 'material-ui/IconButton'
 
 export default function Search(props) {
   function handleKey(e) {
@@ -10,7 +10,7 @@ export default function Search(props) {
     }
     if (e.keyCode === 27) {
       props.handleRefresh()
-      props.updateSearchTerm("")
+      props.updateSearchTerm('')
     }
   }
 

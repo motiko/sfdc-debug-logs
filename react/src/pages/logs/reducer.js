@@ -2,9 +2,9 @@ const initalLogsState = {
   logs: {},
   logBodies: {},
   loading: false,
-  message: "",
+  message: '',
   sideLogsOpen: true,
-  searchTerm: "",
+  searchTerm: '',
   maxLogs: 50,
   filtersDialogOpen: false,
   filters: {}
@@ -12,7 +12,7 @@ const initalLogsState = {
 
 export default function logs(state = initalLogsState, action) {
   switch (action.type) {
-    case "RESET_SEARCH":
+    case 'RESET_SEARCH':
       return {
         ...state,
         logs: Object.values(state.logs).reduce(
@@ -22,24 +22,24 @@ export default function logs(state = initalLogsState, action) {
           }),
           {}
         ),
-        searchTerm: ""
+        searchTerm: ''
       }
-    case "UPDATE_MAX_LOGS":
+    case 'UPDATE_MAX_LOGS':
       return {
         ...state,
         maxLogs: action.maxLogs
       }
-    case "UPDATE_SEARCH_TERM":
+    case 'UPDATE_SEARCH_TERM':
       return {
         ...state,
         searchTerm: action.searchTerm
       }
-    case "TOGGLE_SIDE_LOGS":
+    case 'TOGGLE_SIDE_LOGS':
       return {
         ...state,
         sideLogsOpen: !state.sideLogsOpen
       }
-    case "FETCH_LOGS_DONE":
+    case 'FETCH_LOGS_DONE':
       return {
         ...state,
         loading: false,
@@ -47,41 +47,41 @@ export default function logs(state = initalLogsState, action) {
         logs: action.logs,
         message: `Loaded ${Object.keys(action.logs).length} logs`
       }
-    case "FETCH_LOGS_INIT":
+    case 'FETCH_LOGS_INIT':
       return {
         ...state,
         loading: true
       }
-    case "FETCH_LOGS_ERROR":
+    case 'FETCH_LOGS_ERROR':
       return {
         ...state,
         loading: false,
         message: action.message
       }
-    case "MESSAGE":
+    case 'MESSAGE':
       return {
         ...state,
         message: action.message
       }
-    case "DELETE_LOGS_INIT":
+    case 'DELETE_LOGS_INIT':
       return {
         ...state,
         loading: true,
         logs: [],
-        searchTerm: ""
+        searchTerm: ''
       }
-    case "DELETE_LOGS_DONE":
+    case 'DELETE_LOGS_DONE':
       return {
         ...state,
-        message: "Removed logs from salesforce",
+        message: 'Removed logs from salesforce',
         loading: false
       }
-    case "SEARCH_INIT":
+    case 'SEARCH_INIT':
       return {
         ...state,
         loading: true
       }
-    case "SEARCH_DONE":
+    case 'SEARCH_DONE':
       return {
         ...state,
         loading: false,
@@ -89,23 +89,23 @@ export default function logs(state = initalLogsState, action) {
         logs: action.logs,
         logBodies: action.logBodies
       }
-    case "SET_LOGGING":
+    case 'SET_LOGGING':
       return {
         ...state,
         isLogging: action.isLogging
       }
-    case "FETCH_LOG_BODY_INIT":
+    case 'FETCH_LOG_BODY_INIT':
       return {
         ...state,
         loading: true
       }
-    case "FETCH_LOG_BODY_DONE":
+    case 'FETCH_LOG_BODY_DONE':
       return {
         ...state,
         loading: false,
         logBodies: { ...state.logBodies, [action.logId]: action.logBody }
       }
-    case "TOGGLE_FILTERS_DIALOG":
+    case 'TOGGLE_FILTERS_DIALOG':
       return {
         ...state,
         filtersDialogOpen: !state.filtersDialogOpen

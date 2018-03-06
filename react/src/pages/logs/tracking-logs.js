@@ -1,9 +1,9 @@
-import React from "react"
-import Button from "material-ui/Button"
-import CheckBlankIcon from "material-ui-icons/CheckBoxOutlineBlank"
-import { connect } from "react-redux"
-import CheckIcon from "material-ui-icons/CheckBox"
-import { startLogging, checkIsLogging, checkIsLoggingAndStart } from "./actions"
+import React from 'react'
+import Button from 'material-ui/Button'
+import CheckBlankIcon from 'material-ui-icons/CheckBoxOutlineBlank'
+import { connect } from 'react-redux'
+import CheckIcon from 'material-ui-icons/CheckBox'
+import { startLogging, checkIsLogging, checkIsLoggingAndStart } from './actions'
 
 class TrackingLogsComponent extends React.Component {
   componentDidMount() {
@@ -14,14 +14,14 @@ class TrackingLogsComponent extends React.Component {
     if (this.props.isLogging) {
       return (
         <Button disabled>
-          {" "}
-          <CheckIcon /> Logging Activity{" "}
+          {' '}
+          <CheckIcon /> Logging Activity{' '}
         </Button>
       )
     }
     return (
       <Button onClick={this.props.startLogging}>
-        {" "}
+        {' '}
         <CheckBlankIcon /> Start Logging
       </Button>
     )

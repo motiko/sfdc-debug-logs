@@ -1,13 +1,13 @@
-import React from "react"
-import ReplyIcon from "material-ui-icons/Reply"
-import Button from "material-ui/Button"
-import TextField from "material-ui/TextField"
-import { DialogActions } from "material-ui/Dialog"
+import React from 'react'
+import ReplyIcon from 'material-ui-icons/Reply'
+import Button from 'material-ui/Button'
+import TextField from 'material-ui/TextField'
+import { DialogActions } from 'material-ui/Dialog'
 
 export default class MessageEdit extends React.Component {
   constructor(props) {
     super(props)
-    this.state = { name: "", body: "", error: "" }
+    this.state = { name: '', body: '', error: '' }
     this.handleSubmit = this.handleSubmit.bind(this)
   }
 
@@ -22,7 +22,7 @@ export default class MessageEdit extends React.Component {
   }
 
   componentWillMount() {
-    this.setState({ name: "", body: "", error: "" })
+    this.setState({ name: '', body: '', error: '' })
   }
 
   handleBodyChange(e) {
@@ -34,9 +34,9 @@ export default class MessageEdit extends React.Component {
   }
 
   handleSubmit() {
-    if (this.state.body.trim() === "" || this.state.body.length < 5) {
+    if (this.state.body.trim() === '' || this.state.body.length < 5) {
       this.setState({
-        error: "This field is required (at least 5 characters)"
+        error: 'This field is required (at least 5 characters)'
       })
       return
     }

@@ -1,20 +1,20 @@
-const BASE_URL = "https://adbg.herokuapp.com"
+const BASE_URL = 'https://adbg.herokuapp.com'
 
 export function toggleDialog() {
-  return { type: "TOGGLE_DIALOG" }
+  return { type: 'TOGGLE_DIALOG' }
 }
 
 export function setReplyTo(msg) {
-  return { type: "REPLY_TO", replyTo: msg }
+  return { type: 'REPLY_TO', replyTo: msg }
 }
 
 export function sendMessage(message, replyToId) {
   return dispatch => {
     const options = {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(message),
       headers: {
-        "Content-Type": "application/json"
+        'Content-Type': 'application/json'
       }
     }
     const afterSent = response => {
@@ -35,6 +35,6 @@ export function loadMessages() {
       .fetch(`${BASE_URL}/messages`)
       .then(r => r.json())
       .then(messages => messages.reverse())
-      .then(messages => dispatch({ type: "FETCH_MESSAGES_RESPONSE", messages }))
+      .then(messages => dispatch({ type: 'FETCH_MESSAGES_RESPONSE', messages }))
   }
 }

@@ -1,5 +1,5 @@
-import React from "react"
-import { parseLog, addExpansionButtons } from "./parse-log"
+import React from 'react'
+import { parseLog, addExpansionButtons } from './parse-log'
 
 export default class LogBody extends React.Component {
   componentDidUpdate(oldProps) {
@@ -21,7 +21,7 @@ export default class LogBody extends React.Component {
     const body = this.props.body
     return (
       <pre
-        style={{ paddingLeft: "25px" }}
+        style={{ paddingLeft: '25px' }}
         dangerouslySetInnerHTML={parseLog(body)}
       />
     )

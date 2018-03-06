@@ -1,5 +1,5 @@
-import regeneratorRuntime from "regenerator-runtime" // eslint-disable-line
-import idbKeyval from "idb-keyval"
+import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
+import idbKeyval from 'idb-keyval'
 
 const normalize = logsArray => {
   return logsArray.reduce((acc, cur) => {
@@ -8,7 +8,7 @@ const normalize = logsArray => {
 }
 
 export function toggleSideLogs() {
-  return { type: "TOGGLE_SIDE_LOGS" }
+  return { type: 'TOGGLE_SIDE_LOGS' }
 }
 
 export function fetchLogBody(logId) {
@@ -17,20 +17,20 @@ export function fetchLogBody(logId) {
     if (logBodies[logId]) {
       return
     }
-    dispatch({ type: "FETCH_LOG_BODY_INIT" })
+    dispatch({ type: 'FETCH_LOG_BODY_INIT' })
     const body = await idbKeyval.get(logId)
     if (body) {
-      return dispatch({ type: "FETCH_LOG_BODY_DONE", logId, logBody: body })
+      return dispatch({ type: 'FETCH_LOG_BODY_DONE', logId, logBody: body })
     }
     return sf
       .logBody(logId)
       .then(body => {
-        dispatch({ type: "FETCH_LOG_BODY_DONE", logId, logBody: body })
+        dispatch({ type: 'FETCH_LOG_BODY_DONE', logId, logBody: body })
         idbKeyval.set(logId, body)
       })
       .catch(err => {
         return dispatch({
-          type: "FETCH_LOGS_ERROR",
+          type: 'FETCH_LOGS_ERROR',
           message: `Error occured: ${err.message}`
         })
       })
@@ -39,11 +39,11 @@ export function fetchLogBody(logId) {
 
 export function loadLogs() {
   return (dispatch, getState, sf) => {
-    dispatch({ type: "FETCH_LOGS_INIT" })
-    dispatch({ type: "RESET_SEARCH" })
+    dispatch({ type: 'FETCH_LOGS_INIT' })
+    dispatch({ type: 'RESET_SEARCH' })
     let maxLogs = getState().logs.maxLogs
     if (!maxLogs || maxLogs < 1) {
-      dispatch({ type: "UPDATE_MAX_LOGS", maxLogs: 1 })
+      dispatch({ type: 'UPDATE_MAX_LOGS', maxLogs: 1 })
       maxLogs = 1
     }
     return sf
@@ -52,11 +52,11 @@ export function loadLogs() {
         const oldLogs = getState().logs.logs
         const newLogs = { ...normalize(records), ...oldLogs } // preserving fetched bodies TODO: hold in different object
         const limitedLogs = normalize(Object.values(newLogs).slice(0, maxLogs))
-        return dispatch({ type: "FETCH_LOGS_DONE", logs: limitedLogs })
+        return dispatch({ type: 'FETCH_LOGS_DONE', logs: limitedLogs })
       })
       .catch(err => {
         return dispatch({
-          type: "FETCH_LOGS_ERROR",
+          type: 'FETCH_LOGS_ERROR',
           message: `Error occured: ${err.message}`
         })
       })
@@ -64,21 +64,21 @@ export function loadLogs() {
 }
 
 export function setMessage(message) {
-  return { type: "MESSAGE", message }
+  return { type: 'MESSAGE', message }
 }
 
 export function deleteAll() {
   return (dispatch, getState, sf) => {
-    dispatch({ type: "DELETE_LOGS_INIT" })
+    dispatch({ type: 'DELETE_LOGS_INIT' })
     sf.deleteAll().then(() => {
-      dispatch({ type: "DELETE_LOGS_DONE" })
+      dispatch({ type: 'DELETE_LOGS_DONE' })
     })
   }
 }
 
 export function search(searchTerm) {
   return async (dispatch, getState, sf) => {
-    dispatch({ type: "SEARCH_INIT" })
+    dispatch({ type: 'SEARCH_INIT' })
     const logsState = getState().logs
     const logs = logsState.logs
     let logBodies = logsState.logBodies
@@ -90,8 +90,8 @@ export function search(searchTerm) {
       return Promise.all(promises)
     }
     const escapeRegExp = str =>
-      str.replace(/[-[]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&")
-    const searchRegex = new RegExp(escapeRegExp(searchTerm), "gi")
+      str.replace(/[-[]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&')
+    const searchRegex = new RegExp(escapeRegExp(searchTerm), 'gi')
     await fillbodiesFrom(id =>
       idbKeyval.get(id).then(body => {
         if (body) logBodies[id] = body
@@ -115,7 +115,7 @@ export function search(searchTerm) {
     )
     const foundIds = Object.values(newLogs).filter(r => !r.not_matches_search)
     dispatch({
-      type: "SEARCH_DONE",
+      type: 'SEARCH_DONE',
       logs: newLogs,
       num: foundIds.length,
       logBodies
@@ -127,7 +127,7 @@ export function checkIsLogging() {
   return (dispatch, getState, sf) => {
     return sf
       .isLogging()
-      .then(isLogging => dispatch({ type: "SET_LOGGING", isLogging }))
+      .then(isLogging => dispatch({ type: 'SET_LOGGING', isLogging }))
   }
 }
 
@@ -135,7 +135,7 @@ export function startLogging() {
   return (dispatch, getState, sf) => {
     sf.startLogging().then(res => {
       if (res && res.success) {
-        dispatch({ type: "SET_LOGGING", isLogging: true })
+        dispatch({ type: 'SET_LOGGING', isLogging: true })
       } else {
         dispatch(checkIsLogging())
       }
@@ -152,13 +152,13 @@ export function checkIsLoggingAndStart() {
 }
 
 export function updateSearchTerm(newTerm) {
-  return { type: "UPDATE_SEARCH_TERM", searchTerm: newTerm }
+  return { type: 'UPDATE_SEARCH_TERM', searchTerm: newTerm }
 }
 
 export function updateMaxLogs(maxLogs) {
-  return { type: "UPDATE_MAX_LOGS", maxLogs }
+  return { type: 'UPDATE_MAX_LOGS', maxLogs }
 }
 
 export function toggleFiltersDialog() {
-  return { type: "TOGGLE_FILTERS_DIALOG" }
+  return { type: 'TOGGLE_FILTERS_DIALOG' }
 }

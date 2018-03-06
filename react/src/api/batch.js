@@ -8,15 +8,15 @@ export default class Batch {
       object: objectName,
       operation: operation
     }
-    return this.request("/services/data/v41.0/jobs/ingest", "POST", {}, job)
+    return this.request('/services/data/v41.0/jobs/ingest', 'POST', {}, job)
   }
 
   closeJob(jobId) {
     return this.request(
       `/services/data/v41.0/jobs/ingest/${jobId}`,
-      "PATCH",
+      'PATCH',
       {},
-      { state: "UploadComplete" }
+      { state: 'UploadComplete' }
     )
   }
 
@@ -29,11 +29,11 @@ export default class Batch {
     return new Promise(function(resolve, reject) {
       var intervalId = setInterval(() => {
         that.checkJobStatus(jobId).then(function({ state }) {
-          if (state === "JobComplete") {
+          if (state === 'JobComplete') {
             clearInterval(intervalId)
             resolve(state)
           }
-          if (state === "Failed" || state === "Not Processed") {
+          if (state === 'Failed' || state === 'Not Processed') {
             clearInterval(intervalId)
             reject(state)
           }
@@ -45,9 +45,9 @@ export default class Batch {
   attachBatchToJob(job, csv) {
     return this.request(
       `/${job.contentUrl}`,
-      "PUT",
+      'PUT',
       {
-        "Content-Type": "text/csv"
+        'Content-Type': 'text/csv'
       },
       csv
     )

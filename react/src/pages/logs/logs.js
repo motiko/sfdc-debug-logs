@@ -1,24 +1,24 @@
-import React from "react"
-import Snackbar from "material-ui/Snackbar"
-import ChatIcon from "material-ui-icons/Chat"
-import HomeIcon from "material-ui-icons/Home"
-import Button from "material-ui/Button"
-import { Link, Route, Switch } from "react-router-dom"
-import Toolbar from "material-ui/Toolbar"
-import AppBar from "material-ui/AppBar"
-import Grid from "material-ui/Grid"
-import RefreshIcon from "material-ui-icons/Autorenew"
-import DeleteIcon from "material-ui-icons/DeleteForever"
-import FilterList from "material-ui-icons/FilterList"
-import TextField from "material-ui/TextField"
-import { CircularProgress } from "material-ui/Progress"
-import IconButton from "material-ui/IconButton"
-import { connect } from "react-redux"
-import LogView from "./log-view"
-import TrackingLogs from "./tracking-logs"
-import Search from "./search"
-import LogsTable from "./logs-table"
-import FilterDialog from "./filter-dialog"
+import React from 'react'
+import Snackbar from 'material-ui/Snackbar'
+import ChatIcon from 'material-ui-icons/Chat'
+import HomeIcon from 'material-ui-icons/Home'
+import Button from 'material-ui/Button'
+import { Link, Route, Switch } from 'react-router-dom'
+import Toolbar from 'material-ui/Toolbar'
+import AppBar from 'material-ui/AppBar'
+import Grid from 'material-ui/Grid'
+import RefreshIcon from 'material-ui-icons/Autorenew'
+import DeleteIcon from 'material-ui-icons/DeleteForever'
+import FilterList from 'material-ui-icons/FilterList'
+import TextField from 'material-ui/TextField'
+import { CircularProgress } from 'material-ui/Progress'
+import IconButton from 'material-ui/IconButton'
+import { connect } from 'react-redux'
+import LogView from './log-view'
+import TrackingLogs from './tracking-logs'
+import Search from './search'
+import LogsTable from './logs-table'
+import FilterDialog from './filter-dialog'
 import {
   loadLogs,
   setMessage,
@@ -27,7 +27,7 @@ import {
   updateSearchTerm,
   updateMaxLogs,
   toggleFiltersDialog
-} from "./actions"
+} from './actions'
 
 const mapStateToProps = state => {
   return state.logs
@@ -51,8 +51,8 @@ class LogsPageRaw extends React.Component {
   componentDidMount() {
     const props = this.props
     props.refresh()
-    document.body.addEventListener("keyup", e => {
-      if (e.target.type === "text") {
+    document.body.addEventListener('keyup', e => {
+      if (e.target.type === 'text') {
         return
       }
       const key = e.key
@@ -72,9 +72,9 @@ class LogsPageRaw extends React.Component {
       <Grid
         container
         direction="column"
-        style={{ paddingTop: "64px", overflow: "hidden" }}
+        style={{ paddingTop: '64px', overflow: 'hidden' }}
       >
-        <AppBar position="fixed" style={{ height: "64px" }}>
+        <AppBar position="fixed" style={{ height: '64px' }}>
           <Toolbar>
             <Grid container direction="row" justify="space-between">
               <Grid item xs={12} sm={6}>
@@ -110,7 +110,7 @@ class LogsPageRaw extends React.Component {
                         <DeleteIcon />
                       </IconButton>
                       {props.loading ? (
-                        <CircularProgress style={{ color: "white" }} />
+                        <CircularProgress style={{ color: 'white' }} />
                       ) : null}
                     </div>
                   </Grid>
@@ -124,7 +124,7 @@ class LogsPageRaw extends React.Component {
                   onChange={e => props.updateMaxLogs(e.target.value)}
                   label="Max Logs"
                   placeholder="1"
-                  style={{ width: "6em", marginBottom: 2 }}
+                  style={{ width: '6em', marginBottom: 2 }}
                   onBlur={props.refresh}
                 />
                 <Link to="/feedback">
@@ -138,9 +138,9 @@ class LogsPageRaw extends React.Component {
             </Grid>
           </Toolbar>
           <Snackbar
-            open={props.message !== ""}
+            open={props.message !== ''}
             autoHideDuration={1000}
-            onClose={() => props.setMessage("")}
+            onClose={() => props.setMessage('')}
             message={props.message}
           />
         </AppBar>

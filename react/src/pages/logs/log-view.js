@@ -1,11 +1,11 @@
-import React from "react"
-import { connect } from "react-redux"
-import List, { ListItem, ListItemText } from "material-ui/List"
-import Button from "material-ui/Button"
-import CloseIcon from "material-ui-icons/KeyboardArrowLeft"
-import OpenIcon from "material-ui-icons/KeyboardArrowRight"
-import { fetchLogBody, toggleSideLogs } from "./actions"
-import LogBody from "./log-body.js"
+import React from 'react'
+import { connect } from 'react-redux'
+import List, { ListItem, ListItemText } from 'material-ui/List'
+import Button from 'material-ui/Button'
+import CloseIcon from 'material-ui-icons/KeyboardArrowLeft'
+import OpenIcon from 'material-ui-icons/KeyboardArrowRight'
+import { fetchLogBody, toggleSideLogs } from './actions'
+import LogBody from './log-body.js'
 
 class LogViewRaw extends React.Component {
   componentWillMount() {
@@ -13,17 +13,17 @@ class LogViewRaw extends React.Component {
   }
 
   getBody(id) {
-    return this.props.logBodies[id] ? this.props.logBodies[id] : ""
+    return this.props.logBodies[id] ? this.props.logBodies[id] : ''
   }
 
   render() {
-    const timeFormatter = Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
+    const timeFormatter = Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
       hour12: false
     })
     const props = this.props
@@ -45,7 +45,7 @@ class LogViewRaw extends React.Component {
             if (!isCurLog) openLog(log.Id)
           }}
           key={log.Id}
-          style={isCurLog ? { boxShadow: "-4px 0 gray" } : {}}
+          style={isCurLog ? { boxShadow: '-4px 0 gray' } : {}}
         >
           <ListItemText
             primary={`${dateStr}    ${log.DurationMilliseconds}ms`}
@@ -59,37 +59,37 @@ class LogViewRaw extends React.Component {
         <div
           style={{
             paddingLeft: 0,
-            position: "fixed",
+            position: 'fixed',
             left: 0,
             top: 64,
             bottom: 0,
-            overflowY: "scroll",
-            overflowX: "hidden",
-            width: sideLogsOpen ? "20%" : "0%"
+            overflowY: 'scroll',
+            overflowX: 'hidden',
+            width: sideLogsOpen ? '20%' : '0%'
           }}
         >
           <List
-            style={{ borderRightSize: "1px", width: "100%", paddingLeft: 15 }}
+            style={{ borderRightSize: '1px', width: '100%', paddingLeft: 15 }}
           >
             {props.logs ? Object.values(props.logs).map(toListItem) : null}
           </List>
         </div>
         <div
           style={{
-            overflowY: "scroll",
-            position: "fixed",
+            overflowY: 'scroll',
+            position: 'fixed',
             right: 0,
             top: 64,
             bottom: 0,
-            backgroundColor: "#292724",
-            width: sideLogsOpen ? "80%" : "100%"
+            backgroundColor: '#292724',
+            width: sideLogsOpen ? '80%' : '100%'
           }}
         >
           <Button
             fab
             mini
             onClick={props.toggleSideLogs}
-            style={{ position: "fixed", left: "-15px", top: "64px" }}
+            style={{ position: 'fixed', left: '-15px', top: '64px' }}
           >
             {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
           </Button>

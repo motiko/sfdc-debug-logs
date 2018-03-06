@@ -1,7 +1,7 @@
-import regeneratorRuntime from "regenerator-runtime" // eslint-disable-line
-import initRequest from "./request"
-import Tooling from "./tooling"
-import Batch from "./batch"
+import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
+import initRequest from './request'
+import Tooling from './tooling'
+import Batch from './batch'
 
 export default class SF {
   constructor(host, sid) {
@@ -24,10 +24,10 @@ ORDER BY LastModifiedDate DESC LIMIT ${numLimit}`
   }
 
   async deleteAll() {
-    let logs = await this.tooling.query("Select Id From ApexLog")
+    let logs = await this.tooling.query('Select Id From ApexLog')
     let logIds = logs.records.map(r => r.Id)
     let logIdsCsv = logIds.reduce((acc, id) => `${acc}\n"${id}"`, `"Id"`)
-    let job = await this.batch.createJob("ApexLog", "delete")
+    let job = await this.batch.createJob('ApexLog', 'delete')
     await this.batch.attachBatchToJob(job, logIdsCsv)
     await this.batch.closeJob(job.id)
     return this.batch.pollJobStatus(job.id)
@@ -46,7 +46,7 @@ ORDER BY LastModifiedDate DESC LIMIT ${numLimit}`
   }
 
   getUserId() {
-    return this.request("/services/data/v24.0/chatter/users/me").then(
+    return this.request('/services/data/v24.0/chatter/users/me').then(
       me => me.id
     )
   }

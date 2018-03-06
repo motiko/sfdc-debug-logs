@@ -1,19 +1,19 @@
-import React from "react"
+import React from 'react'
 import Table, {
   TableBody,
   TableHead,
   TableRow,
   TableCell
-} from "material-ui/Table"
+} from 'material-ui/Table'
 
 export default function LogsTable({ history, logs }) {
-  const timeFormatter = Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
+  const timeFormatter = Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
     hour12: false
   })
   const openLog = logId => {
@@ -21,7 +21,7 @@ export default function LogsTable({ history, logs }) {
   }
   const toTableRow = log => {
     const style = {
-      display: log["not_matches_search"] ? "none" : "table-row"
+      display: log['not_matches_search'] ? 'none' : 'table-row'
     }
     const timeString = timeFormatter.format(new Date(log.StartTime))
     return (
@@ -35,7 +35,7 @@ export default function LogsTable({ history, logs }) {
         <TableCell>{log.Operation}</TableCell>
         <TableCell>{log.Status}</TableCell>
         <TableCell>{log.LogUser.Name}</TableCell>
-        <TableCell>{log.DurationMilliseconds + "ms"}</TableCell>
+        <TableCell>{log.DurationMilliseconds + 'ms'}</TableCell>
         <TableCell>{`${log.LogLength / 1000} k`}</TableCell>
       </TableRow>
     )

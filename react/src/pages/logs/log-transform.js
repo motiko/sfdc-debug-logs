@@ -11,9 +11,9 @@ function chunkify(body) {
       pos = CHUNK_MAX_SIZE,
       lastPos = 0
     while (pos < body.length) {
-      pos = body.lastIndexOf("\n", pos)
+      pos = body.lastIndexOf('\n', pos)
       if (pos <= lastPos) {
-        pos = body.indexOf("\n", lastPos + 1)
+        pos = body.indexOf('\n', lastPos + 1)
       }
       if (pos <= lastPos) {
         pos = body.length
@@ -51,14 +51,14 @@ function beautifyLog(logBody) {
 }
 
 function indent(num) {
-  return text => text.replace(/^.*$/gm, match => `${" ".repeat(num)}${match}`)
+  return text => text.replace(/^.*$/gm, match => `${' '.repeat(num)}${match}`)
 }
 
 function sfdcObjectBeautify(string) {
   return string
-    .replace(/^\(/, "[")
-    .replace(/\)$/, "]")
-    .replace(/={/g, ":{")
+    .replace(/^\(/, '[')
+    .replace(/\)$/, ']')
+    .replace(/={/g, ':{')
     .replace(/([{| |\[]\w+)=(.+?)(?=, |},|}\)|:{|])/g, function(match, p1, p2) {
       return `${p1}: ' ${p2} '`
     })

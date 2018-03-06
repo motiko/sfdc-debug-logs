@@ -4,9 +4,9 @@ export default class Tooling {
   }
 
   getOrCreateDebugLevel() {
-    const LOG_LEVEL_NAME = "ApexDebugger"
+    const LOG_LEVEL_NAME = 'ApexDebugger'
     const headers = {
-      Accept: "*/*"
+      Accept: '*/*'
     }
     const query = encodeURIComponent(
       "Select Id From DebugLevel Where DeveloperName = '" + LOG_LEVEL_NAME + "'"
@@ -14,26 +14,26 @@ export default class Tooling {
     var debugLevelPayload = {
       DeveloperName: LOG_LEVEL_NAME,
       MasterLabel: LOG_LEVEL_NAME,
-      Workflow: "DEBUG",
-      Validation: "DEBUG",
-      Callout: "DEBUG",
-      ApexCode: "DEBUG",
-      ApexProfiling: "DEBUG",
-      Visualforce: "DEBUG",
-      System: "DEBUG",
-      Database: "DEBUG"
+      Workflow: 'DEBUG',
+      Validation: 'DEBUG',
+      Callout: 'DEBUG',
+      ApexCode: 'DEBUG',
+      ApexProfiling: 'DEBUG',
+      Visualforce: 'DEBUG',
+      System: 'DEBUG',
+      Database: 'DEBUG'
     }
     return this.request(
       `/services/data/v36.0/tooling/query?q=${query}`,
-      "GET",
+      'GET',
       headers
     ).then(existingDebugLevel => {
       if (existingDebugLevel.records.length > 0) {
         return existingDebugLevel.records[0].Id
       } else {
         return this.request(
-          "/services/data/v36.0/tooling/sobjects/DebugLevel",
-          "POST",
+          '/services/data/v36.0/tooling/sobjects/DebugLevel',
+          'POST',
           headers,
           debugLevelPayload
         ).then(result => result.id)
@@ -47,19 +47,19 @@ export default class Tooling {
     var payload = {
       TracedEntityId: userId,
       DebugLevelId: debugLevelId,
-      LogType: "DEVELOPER_LOG"
+      LogType: 'DEVELOPER_LOG'
     }
     return this.request(
-      "/services/data/v41.0/tooling/sobjects/TraceFlag",
-      "POST",
+      '/services/data/v41.0/tooling/sobjects/TraceFlag',
+      'POST',
       {},
       Object.assign({ ExpirationDate: expirationDate }, payload)
     ).catch(err => {
       // fallback, try without expiration date
       console.info(err)
       this.request(
-        "/services/data/v41.0/tooling/sobjects/TraceFlag",
-        "POST",
+        '/services/data/v41.0/tooling/sobjects/TraceFlag',
+        'POST',
         {},
         payload
       )
@@ -69,10 +69,10 @@ export default class Tooling {
   getLogBody(logId) {
     return this.request(
       `/services/data/v32.0/tooling/sobjects/ApexLog/${logId}/Body`,
-      "GET",
+      'GET',
       {},
       undefined,
-      "text"
+      'text'
     ).then(r => r.text())
   }
 

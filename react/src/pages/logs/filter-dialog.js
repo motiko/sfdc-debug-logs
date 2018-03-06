@@ -1,19 +1,19 @@
-import React from "react"
-import Button from "material-ui/Button"
-import TextField from "material-ui/TextField"
+import React from 'react'
+import Button from 'material-ui/Button'
+import TextField from 'material-ui/TextField'
 import Dialog, {
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle
-} from "material-ui/Dialog"
-import { FormControl, FormHelperText } from "material-ui/Form"
-import Select from "material-ui/Select"
-import Input, { InputLabel } from "material-ui/Input"
-import { connect } from "react-redux"
-import { toggleFiltersDialog } from "./actions"
-import MenuItem from "material-ui/Menu/MenuItem"
-import { withStyles } from "material-ui/styles"
+} from 'material-ui/Dialog'
+import { FormControl, FormHelperText } from 'material-ui/Form'
+import Select from 'material-ui/Select'
+import Input, { InputLabel } from 'material-ui/Input'
+import { connect } from 'react-redux'
+import { toggleFiltersDialog } from './actions'
+import MenuItem from 'material-ui/Menu/MenuItem'
+import { withStyles } from 'material-ui/styles'
 
 const mapStateToProps = state => {
   return state.logs.filters
@@ -62,7 +62,7 @@ class FilterDialogRaw extends React.Component {
                 {[
                   {
                     value: 1,
-                    label: "qwe"
+                    label: 'qwe'
                   }
                 ].map(option => (
                   <MenuItem key={option.value} value={option.value}>

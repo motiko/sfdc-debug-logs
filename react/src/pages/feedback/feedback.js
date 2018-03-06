@@ -1,20 +1,20 @@
-import React from "react"
-import List from "material-ui/List"
-import Button from "material-ui/Button"
-import BackIcon from "material-ui-icons/ArrowBack"
-import IconButton from "material-ui/IconButton"
-import MessageIcon from "material-ui-icons/Message"
-import MessageEdit from "./message-edit"
-import MessageView from "./message-view"
+import React from 'react'
+import List from 'material-ui/List'
+import Button from 'material-ui/Button'
+import BackIcon from 'material-ui-icons/ArrowBack'
+import IconButton from 'material-ui/IconButton'
+import MessageIcon from 'material-ui-icons/Message'
+import MessageEdit from './message-edit'
+import MessageView from './message-view'
 import Dialog, {
   DialogContent,
   DialogContentText,
   DialogTitle
-} from "material-ui/Dialog"
-import Toolbar from "material-ui/Toolbar"
-import AppBar from "material-ui/AppBar"
-import { connect } from "react-redux"
-import { toggleDialog, setReplyTo, sendMessage, loadMessages } from "./actions"
+} from 'material-ui/Dialog'
+import Toolbar from 'material-ui/Toolbar'
+import AppBar from 'material-ui/AppBar'
+import { connect } from 'react-redux'
+import { toggleDialog, setReplyTo, sendMessage, loadMessages } from './actions'
 
 const mapStateToProps = state => {
   return state.feedback
@@ -56,8 +56,8 @@ class FeedbackPageComponent extends React.Component {
         </AppBar>
         <List
           style={{
-            width: "60%",
-            margin: "auto"
+            width: '60%',
+            margin: 'auto'
           }}
         >
           {this.props.messages.map((m, i) => (
