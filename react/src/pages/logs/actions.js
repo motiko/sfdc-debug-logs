@@ -108,12 +108,12 @@ export function search(searchTerm) {
         ...acc,
         [cur.Id]: {
           ...cur,
-          not_matches_search: !searchRegex.test(logBodies[cur.Id])
+          matches_search: searchRegex.test(logBodies[cur.Id])
         }
       }),
       {}
     )
-    const foundIds = Object.values(newLogs).filter(r => !r.not_matches_search)
+    const foundIds = Object.values(newLogs).filter(r => r.matches_search)
     dispatch({
       type: 'SEARCH_DONE',
       logs: newLogs,

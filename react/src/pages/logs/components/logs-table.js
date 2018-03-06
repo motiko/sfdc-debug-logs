@@ -20,17 +20,9 @@ export default function LogsTable({ history, logs }) {
     history.push(`/logs/${logId}`)
   }
   const toTableRow = log => {
-    const style = {
-      display: log['not_matches_search'] ? 'none' : 'table-row'
-    }
     const timeString = timeFormatter.format(new Date(log.StartTime))
     return (
-      <TableRow
-        hover
-        onClick={() => openLog(log.Id)}
-        key={log.Id}
-        style={style}
-      >
+      <TableRow hover onClick={() => openLog(log.Id)} key={log.Id}>
         <TableCell>{timeString}</TableCell>
         <TableCell>{log.Operation}</TableCell>
         <TableCell>{log.Status}</TableCell>

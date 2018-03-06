@@ -35,7 +35,6 @@ class LogViewRaw extends React.Component {
       props.history.push(`/logs/${logId}`)
     }
     const toListItem = log => {
-      if (log.not_matches_search) return
       const rawdate = new Date(log.StartTime)
       const dateStr = timeFormatter.format(rawdate)
       const isCurLog = log.Id === curLogId

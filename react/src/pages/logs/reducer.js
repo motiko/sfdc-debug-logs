@@ -22,7 +22,7 @@ export default function logs(state = initalLogsState, action) {
         logs: Object.values(state.logs).reduce(
           (acc, cur) => ({
             ...acc,
-            [cur.Id]: { ...cur, not_matches_search: false }
+            [cur.Id]: { ...cur, matches_search: true }
           }),
           {}
         ),

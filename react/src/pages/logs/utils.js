@@ -4,7 +4,7 @@ export function filterLogs(logs, filters) {
     return val && val != null && val != ''
   })
   return Object.values(logs)
-    .filter(log => !log.not_matches_search)
+    .filter(log => log.matches_search === undefined || log.matches_search)
     .filter(log => {
       return activeFilters
         .map(([filterName, filterValue]) => {
