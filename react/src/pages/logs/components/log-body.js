@@ -1,5 +1,5 @@
 import React from 'react'
-import { parseLog, addExpansionButtons } from './parse-log'
+import { parseLog, addExpansionButtons } from '../parse-log'
 
 export default class LogBody extends React.Component {
   componentDidUpdate(oldProps) {
