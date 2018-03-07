@@ -6,7 +6,7 @@ const initalLogsState = {
   sideLogsOpen: true,
   searchTerm: '',
   maxLogs: 50,
-  filtersDialogOpen: true,
+  filtersDialogOpen: false,
   filters: {
     user: '',
     operation: '',
