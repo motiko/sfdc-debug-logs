@@ -72,9 +72,11 @@ class LogViewRaw extends React.Component {
             style={{ borderRightSize: '1px', width: '100%', paddingLeft: 15 }}
           >
             {props.logs
-              ? filterLogs(Object.values(props.logs), props.filters).map(
-                  toListItem
-                )
+              ? filterLogs(
+                  Object.values(props.logs),
+                  props.filters,
+                  props.notMatchingSearchLogs
+                ).map(toListItem)
               : null}
           </List>
         </div>
@@ -108,7 +110,8 @@ const mapStateToProps = state => ({
   logs: state.logsPage.logs,
   sideLogsOpen: state.logsPage.sideLogsOpen,
   logBodies: state.logsPage.logBodies,
-  filters: state.logsPage.filters
+  filters: state.logsPage.filters,
+  notMatchingSearchLogs: state.logsPage.notMatchingSearchLogs
 })
 
 const mapDispatchToProps = dispatch => ({

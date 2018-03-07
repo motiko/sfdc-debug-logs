@@ -1,6 +1,7 @@
 const initalLogsState = {
   logs: {},
   logBodies: {},
+  notMatchingSearchLogs: {},
   loading: false,
   message: '',
   sideLogsOpen: true,
@@ -19,14 +20,8 @@ export default function logs(state = initalLogsState, action) {
     case 'RESET_SEARCH':
       return {
         ...state,
-        logs: Object.values(state.logs).reduce(
-          (acc, cur) => ({
-            ...acc,
-            [cur.Id]: { ...cur, matches_search: true }
-          }),
-          {}
-        ),
-        searchTerm: ''
+        searchTerm: '',
+        notMatchingSearchLogs: {}
       }
     case 'UPDATE_MAX_LOGS':
       return {
@@ -89,8 +84,8 @@ export default function logs(state = initalLogsState, action) {
       return {
         ...state,
         loading: false,
-        message: `Found ${action.num} matching logs`,
-        logs: action.logs,
+        message: `Found ${action.foundIds} matching logs`,
+        notMatchingSearchLogs: action.notMatchingSearchLogs,
         logBodies: action.logBodies
       }
     case 'SET_LOGGING':

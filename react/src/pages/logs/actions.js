@@ -50,10 +50,7 @@ export function loadLogs() {
     return sf
       .requestLogs(maxLogs, filtersToWhereClause(filters))
       .then(records => {
-        // const oldLogs = getState().logsPage.logs
-        // const newLogs = { ...normalize(records), ...oldLogs }
-        const limitedLogs = normalize(records)
-        return dispatch({ type: 'FETCH_LOGS_DONE', logs: limitedLogs })
+        return dispatch({ type: 'FETCH_LOGS_DONE', logs: normalize(records) })
       })
       .catch(err => {
         return dispatch({
@@ -80,19 +77,15 @@ export function deleteAll() {
 export function search(searchTerm) {
   return async (dispatch, getState, sf) => {
     dispatch({ type: 'SEARCH_INIT' })
-    const logsPage = getState().logsPage
-    const logs = logsPage.logs
-    let logBodies = logsPage.logBodies
-    const fillbodiesFrom = fillFun => {
+    let { logs, logBodies } = getState().logsPage
+    const fillbodiesFrom = fillingMethod => {
       const logIdsWithoutBodies = Object.keys(logs).filter(
         id => Object.keys(logBodies).indexOf(id) == -1
       )
-      let promises = logIdsWithoutBodies.map(fillFun)
+      let promises = logIdsWithoutBodies.map(fillingMethod)
       return Promise.all(promises)
     }
-    const escapeRegExp = str =>
-      str.replace(/[-[]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&')
-    const searchRegex = new RegExp(escapeRegExp(searchTerm), 'gi')
+
     await fillbodiesFrom(id =>
       idbKeyval.get(id).then(body => {
         if (body) logBodies[id] = body
@@ -104,21 +97,18 @@ export function search(searchTerm) {
         logBodies[id] = body
       })
     )
-    const newLogs = Object.values(logs).reduce(
+    const notMatchingSearchLogs = Object.values(logs).reduce(
       (acc, cur) => ({
         ...acc,
-        [cur.Id]: {
-          ...cur,
-          matches_search: searchRegex.test(logBodies[cur.Id])
-        }
+        [cur.Id]: !logBodies[cur.Id].includes(searchTerm)
       }),
       {}
     )
-    const foundIds = Object.values(newLogs).filter(r => r.matches_search)
+    const foundIds = Object.values(notMatchingSearchLogs).filter(x => !x)
     dispatch({
       type: 'SEARCH_DONE',
-      logs: newLogs,
-      num: foundIds.length,
+      foundIds: foundIds.length,
+      notMatchingSearchLogs,
       logBodies
     })
   }

@@ -10,10 +10,10 @@ const escapeSingleQuotes = string => {
   return string.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 }
 
-export function filterLogs(logs, filters) {
+export function filterLogs(logs, filters, notMatchingSearchLogs) {
   const activeFilters = filterActiveFilters(filters)
   return Object.values(logs)
-    .filter(log => log.matches_search === undefined || log.matches_search)
+    .filter(log => !notMatchingSearchLogs[log.Id])
     .filter(log => {
       return activeFilters
         .map(([filterName, filterValue]) => {
