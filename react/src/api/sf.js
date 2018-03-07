@@ -15,10 +15,10 @@ export default class SF {
     return this.tooling.getLogBody(logId)
   }
 
-  requestLogs(numLimit = 50) {
+  requestLogs(numLimit = 50, whereClause = '') {
     var query = `SELECT LogUser.Name,Application,DurationMilliseconds,Id,\
 LastModifiedDate,Location,LogLength,LogUserId,Operation,Request,StartTime,\
-Status,SystemModstamp From ApexLog \
+Status,SystemModstamp From ApexLog ${whereClause} \
 ORDER BY LastModifiedDate DESC LIMIT ${numLimit}`
     return this.tooling.query(query).then(responseObj => responseObj.records)
   }

@@ -1,5 +1,6 @@
 import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
 import idbKeyval from 'idb-keyval'
+import { filtersToWhereClause } from './utils.js'
 
 const normalize = logsArray => {
   return logsArray.reduce((acc, cur) => {
@@ -41,17 +42,17 @@ export function loadLogs() {
   return (dispatch, getState, sf) => {
     dispatch({ type: 'FETCH_LOGS_INIT' })
     dispatch({ type: 'RESET_SEARCH' })
-    let maxLogs = getState().logsPage.maxLogs
+    let { maxLogs, filters } = getState().logsPage
     if (!maxLogs || maxLogs < 1) {
       dispatch({ type: 'UPDATE_MAX_LOGS', maxLogs: 1 })
       maxLogs = 1
     }
     return sf
-      .requestLogs(maxLogs)
+      .requestLogs(maxLogs, filtersToWhereClause(filters))
       .then(records => {
-        const oldLogs = getState().logsPage.logs
-        const newLogs = { ...normalize(records), ...oldLogs } // preserving fetched bodies TODO: hold in different object
-        const limitedLogs = normalize(Object.values(newLogs).slice(0, maxLogs))
+        // const oldLogs = getState().logsPage.logs
+        // const newLogs = { ...normalize(records), ...oldLogs }
+        const limitedLogs = normalize(records)
         return dispatch({ type: 'FETCH_LOGS_DONE', logs: limitedLogs })
       })
       .catch(err => {
