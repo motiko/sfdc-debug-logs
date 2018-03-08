@@ -219,8 +219,7 @@ function removeOldLogs() {
       try {
         tableElement.removeChild(tr);
       } catch (e) {
-        console.log('race?');
-        console.log(e);
+        console.error(e);
       }
     });
   }, 1000);
@@ -257,7 +256,7 @@ function requestLogs() {
     .then(r => r.json())
     .then(responseObj => responseObj.records)
     .catch(function(err) {
-      console.log(err);
+      console.error(err);
     });
 }
 
