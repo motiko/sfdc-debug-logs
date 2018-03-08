@@ -28,7 +28,7 @@ export default function LogsTable({ history, logs }) {
         <TableCell>{log.Status}</TableCell>
         <TableCell>{log.LogUser.Name}</TableCell>
         <TableCell>{log.DurationMilliseconds + 'ms'}</TableCell>
-        <TableCell>{`${log.LogLength / 1000} k`}</TableCell>
+        <TableCell>{`${(log.LogLength / 1000).toFixed(2)} k`}</TableCell>
       </TableRow>
     )
   }

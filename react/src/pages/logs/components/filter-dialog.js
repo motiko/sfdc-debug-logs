@@ -22,6 +22,11 @@ import 'rc-tooltip/assets/bootstrap.css'
 const createSliderWithTooltip = Slider.createSliderWithTooltip
 const Range = createSliderWithTooltip(Slider.Range)
 
+const maxRangeValues = {
+  length: { min: 0, max: 2 * Math.pow(10, 6) },
+  duration: { min: 0, max: 2 * 6 * Math.pow(10, 3) }
+}
+
 const mapStateToProps = state => {
   return state.logsPage.filters
 }
@@ -72,15 +77,13 @@ class FilterDialogRaw extends React.Component {
     const filterByNumber = (fieldName, fieldFormatter) => (
       <div>
         <div style={{ width: 400, margin: 50 }}>
-          <p>Range for {fieldName}</p>
+          <p>Show logs where {fieldName} is in range</p>
           <Range
-            min={props.possibleRangeValues[fieldName].min}
-            max={props.possibleRangeValues[fieldName].max}
-            defaultValue={[
-              props.possibleRangeValues[fieldName].min,
-              props.possibleRangeValues[fieldName].max
-            ]}
+            min={maxRangeValues[fieldName].min}
+            max={maxRangeValues[fieldName].max}
+            value={props[fieldName].value}
             tipFormatter={fieldFormatter}
+            onChange={props.updateNumericFilter(fieldName)}
           />
         </div>
       </div>

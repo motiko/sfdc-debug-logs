@@ -12,9 +12,9 @@ const initalLogsState = {
     user: { type: 'text', value: '' },
     operation: { type: 'text', value: '' },
     status: { type: 'text', value: '' },
-    length: { type: 'number', value: { min: 0, max: 0 } },
-    duration: { type: 'number', value: { min: 0, max: 0 } },
-    start: { type: 'date', value: 0 }
+    length: { type: 'number', value: [0, 2 * Math.pow(10, 6)] },
+    duration: { type: 'number', value: [0, 2 * 6 * Math.pow(10, 3)] },
+    start: { type: 'date', value: [0, 0] }
   }
 }
 
