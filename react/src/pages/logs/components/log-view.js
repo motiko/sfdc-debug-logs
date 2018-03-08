@@ -7,6 +7,7 @@ import OpenIcon from 'material-ui-icons/KeyboardArrowRight'
 import LogBody from './log-body.js'
 import { fetchLogBody, toggleSideLogs } from '../actions'
 import { filterLogs } from '../utils'
+import { maxLogSizeToParse } from '../constants'
 
 class LogViewRaw extends React.Component {
   componentWillMount() {
@@ -54,6 +55,7 @@ class LogViewRaw extends React.Component {
         </ListItem>
       )
     }
+    const logBody = this.getBody(curLogId)
     return (
       <div>
         <div
@@ -87,8 +89,9 @@ class LogViewRaw extends React.Component {
             right: 0,
             top: 64,
             bottom: 0,
-            backgroundColor: '#292724',
-            width: sideLogsOpen ? '80%' : '100%'
+            width: sideLogsOpen ? '80%' : '100%',
+            backgroundColor:
+              logBody.length <= maxLogSizeToParse ? '#292724' : 'white'
           }}
         >
           <Button
@@ -99,7 +102,7 @@ class LogViewRaw extends React.Component {
           >
             {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
           </Button>
-          <LogBody body={this.getBody(curLogId)} />
+          <LogBody body={logBody} />
         </div>
       </div>
     )

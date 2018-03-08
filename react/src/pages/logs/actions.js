@@ -16,16 +16,19 @@ export function fetchLogBody(logId) {
   return async (dispatch, getState, sf) => {
     const logBodies = getState().logsPage.logBodies
     if (logBodies[logId]) {
+      console.info('loaded log from memory')
       return
     }
     dispatch({ type: 'FETCH_LOG_BODY_INIT' })
     const body = await idbKeyval.get(logId)
     if (body) {
+      console.info('loaded log from cache')
       return dispatch({ type: 'FETCH_LOG_BODY_DONE', logId, logBody: body })
     }
     return sf
       .logBody(logId)
       .then(body => {
+        console.info('loaded log from server')
         dispatch({ type: 'FETCH_LOG_BODY_DONE', logId, logBody: body })
         idbKeyval.set(logId, body)
       })

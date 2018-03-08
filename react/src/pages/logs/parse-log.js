@@ -92,7 +92,10 @@ function addTagsToKnownLines(curLine) {
     return '<div class="system searchable">' + curLine + '</div>'
   }
   if (curLine.search(idRegex) > -1) {
-    curLine = curLine.replace(idRegex, '<a href="/$&" class="idLink">$&</a>')
+    curLine = curLine.replace(
+      idRegex,
+      `<a href="https://${globalSf.hostname}/$&" class="idLink">$&</a>`
+    )
   }
   var timeStampIndex = curLine.indexOf('|')
   var cutLine
@@ -251,7 +254,9 @@ function haltEvent(event) {
 
 function withLegalIdLink(id) {
   if (isLegalId(id)) {
-    return '<a href="/' + id + '" class="idLink">' + id + '</a>'
+    return `<a href="https://${
+      globalSf.hostname
+    }/${id}" class="idLink">${id}</a>`
   } else {
     return id
   }
