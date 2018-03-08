@@ -9,9 +9,12 @@ const initalLogsState = {
   maxLogs: 50,
   filtersDialogOpen: false,
   filters: {
-    user: '',
-    operation: '',
-    status: ''
+    user: { type: 'text', value: '' },
+    operation: { type: 'text', value: '' },
+    status: { type: 'text', value: '' },
+    length: { type: 'number', value: { min: 0, max: 0 } },
+    duration: { type: 'number', value: { min: 0, max: 0 } },
+    start: { type: 'date', value: 0 }
   }
 }
 
@@ -114,7 +117,10 @@ export default function logs(state = initalLogsState, action) {
         ...state,
         filters: {
           ...state.filters,
-          [action.filterName]: action.newValue
+          [action.filterName]: {
+            ...state.filters[action.filterName],
+            value: action.newValue
+          }
         }
       }
     case 'CLEAR_FILTERS':

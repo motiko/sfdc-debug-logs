@@ -19,6 +19,7 @@ import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs/logs'
 import globalSf from './global-sf'
 import idbKeyval from 'idb-keyval'
+import './app.css'
 
 class App extends React.Component {
   componentWillMount() {

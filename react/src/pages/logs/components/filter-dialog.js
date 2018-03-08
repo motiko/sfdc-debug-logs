@@ -7,13 +7,20 @@ import Dialog, {
   DialogContentText,
   DialogTitle
 } from 'material-ui/Dialog'
-import { FormControl, FormHelperText } from 'material-ui/Form'
+import { FormControlLabel, FormControl, FormHelperText } from 'material-ui/Form'
 import Select from 'material-ui/Select'
 import Input, { InputLabel } from 'material-ui/Input'
 import { connect } from 'react-redux'
 import MenuItem from 'material-ui/Menu/MenuItem'
 import { withStyles } from 'material-ui/styles'
 import { toggleFiltersDialog, updateFilter, clearFilters } from '../actions'
+import Slider from 'rc-slider'
+import Tooltip from 'rc-tooltip'
+import 'rc-slider/assets/index.css'
+import 'rc-tooltip/assets/bootstrap.css'
+
+const createSliderWithTooltip = Slider.createSliderWithTooltip
+const Range = createSliderWithTooltip(Slider.Range)
 
 const mapStateToProps = state => {
   return state.logsPage.filters
@@ -21,8 +28,10 @@ const mapStateToProps = state => {
 
 const mapDispatchToProps = dispatch => ({
   toggleFiltersDialog: () => dispatch(toggleFiltersDialog()),
-  updateFilter: fieldName => event =>
+  updateTextFilter: fieldName => event =>
     dispatch(updateFilter(fieldName, event.target.value)),
+  updateNumericFilter: fieldName => value =>
+    dispatch(updateFilter(fieldName, value)),
   clearFilters: () => dispatch(clearFilters())
 })
 
@@ -35,15 +44,14 @@ const styles = theme => ({
 })
 
 class FilterDialogRaw extends React.Component {
-  filterBy() {}
   render() {
     let props = this.props
-    const filterBy = (fieldName, fieldLabel) => (
+    const filterByText = (fieldName, fieldLabel) => (
       <TextField
         select
         label={fieldLabel}
-        value={props[fieldName]}
-        onChange={props.updateFilter(fieldName)}
+        value={props[fieldName].value}
+        onChange={props.updateTextFilter(fieldName)}
         className={props.classes.textField}
         SelectProps={{
           MenuProps: {}
@@ -61,6 +69,24 @@ class FilterDialogRaw extends React.Component {
         ))}
       </TextField>
     )
+    const filterByNumber = (fieldName, fieldFormatter) => (
+      <div>
+        <div style={{ width: 400, margin: 50 }}>
+          <p>Range for {fieldName}</p>
+          <Range
+            min={props.possibleRangeValues[fieldName].min}
+            max={props.possibleRangeValues[fieldName].max}
+            defaultValue={[
+              props.possibleRangeValues[fieldName].min,
+              props.possibleRangeValues[fieldName].max
+            ]}
+            tipFormatter={fieldFormatter}
+          />
+        </div>
+      </div>
+    )
+    const lengthFormatter = value => `${(value / 1000).toFixed(2)} k`
+    const durationFormatter = value => `${value} ms`
     return (
       <div>
         <Dialog
@@ -73,9 +99,11 @@ class FilterDialogRaw extends React.Component {
           <DialogContent>
             <DialogContentText>Pick Fields to filter by:</DialogContentText>
             <form>
-              {filterBy('user', 'User')}
-              {filterBy('operation', 'Operation')}
-              {filterBy('status', 'Status')}
+              {filterByText('user', 'User')}
+              {filterByText('operation', 'Operation')}
+              {filterByText('status', 'Status')}
+              {filterByNumber('length', lengthFormatter)}
+              {filterByNumber('duration', durationFormatter)}
             </form>
           </DialogContent>
           <DialogActions>

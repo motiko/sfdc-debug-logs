@@ -1,8 +1,8 @@
 const upcase = string => string.charAt(0).toUpperCase() + string.slice(1)
 
 const filterActiveFilters = filters => {
-  return Object.entries(filters).filter(([key, val]) => {
-    return val && val != null && val != ''
+  return Object.entries(filters).filter(([key, { value }]) => {
+    return value && value != null && value != ''
   })
 }
 
@@ -10,23 +10,30 @@ const escapeSingleQuotes = string => {
   return string.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 }
 
+const byType = desiredType => ([name, { type: actualType }]) =>
+  actualType == desiredType
+
+function matchesByText(log, filters) {
+  return filters
+    .filter(byType('text'))
+    .map(([filterName, { value: filterValue }]) => {
+      switch (filterName) {
+        case 'user':
+          return log.LogUser.Name === filterValue
+          break
+        default:
+          return log[upcase(filterName)] === filterValue
+      }
+    })
+    .every(x => x)
+}
+
 export function filterLogs(logs, filters, notMatchingSearchLogs) {
   const activeFilters = filterActiveFilters(filters)
   return Object.values(logs)
     .filter(log => !notMatchingSearchLogs[log.Id])
-    .filter(log => {
-      return activeFilters
-        .map(([filterName, filterValue]) => {
-          switch (filterName) {
-            case 'user':
-              return log.LogUser.Name === filterValue
-              break
-            default:
-              return log[upcase(filterName)] === filterValue
-          }
-        })
-        .every(x => x)
-    })
+    .filter(log => matchesByText(log, activeFilters))
+  // .filter(log => matchesByNumber(log, activeFilters))
 }
 
 export function filtersToWhereClause(filters) {
@@ -36,16 +43,17 @@ export function filtersToWhereClause(filters) {
     status: 'Status'
   }
   const activeFilters = filterActiveFilters(filters)
-  console.log(activeFilters)
   if (activeFilters.length === 0) return ''
-  const fullQuery = activeFilters.reduce((query, [filterName, filterValue]) => {
-    if (filterNameToSql[filterName]) {
-      return `${query} ${filterNameToSql[filterName]} = '${escapeSingleQuotes(
-        filterValue
-      )}' AND`
-    }
-    return query
-  }, 'WHERE')
-  console.log(fullQuery)
+  const fullQuery = activeFilters.reduce(
+    (query, [filterName, { value: filterValue }]) => {
+      if (filterNameToSql[filterName]) {
+        return `${query} ${filterNameToSql[filterName]} = '${escapeSingleQuotes(
+          filterValue
+        )}' AND`
+      }
+      return query
+    },
+    'WHERE'
+  )
   return fullQuery.substring(0, fullQuery.length - 3)
 }

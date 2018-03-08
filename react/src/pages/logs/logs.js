@@ -67,6 +67,23 @@ class LogsPageRaw extends React.Component {
     })
   }
 
+  possibleRangeValues() {
+    const logs = this.props.logs
+    const lengthes = Object.values(logs).map(l => l.LogLength)
+    const durations = Object.values(logs).map(l => l.DurationMilliseconds)
+    const res = {
+      length:
+        lengthes.length > 0
+          ? { max: Math.max(...lengthes), min: Math.min(...lengthes) }
+          : { max: 10, min: 0 },
+      duration:
+        durations.length > 0
+          ? { max: Math.max(...durations), min: Math.min(...durations) }
+          : { max: 10, min: 0 }
+    }
+    return res
+  }
+
   possibleFieldValues() {
     const unique = (value, index, array) => {
       return array.indexOf(value) === index
@@ -144,6 +161,7 @@ class LogsPageRaw extends React.Component {
               <FilterDialog
                 open={props.filtersDialogOpen}
                 possibleFieldValues={this.possibleFieldValues()}
+                possibleRangeValues={this.possibleRangeValues()}
               />
               <Grid item>
                 <TextField
