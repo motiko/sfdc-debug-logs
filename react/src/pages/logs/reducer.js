@@ -34,7 +34,9 @@ export default function logs(state = initalLogsState, action) {
     case 'UPDATE_SEARCH_TERM':
       return {
         ...state,
-        searchTerm: action.searchTerm
+        searchTerm: action.searchTerm,
+        notMatchingSearchLogs:
+          action.searchTerm == '' ? {} : state.notMatchingSearchLogs
       }
     case 'TOGGLE_SIDE_LOGS':
       return {
