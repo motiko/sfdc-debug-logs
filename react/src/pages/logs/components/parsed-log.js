@@ -79,16 +79,31 @@ class LogElement extends React.Component {
       return null
     }
     const eventType = eventTypeMatch[1]
-    const finalBody = () => {
+    const beautify = elementBody => {
       if (eventType === 'USER_DEBUG' && indented) {
-        const parsedUserDebug = body.match(
+        const parsedUserDebug = elementBody.match(
           /^(\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|USER_DEBUG\|[\d+\]\|[A-Z_]+\|)([^]*)/m
         )
         if (parsedUserDebug && parsedUserDebug.length > 2) {
           return `${parsedUserDebug[1]}${beautifyUserDebug(parsedUserDebug[2])}`
         }
       }
-      return body
+      return elementBody
+    }
+
+    const addLinks = elementBody => {
+      if (!idRegex.test(elementBody)) return elementBody
+      let textElements = elementBody.split(idRegex)
+      let result = []
+      elementBody.replace(idRegex, id => {
+        result.push(textElements.shift())
+        result.push(
+          <a href={`https://${globalSf.hostname}/${id}`} key={result.length}>
+            {id}
+          </a>
+        )
+      })
+      return result
     }
 
     const filtered = Object.entries(logEntryToDivTagClass).find(me =>
@@ -107,7 +122,7 @@ class LogElement extends React.Component {
             {indented ? <RemoveIcon /> : <AddIcon />}
           </IconButton>
         ) : null}
-        {finalBody()}
+        {addLinks(beautify(body))}
       </div>
     )
   }
