@@ -77,7 +77,12 @@ class FilterDialogRaw extends React.Component {
     const filterByNumber = (fieldName, fieldFormatter) => (
       <div>
         <div style={{ width: 400, margin: 50 }}>
-          <p>Show logs where {fieldName} is in range</p>
+          <p>
+            Show logs where {fieldName} is in{' '}
+            {fieldFormatter(props[fieldName].value[0])}
+            {` - `}
+            {fieldFormatter(props[fieldName].value[1])}
+          </p>
           <Range
             min={maxRangeValues[fieldName].min}
             max={maxRangeValues[fieldName].max}
