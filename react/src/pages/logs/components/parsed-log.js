@@ -85,7 +85,6 @@ class LogElement extends React.Component {
           /^(\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|USER_DEBUG\|[\d+\]\|[A-Z_]+\|)([^]*)/m
         )
         if (parsedUserDebug && parsedUserDebug.length > 2) {
-          console.log(parsedUserDebug[1])
           return `${parsedUserDebug[1]}${beautifyUserDebug(parsedUserDebug[2])}`
         }
       }
