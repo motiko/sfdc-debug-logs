@@ -115,14 +115,14 @@ class LogElement extends React.Component {
 }
 
 function beautifyUserDebug(userDebug) {
-  debugger
-  if (looksLikeSfdcObject(userDebug)) {
-    if (isJsonString(sfdcObjectBeautify(userDebug))) {
-      return JSON.stringify(JSON.parse(sfdcObjectBeautify(userDebug)), null, 2)
-    }
+  if (looksLikeHtml(userDebug)) {
+    return html_beautify(userDebug)
   }
   if (isJsonString(userDebug)) {
     return JSON.stringify(JSON.parse(userDebug), null, 2)
+  }
+  if (looksLikeSfdcObject(userDebug)) {
+    return js_beautify(sfdcObjectBeautify(userDebug))
   }
   return userDebug
 }
