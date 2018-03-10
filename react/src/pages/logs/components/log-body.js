@@ -1,5 +1,5 @@
 import React from 'react'
-import { parseLog, addExpansionButtons } from '../parse-log'
+import { ParsedLog, addExpansionButtons } from './parsed-log'
 import { maxLogSizeToParse } from '../constants'
 
 const preStyle = {
@@ -12,26 +12,12 @@ const preStyle = {
 }
 
 export default class LogBody extends React.Component {
-  componentDidUpdate(oldProps) {
-    const body = this.props.body
-    if (
-      this.props.body &&
-      this.props.body.length > 0 &&
-      body != oldProps.body
-    ) {
-      addExpansionButtons()
-    }
-  }
-
-  componentDidMount() {
-    addExpansionButtons()
-  }
-
   render() {
     const body = this.props.body
-    if (body.length > maxLogSizeToParse) {
-      return <pre style={preStyle}>{body}</pre>
-    }
-    return <pre style={preStyle} dangerouslySetInnerHTML={parseLog(body)} />
+    return (
+      <pre style={preStyle}>
+        <ParsedLog body={body} />
+      </pre>
+    )
   }
 }

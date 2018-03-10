@@ -90,8 +90,7 @@ class LogViewRaw extends React.Component {
             top: 64,
             bottom: 0,
             width: sideLogsOpen ? '80%' : '100%',
-            backgroundColor:
-              logBody.length <= maxLogSizeToParse ? '#292724' : 'white'
+            backgroundColor: '#292724'
           }}
         >
           <Button
