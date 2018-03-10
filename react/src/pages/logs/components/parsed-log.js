@@ -1,8 +1,8 @@
 import globalSf from '../../../global-sf'
 import React from 'react'
 import Icon from 'material-ui/Icon'
-import AddIcon from 'material-ui-icons/Add'
-import RemoveIcon from 'material-ui-icons/Remove'
+import AddIcon from 'material-ui-icons/AddCircle'
+import RemoveIcon from 'material-ui-icons/RemoveCircle'
 import IconButton from 'material-ui/IconButton'
 import { withStyles } from 'material-ui/styles'
 
