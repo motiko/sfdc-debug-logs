@@ -4,6 +4,7 @@ import SearchIcon from 'material-ui-icons/Search'
 import ClearIcon from 'material-ui-icons/Clear'
 import IconButton from 'material-ui/IconButton'
 import Input, { InputLabel, InputAdornment } from 'material-ui/Input'
+import Tooltip from 'material-ui/Tooltip'
 
 export default function Search(props) {
   function handleKey(e) {
@@ -27,19 +28,23 @@ export default function Search(props) {
         onKeyUp={handleKey}
         endAdornment={
           <InputAdornment position="end">
-            <IconButton
-              mini="mini"
-              style={{ top: '0.3em' }}
-              onClick={() => props.updateSearchTerm('')}
-            >
-              <ClearIcon />
-            </IconButton>
+            <Tooltip title="Clear search">
+              <IconButton
+                mini="mini"
+                style={{ top: '0.3em' }}
+                onClick={() => props.updateSearchTerm('')}
+              >
+                <ClearIcon />
+              </IconButton>
+            </Tooltip>
           </InputAdornment>
         }
       />
-      <IconButton color="contrast" onClick={props.handleSearch}>
-        <SearchIcon />
-      </IconButton>
+      <Tooltip title="Search">
+        <IconButton color="contrast" onClick={props.handleSearch}>
+          <SearchIcon />
+        </IconButton>
+      </Tooltip>
     </div>
   )
 }

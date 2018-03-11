@@ -164,3 +164,7 @@ export function updateFilter(filterName, newValue) {
 export function clearFilters() {
   return { type: 'CLEAR_FILTERS' }
 }
+
+export function toggleStyleDialog() {
+  return { type: 'TOGGLE_STYLE_DIALOG' }
+}

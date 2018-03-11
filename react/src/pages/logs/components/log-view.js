@@ -4,7 +4,7 @@ import List, { ListItem, ListItemText } from 'material-ui/List'
 import Button from 'material-ui/Button'
 import CloseIcon from 'material-ui-icons/KeyboardArrowLeft'
 import OpenIcon from 'material-ui-icons/KeyboardArrowRight'
-import LogBody from './log-body.js'
+import ParsedLog from './parsed-log.js'
 import { fetchLogBody, toggleSideLogs } from '../actions'
 import { filterLogs } from '../utils'
 import { maxLogSizeToParse } from '../constants'
@@ -115,7 +115,7 @@ export default class LogView extends React.Component {
           >
             {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
           </Button>
-          <LogBody body={logBody} />
+          <ParsedLog body={logBody} />
         </div>
       </div>
     )

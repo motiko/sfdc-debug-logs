@@ -10,15 +10,18 @@ import Grid from 'material-ui/Grid'
 import RefreshIcon from 'material-ui-icons/Autorenew'
 import DeleteIcon from 'material-ui-icons/DeleteForever'
 import FilterList from 'material-ui-icons/FilterList'
+import StyleIcon from 'material-ui-icons/Style'
 import TextField from 'material-ui/TextField'
 import { CircularProgress } from 'material-ui/Progress'
 import IconButton from 'material-ui/IconButton'
 import { connect } from 'react-redux'
+import Tooltip from 'material-ui/Tooltip'
 import LogView from './components/log-view'
 import TrackingLogs from './components/tracking-logs'
 import Search from './components/search'
 import LogsTable from './components/logs-table'
 import FilterDialog from './components/filter-dialog'
+import StyleDialog from './components/style-dialog'
 import {
   loadLogs,
   setMessage,
@@ -26,7 +29,7 @@ import {
   search,
   updateSearchTerm,
   updateMaxLogs,
-  toggleFiltersDialog
+  toggleFiltersDialog, toggleStyleDialog
 } from './actions'
 import { filterLogs } from './utils'
 
@@ -39,7 +42,8 @@ import { filterLogs } from './utils'
     search: searchTerm => dispatch(search(searchTerm)),
     updateSearchTerm: newTerm => dispatch(updateSearchTerm(newTerm)),
     updateMaxLogs: newMaxLogs => dispatch(updateMaxLogs(newMaxLogs)),
-    toggleFiltersDialog: () => dispatch(toggleFiltersDialog())
+    toggleFiltersDialog: () => dispatch(toggleFiltersDialog()),
+    toggleStyleDialog: () => dispatch(toggleStyleDialog())
   })
 )
 class LogsPage extends React.Component {
@@ -103,11 +107,13 @@ class LogsPage extends React.Component {
               <Grid item xs={12} sm={6}>
                 <Grid container direction="row" justify="flex-start">
                   <Grid item>
-                    <Link to="/">
-                      <IconButton color="contrast">
-                        <HomeIcon />
-                      </IconButton>
-                    </Link>
+                    <Tooltip title="Home">
+                      <Link to="/">
+                        <IconButton color="contrast">
+                          <HomeIcon />
+                        </IconButton>
+                      </Link>
+                    </Tooltip>
                   </Grid>
                   <Grid item>
                     <Search
@@ -120,18 +126,32 @@ class LogsPage extends React.Component {
                   </Grid>
                   <Grid item>
                     <div>
-                      <IconButton
-                        color="contrast"
-                        onClick={props.toggleFiltersDialog}
-                      >
-                        <FilterList />
-                      </IconButton>
-                      <IconButton color="contrast" onClick={props.refresh}>
-                        <RefreshIcon />
-                      </IconButton>
-                      <IconButton color="contrast" onClick={props.deleteAll}>
-                        <DeleteIcon />
-                      </IconButton>
+                      <Tooltip title="Filter logs">
+                        <IconButton
+                          color="contrast"
+                          onClick={props.toggleFiltersDialog}
+                        >
+                          <FilterList />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Load logs">
+                        <IconButton color="contrast" onClick={props.refresh}>
+                          <RefreshIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete All">
+                        <IconButton color="contrast" onClick={props.deleteAll}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Style settings">
+                        <IconButton
+                          color="contrast"
+                          onClick={props.toggleStyleDialog}
+                        >
+                          <StyleIcon />
+                        </IconButton>
+                      </Tooltip>
                       {props.loading ? (
                         <CircularProgress style={{ color: 'white' }} />
                       ) : null}
@@ -143,6 +163,7 @@ class LogsPage extends React.Component {
                 open={props.filtersDialogOpen}
                 possibleFieldValues={this.possibleFieldValues()}
               />
+              <StyleDialog open={props.styleDialogOpen} onClose={props.toggleStyleDialog} />
               <Grid item>
                 <TextField
                   value={props.maxLogs}

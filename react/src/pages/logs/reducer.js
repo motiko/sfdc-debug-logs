@@ -8,6 +8,10 @@ const initalLogsState = {
   searchTerm: '',
   maxLogs: 50,
   filtersDialogOpen: false,
+  styleDialogOpen: true,
+  styleConfig:{
+    theme: ''
+  },
   filters: {
     user: { type: 'text', value: '' },
     operation: { type: 'text', value: '' },
@@ -113,6 +117,11 @@ export default function logs(state = initalLogsState, action) {
       return {
         ...state,
         filtersDialogOpen: !state.filtersDialogOpen
+      }
+    case 'TOGGLE_STYLE_DIALOG':
+      return {
+        ...state,
+        styleDialogOpen: !state.styleDialogOpen
       }
     case 'UPDATE_FILTER':
       return {

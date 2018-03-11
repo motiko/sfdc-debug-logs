@@ -12,6 +12,14 @@ const styles = theme => ({
     fontSize: 15,
     height: '1.5em',
     top: '0.2em'
+  },
+  logBodyPre: {
+    whiteSpace: 'pre-wrap',
+    fontSize: 17,
+    lineHeight: '140%',
+    fontFamily: "'Courier New', 'Courier', mono",
+    marginLeft: '20px',
+    overflowWrap: 'break-word'
   }
 })
 
@@ -34,7 +42,7 @@ const idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g,
     ENTERING_MANAGED_PKG: 'system'
   }
 
-export function ParsedLog({ body }) {
+function ParsedLog({ body, classes }) {
   if (!body || body === '') return <div />
   const intro = body.match(
     /^\d{1,2}\.\d\s[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\))/m
@@ -43,15 +51,19 @@ export function ParsedLog({ body }) {
     /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|[A-Z_]*[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\))/gm
   )
   return (
-    <div className="monokai" id="debugText">
-      <div className="system">{intro}</div>
-      {theRest.map((body, index) => {
-        return <LogElement body={body} key={index} />
-      })}
-      {null}
-    </div>
+    <pre className={classes.logBodyPre}>
+      <div className="monokai" id="debugText">
+        <div className="system">{intro}</div>
+        {theRest.map((body, index) => {
+          return <LogElement body={body} key={index} />
+        })}
+        {null}
+      </div>
+    </pre>
   )
 }
+
+export default withStyles(styles)(ParsedLog)
 
 @withStyles(styles)
 class LogElement extends React.Component {

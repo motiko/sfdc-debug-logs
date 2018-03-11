@@ -8,8 +8,6 @@ import Dialog, {
   DialogTitle
 } from 'material-ui/Dialog'
 import { FormControlLabel, FormControl, FormHelperText } from 'material-ui/Form'
-import Select from 'material-ui/Select'
-import Input, { InputLabel } from 'material-ui/Input'
 import { connect } from 'react-redux'
 import MenuItem from 'material-ui/Menu/MenuItem'
 import { withStyles } from 'material-ui/styles'
