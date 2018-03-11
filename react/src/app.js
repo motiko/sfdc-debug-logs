@@ -11,6 +11,7 @@ import {
   Switch
 } from 'react-router-dom'
 import { Provider } from 'react-redux'
+import idbKeyval from 'idb-keyval'
 import thunk from 'redux-thunk'
 import { createStore, applyMiddleware } from 'redux'
 import appReducer from './reducers'
@@ -18,7 +19,6 @@ import { loadMessages } from './pages/feedback/actions'
 import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs/logs'
 import globalSf from './global-sf'
-import idbKeyval from 'idb-keyval'
 import './app.css'
 
 class App extends React.Component {

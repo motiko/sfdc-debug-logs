@@ -7,10 +7,8 @@
   "main": "",
   "private": true,
   "scripts": {
-    "browserify":
-      "browserify -t [ babelify --presets [ env react ] --plugins [ transform-object-rest-spread transform-decorators-legacy ] ] -t [ browserify-css --global ] src/*.js -o '| tee ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js > /dev/null'",
-    "watch":
-      "watchify -t [ babelify --presets [ env react ] --plugins [ transform-object-rest-spread transform-decorators-legacy ] ]  -t [ browserify-css --global ] src/*.js -o '| tee ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js > /dev/null'",
+    "browserify": "browserify -t [ babelify --presets [ env react ] --plugins [ transform-object-rest-spread transform-decorators-legacy ] ] -t [ browserify-css --global ] src/*.js -o '| tee ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js > /dev/null'",
+    "watch": "watchify -t [ babelify --presets [ env react ] --plugins [ transform-object-rest-spread transform-decorators-legacy ] ]  -t [ browserify-css --global ] src/*.js -o '| tee ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js > /dev/null'",
     "clean": "rm ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js",
     "react-devtools": "react-devtools",
     "test": "standard"

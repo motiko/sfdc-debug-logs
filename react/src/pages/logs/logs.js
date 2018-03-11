@@ -30,21 +30,19 @@ import {
 } from './actions'
 import { filterLogs } from './utils'
 
-const mapStateToProps = state => {
-  return state.logsPage
-}
-
-const mapDispatchToProps = dispatch => ({
-  refresh: () => dispatch(loadLogs()),
-  setMessage: msg => dispatch(setMessage(msg)),
-  deleteAll: () => dispatch(deleteAll()),
-  search: searchTerm => dispatch(search(searchTerm)),
-  updateSearchTerm: newTerm => dispatch(updateSearchTerm(newTerm)),
-  updateMaxLogs: newMaxLogs => dispatch(updateMaxLogs(newMaxLogs)),
-  toggleFiltersDialog: () => dispatch(toggleFiltersDialog())
-})
-
-class LogsPageRaw extends React.Component {
+@connect(
+  state => state.logsPage,
+  dispatch => ({
+    refresh: () => dispatch(loadLogs()),
+    setMessage: msg => dispatch(setMessage(msg)),
+    deleteAll: () => dispatch(deleteAll()),
+    search: searchTerm => dispatch(search(searchTerm)),
+    updateSearchTerm: newTerm => dispatch(updateSearchTerm(newTerm)),
+    updateMaxLogs: newMaxLogs => dispatch(updateMaxLogs(newMaxLogs)),
+    toggleFiltersDialog: () => dispatch(toggleFiltersDialog())
+  })
+)
+class LogsPage extends React.Component {
   componentDidCatch(error, info) {
     setMessage(`Error: ${error}`)
   }
@@ -195,7 +193,5 @@ class LogsPageRaw extends React.Component {
     )
   }
 }
-
-const LogsPage = connect(mapStateToProps, mapDispatchToProps)(LogsPageRaw)
 
 export default LogsPage

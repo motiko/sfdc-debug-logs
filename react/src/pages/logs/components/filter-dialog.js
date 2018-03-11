@@ -48,7 +48,9 @@ const styles = theme => ({
   }
 })
 
-class FilterDialogRaw extends React.Component {
+@withStyles(styles)
+@connect(state => state.logsPage.filters, mapDispatchToProps)
+export default class FilterDialog extends React.Component {
   render() {
     let props = this.props
     const filterByText = (fieldName, fieldLabel) => (
@@ -127,9 +129,3 @@ class FilterDialogRaw extends React.Component {
     )
   }
 }
-
-const FilterDialog = connect(mapStateToProps, mapDispatchToProps)(
-  withStyles(styles)(FilterDialogRaw)
-)
-
-export default FilterDialog

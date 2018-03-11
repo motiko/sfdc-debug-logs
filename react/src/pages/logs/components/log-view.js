@@ -9,7 +9,21 @@ import { fetchLogBody, toggleSideLogs } from '../actions'
 import { filterLogs } from '../utils'
 import { maxLogSizeToParse } from '../constants'
 
-class LogViewRaw extends React.Component {
+const mapStateToProps = state => ({
+  logs: state.logsPage.logs,
+  sideLogsOpen: state.logsPage.sideLogsOpen,
+  logBodies: state.logsPage.logBodies,
+  filters: state.logsPage.filters,
+  notMatchingSearchLogs: state.logsPage.notMatchingSearchLogs
+})
+
+const mapDispatchToProps = dispatch => ({
+  fetchLogBody: logId => dispatch(fetchLogBody(logId)),
+  toggleSideLogs: () => dispatch(toggleSideLogs())
+})
+
+@connect(mapStateToProps, mapDispatchToProps)
+export default class LogView extends React.Component {
   componentWillMount() {
     this.props.fetchLogBody(this.props.match.params.id)
   }
@@ -107,20 +121,3 @@ class LogViewRaw extends React.Component {
     )
   }
 }
-
-const mapStateToProps = state => ({
-  logs: state.logsPage.logs,
-  sideLogsOpen: state.logsPage.sideLogsOpen,
-  logBodies: state.logsPage.logBodies,
-  filters: state.logsPage.filters,
-  notMatchingSearchLogs: state.logsPage.notMatchingSearchLogs
-})
-
-const mapDispatchToProps = dispatch => ({
-  fetchLogBody: logId => dispatch(fetchLogBody(logId)),
-  toggleSideLogs: () => dispatch(toggleSideLogs())
-})
-
-const LogView = connect(mapStateToProps, mapDispatchToProps)(LogViewRaw)
-
-export default LogView
