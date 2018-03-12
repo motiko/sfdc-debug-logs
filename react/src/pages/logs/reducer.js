@@ -7,9 +7,10 @@ const initalLogsState = {
   sideLogsOpen: true,
   maxLogs: 50,
   filtersDialogOpen: false,
-  styleDialogOpen: true,
+  styleDialogOpen: false,
   styleConfig: {
-    theme: ''
+    theme: '',
+    fontSize: 17
   },
   filters: {
     user: { type: 'text', value: '' },
@@ -121,6 +122,14 @@ export default function logs(state = initalLogsState, action) {
       return {
         ...state,
         styleDialogOpen: !state.styleDialogOpen
+      }
+    case 'UPDATE_FONT_SIZE':
+      return {
+        ...state,
+        styleConfig: {
+          ...state.styleConfig,
+          fontSize: action.newSize
+        }
       }
     case 'UPDATE_FILTER':
       return {

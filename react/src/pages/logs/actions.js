@@ -168,3 +168,8 @@ export function clearFilters() {
 export function toggleStyleDialog() {
   return { type: 'TOGGLE_STYLE_DIALOG' }
 }
+
+export function updateFontSize(newSize) {
+  const newSizeNum = parseInt(newSize)
+  return { type: 'UPDATE_FONT_SIZE', newSize: newSizeNum }
+}

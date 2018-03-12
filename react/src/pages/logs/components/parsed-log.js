@@ -42,7 +42,7 @@ const idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g,
     ENTERING_MANAGED_PKG: 'system'
   }
 
-function ParsedLog({ body, classes }) {
+function ParsedLog({ body, classes, style }) {
   if (!body || body === '') return <div />
   const intro = body.match(
     /^\d{1,2}\.\d\s[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\))/m
@@ -51,7 +51,7 @@ function ParsedLog({ body, classes }) {
     /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|[A-Z_]*[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\))/gm
   )
   return (
-    <pre className={classes.logBodyPre}>
+    <pre className={classes.logBodyPre} style={{ fontSize: style.fontSize }}>
       <div className="monokai" id="debugText">
         <div className="system">{intro}</div>
         {theRest.map((body, index) => {

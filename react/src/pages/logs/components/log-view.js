@@ -14,7 +14,8 @@ const mapStateToProps = state => ({
   sideLogsOpen: state.logsPage.sideLogsOpen,
   logBodies: state.logsPage.logBodies,
   filters: state.logsPage.filters,
-  notMatchingSearchLogs: state.logsPage.notMatchingSearchLogs
+  notMatchingSearchLogs: state.logsPage.notMatchingSearchLogs,
+  style: state.logsPage.styleConfig
 })
 
 const mapDispatchToProps = dispatch => ({
@@ -115,7 +116,7 @@ export default class LogView extends React.Component {
           >
             {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
           </Button>
-          <ParsedLog body={logBody} />
+          <ParsedLog body={logBody} style={props.style} />
         </div>
       </div>
     )

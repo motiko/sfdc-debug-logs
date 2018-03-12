@@ -54,9 +54,10 @@ class LogsPage extends React.Component {
     const props = this.props
     props.refresh()
     document.body.addEventListener('keyup', e => {
-      if (e.target.type === 'text' || e.target.type === 'search') {
+      if (e.target.nodeName === 'INPUT') {
         return
       }
+
       const key = e.key
       const funMap = {
         r: props.refresh,
@@ -122,17 +123,17 @@ class LogsPage extends React.Component {
                   </Grid>
                   <Grid item>
                     <div>
+                      <Tooltip title="Load logs">
+                        <IconButton color="contrast" onClick={props.refresh}>
+                          <RefreshIcon />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Filter logs">
                         <IconButton
                           color="contrast"
                           onClick={props.toggleFiltersDialog}
                         >
                           <FilterList />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Load logs">
-                        <IconButton color="contrast" onClick={props.refresh}>
-                          <RefreshIcon />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Delete All">
