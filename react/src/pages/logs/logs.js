@@ -27,9 +27,9 @@ import {
   setMessage,
   deleteAll,
   search,
-  updateSearchTerm,
   updateMaxLogs,
-  toggleFiltersDialog, toggleStyleDialog
+  toggleFiltersDialog,
+  toggleStyleDialog
 } from './actions'
 import { filterLogs } from './utils'
 
@@ -40,7 +40,6 @@ import { filterLogs } from './utils'
     setMessage: msg => dispatch(setMessage(msg)),
     deleteAll: () => dispatch(deleteAll()),
     search: searchTerm => dispatch(search(searchTerm)),
-    updateSearchTerm: newTerm => dispatch(updateSearchTerm(newTerm)),
     updateMaxLogs: newMaxLogs => dispatch(updateMaxLogs(newMaxLogs)),
     toggleFiltersDialog: () => dispatch(toggleFiltersDialog()),
     toggleStyleDialog: () => dispatch(toggleStyleDialog())
@@ -55,7 +54,7 @@ class LogsPage extends React.Component {
     const props = this.props
     props.refresh()
     document.body.addEventListener('keyup', e => {
-      if (e.target.type === 'text') {
+      if (e.target.type === 'text' || e.target.type === 'search') {
         return
       }
       const key = e.key
@@ -118,10 +117,7 @@ class LogsPage extends React.Component {
                   <Grid item>
                     <Search
                       color="contrast"
-                      handleSearch={() => props.search(props.searchTerm)}
-                      handleRefresh={props.refresh}
-                      searchTerm={props.searchTerm}
-                      updateSearchTerm={props.updateSearchTerm}
+                      handleSearch={searchTerm => props.search(searchTerm)}
                     />
                   </Grid>
                   <Grid item>
@@ -163,7 +159,10 @@ class LogsPage extends React.Component {
                 open={props.filtersDialogOpen}
                 possibleFieldValues={this.possibleFieldValues()}
               />
-              <StyleDialog open={props.styleDialogOpen} onClose={props.toggleStyleDialog} />
+              <StyleDialog
+                open={props.styleDialogOpen}
+                onClose={props.toggleStyleDialog}
+              />
               <Grid item>
                 <TextField
                   value={props.maxLogs}

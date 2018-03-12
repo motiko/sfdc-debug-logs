@@ -5,11 +5,10 @@ const initalLogsState = {
   loading: false,
   message: '',
   sideLogsOpen: true,
-  searchTerm: '',
   maxLogs: 50,
   filtersDialogOpen: false,
   styleDialogOpen: true,
-  styleConfig:{
+  styleConfig: {
     theme: ''
   },
   filters: {

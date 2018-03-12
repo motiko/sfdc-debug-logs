@@ -6,45 +6,59 @@ import IconButton from 'material-ui/IconButton'
 import Input, { InputLabel, InputAdornment } from 'material-ui/Input'
 import Tooltip from 'material-ui/Tooltip'
 
-export default function Search(props) {
-  function handleKey(e) {
+export default class Search extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { searchTerm: '' }
+    this.updateSearchTerm = this.updateSearchTerm.bind(this)
+    this.handleKey = this.handleKey.bind(this)
+  }
+
+  handleKey(e) {
     if (e.keyCode === 13) {
-      props.handleSearch()
+      this.props.handleSearch(this.state.searchTerm)
     }
     if (e.keyCode === 27) {
-      props.handleRefresh()
-      props.updateSearchTerm('')
+      this.updateSearchTerm('')
     }
   }
 
-  const searchTerm = props.searchTerm
-  return (
-    <div>
-      <Input
-        type="text"
-        color="accent"
-        value={searchTerm}
-        onChange={e => props.updateSearchTerm(e.target.value)}
-        onKeyUp={handleKey}
-        endAdornment={
-          <InputAdornment position="end">
-            <Tooltip title="Clear search">
-              <IconButton
-                mini="mini"
-                style={{ top: '0.3em' }}
-                onClick={() => props.updateSearchTerm('')}
-              >
-                <ClearIcon />
-              </IconButton>
-            </Tooltip>
-          </InputAdornment>
-        }
-      />
-      <Tooltip title="Search">
-        <IconButton color="contrast" onClick={props.handleSearch}>
-          <SearchIcon />
-        </IconButton>
-      </Tooltip>
-    </div>
-  )
+  updateSearchTerm(newTerm) {
+    if (newTerm === '') {
+      this.props.handleSearch('')
+    }
+    this.setState({ searchTerm: newTerm })
+  }
+
+  render() {
+    return (
+      <div>
+        <TextField
+          id="search"
+          type="search"
+          color="accent"
+          label="Find in Logs"
+          value={this.state.searchTerm}
+          onKeyUp={this.handleKey}
+          onChange={e => this.updateSearchTerm(e.target.value)}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <Tooltip title="Search">
+                  <IconButton
+                    color="contrast"
+                    onClick={() =>
+                      this.props.handleSearch(this.state.searchTerm)
+                    }
+                  >
+                    <SearchIcon />
+                  </IconButton>
+                </Tooltip>
+              </InputAdornment>
+            )
+          }}
+        />
+      </div>
+    )
+  }
 }
