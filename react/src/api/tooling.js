@@ -47,7 +47,8 @@ export default class Tooling {
     var payload = {
       TracedEntityId: userId,
       DebugLevelId: debugLevelId,
-      LogType: 'DEVELOPER_LOG'
+      LogType: 'DEVELOPER_LOG',
+      StartDate: new Date()
     }
     return this.request(
       '/services/data/v41.0/tooling/sobjects/TraceFlag',

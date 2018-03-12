@@ -35,7 +35,7 @@ ORDER BY LastModifiedDate DESC LIMIT ${numLimit}`
 
   async isLogging() {
     const userId = await this.getUserId()
-    const query = `Select Id From TraceFlag Where TracedEntityId = '${userId}'`
+    const query = `Select Id, ExpirationDate From TraceFlag Where TracedEntityId = '${userId}' AND ExpirationDate > ${new Date().toJSON()}`
     return this.tooling.query(query).then(result => result.records.length > 0)
   }
 
