@@ -173,3 +173,7 @@ export function updateFontSize(newSize) {
   const newSizeNum = parseInt(newSize)
   return { type: 'UPDATE_FONT_SIZE', newSize: newSizeNum }
 }
+
+export function updateTheme(newTheme) {
+  return { type: 'UPDATE_THEME', newTheme }
+}

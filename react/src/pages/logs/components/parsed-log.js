@@ -5,6 +5,7 @@ import AddIcon from 'material-ui-icons/AddCircle'
 import RemoveIcon from 'material-ui-icons/RemoveCircle'
 import IconButton from 'material-ui/IconButton'
 import { withStyles } from 'material-ui/styles'
+import { logThemes } from './log-themes'
 
 const styles = theme => ({
   expandButton: {
@@ -52,10 +53,10 @@ function ParsedLog({ body, classes, style }) {
   )
   return (
     <pre className={classes.logBodyPre} style={{ fontSize: style.fontSize }}>
-      <div className="monokai" id="debugText">
-        <div className="system">{intro}</div>
+      <div id="debugText">
+        <div style={{ color: logThemes[style.theme]['system'] }}>{intro}</div>
         {theRest.map((body, index) => {
-          return <LogElement body={body} key={index} />
+          return <LogElement body={body} theme={style.theme} key={index} />
         })}
         {null}
       </div>
@@ -81,7 +82,7 @@ class LogElement extends React.Component {
   }
 
   render() {
-    const { body, classes } = this.props
+    const { body, classes, theme } = this.props
     const { indented } = this.state
     const eventTypeMatch = /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|([A-Z_]*)/.exec(
       body
@@ -110,7 +111,11 @@ class LogElement extends React.Component {
       elementBody.replace(idRegex, id => {
         result.push(textElements.shift())
         result.push(
-          <a href={`https://${globalSf.hostname}/${id}`} key={result.length}>
+          <a
+            href={`https://${globalSf.hostname}/${id}`}
+            style={{ color: logThemes[theme][className] }}
+            key={result.length}
+          >
             {id}
           </a>
         )
@@ -123,7 +128,7 @@ class LogElement extends React.Component {
     )
     const className = filtered ? filtered[1] : 'rest'
     return (
-      <div className={className}>
+      <div style={{ color: logThemes[theme][className] }}>
         {eventType === 'USER_DEBUG' ? (
           <IconButton
             color="contrast"
@@ -134,7 +139,7 @@ class LogElement extends React.Component {
             {indented ? <RemoveIcon /> : <AddIcon />}
           </IconButton>
         ) : null}
-        {addLinks(beautify(body))}
+        {addLinks(beautify(body), className)}
       </div>
     )
   }

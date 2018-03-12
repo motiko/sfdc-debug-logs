@@ -9,7 +9,7 @@ const initalLogsState = {
   filtersDialogOpen: false,
   styleDialogOpen: false,
   styleConfig: {
-    theme: '',
+    theme: 'dark',
     fontSize: 17
   },
   filters: {
@@ -146,6 +146,14 @@ export default function logs(state = initalLogsState, action) {
       return {
         ...state,
         filters: initalLogsState.filters
+      }
+    case 'UPDATE_THEME':
+      return {
+        ...state,
+        styleConfig: {
+          ...state.styleConfig,
+          theme: action.newTheme
+        }
       }
     default:
       return state

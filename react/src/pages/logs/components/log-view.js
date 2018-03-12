@@ -8,6 +8,7 @@ import ParsedLog from './parsed-log.js'
 import { fetchLogBody, toggleSideLogs } from '../actions'
 import { filterLogs } from '../utils'
 import { maxLogSizeToParse } from '../constants'
+import { logThemes } from './log-themes'
 
 const mapStateToProps = state => ({
   logs: state.logsPage.logs,
@@ -15,7 +16,7 @@ const mapStateToProps = state => ({
   logBodies: state.logsPage.logBodies,
   filters: state.logsPage.filters,
   notMatchingSearchLogs: state.logsPage.notMatchingSearchLogs,
-  style: state.logsPage.styleConfig
+  styleConfig: state.logsPage.styleConfig
 })
 
 const mapDispatchToProps = dispatch => ({
@@ -105,7 +106,7 @@ export default class LogView extends React.Component {
             top: 64,
             bottom: 0,
             width: sideLogsOpen ? '80%' : '100%',
-            backgroundColor: '#292724'
+            backgroundColor: logThemes[props.styleConfig.theme].background
           }}
         >
           <Button
@@ -116,7 +117,7 @@ export default class LogView extends React.Component {
           >
             {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
           </Button>
-          <ParsedLog body={logBody} style={props.style} />
+          <ParsedLog body={logBody} style={props.styleConfig} />
         </div>
       </div>
     )
