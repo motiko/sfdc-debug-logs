@@ -10,7 +10,7 @@ const initalLogsState = {
   styleDialogOpen: false,
   styleConfig: {
     theme: 'dark',
-    fontSize: 17
+    fontSize: 19
   },
   filters: {
     user: { type: 'text', value: '' },

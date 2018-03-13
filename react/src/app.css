@@ -3,21 +3,8 @@
   z-index: 9999 !important;
 }
 
-a {
-  text-decoration: none;
-}
-
 #container {
   overflow: hidden;
-}
-
-#debugText a {
-  text-decoration: underline;
-}
-
-#debugText div {
-  margin-left: 0.6em;
-  margin-top: 0.2em;
 }
 
 @font-face {

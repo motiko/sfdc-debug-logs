@@ -174,7 +174,7 @@ class LogsPage extends React.Component {
                   style={{ width: '6em', marginBottom: 2 }}
                   onBlur={props.refresh}
                 />
-                <Link to="/feedback">
+                <Link to="/feedback" style={{ textDecoration: 'none' }}>
                   <Button color="contrast">
                     <ChatIcon />
                     Give Feedback

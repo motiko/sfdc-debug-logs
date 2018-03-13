@@ -16,11 +16,14 @@ const styles = theme => ({
   },
   logBodyPre: {
     whiteSpace: 'pre-wrap',
-    fontSize: 17,
     lineHeight: '140%',
     fontFamily: "'Courier New', 'Courier', mono",
     marginLeft: '20px',
     overflowWrap: 'break-word'
+  },
+  logElement: {
+    marginLeft: '0.6em',
+    marginTop: '0.6em'
   }
 })
 
@@ -54,9 +57,21 @@ function ParsedLog({ body, classes, style }) {
   return (
     <pre className={classes.logBodyPre} style={{ fontSize: style.fontSize }}>
       <div id="debugText">
-        <div style={{ color: logThemes[style.theme]['system'] }}>{intro}</div>
+        <div
+          style={{ color: logThemes[style.theme]['system'] }}
+          className={classes.logElement}
+        >
+          {intro}
+        </div>
         {theRest.map((body, index) => {
-          return <LogElement body={body} theme={style.theme} key={index} />
+          return (
+            <LogElement
+              body={body}
+              theme={style.theme}
+              key={index}
+              className={classes.logElement}
+            />
+          )
         })}
         {null}
       </div>
@@ -128,7 +143,10 @@ class LogElement extends React.Component {
     )
     const className = filtered ? filtered[1] : 'rest'
     return (
-      <div style={{ color: logThemes[theme][className] }}>
+      <div
+        style={{ color: logThemes[theme][className] }}
+        className={classes.logElement}
+      >
         {eventType === 'USER_DEBUG' ? (
           <IconButton
             color="contrast"
