@@ -5,7 +5,8 @@ export const styles = theme => ({
     height: 200,
     position: 'sticky',
     bottom: 0,
-    padding: theme.spacing.unit * 2
+    padding: theme.spacing.unit * 2,
+    background: theme.palette.background.default
   },
   chip: {
     margin: theme.spacing.unit / 2,

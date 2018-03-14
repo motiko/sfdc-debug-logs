@@ -2,10 +2,14 @@ import React from 'react'
 import { connect } from 'react-redux'
 import List, { ListItem, ListItemText } from 'material-ui/List'
 import Button from 'material-ui/Button'
-import CloseIcon from 'material-ui-icons/KeyboardArrowLeft'
-import OpenIcon from 'material-ui-icons/KeyboardArrowRight'
+import ArrowLeft from 'material-ui-icons/KeyboardArrowLeft'
+import ArrowRight from 'material-ui-icons/KeyboardArrowRight'
+import ArrowUp from 'material-ui-icons/KeyboardArrowUp'
+import ArrowDown from 'material-ui-icons/KeyboardArrowDown'
+import Tooltip from 'material-ui/Tooltip'
+import { withStyles } from 'material-ui/styles'
 import ParsedLog from './parsed-log.js'
-import { fetchLogBody, toggleSideLogs } from '../actions'
+import { fetchLogBody, toggleSideLogs, toggleContentsFilter } from '../actions'
 import { filterLogs } from '../utils'
 import { maxLogSizeToParse } from '../constants'
 import { logThemes } from './log-themes'
@@ -17,14 +21,40 @@ const mapStateToProps = state => ({
   logBodies: state.logsPage.logBodies,
   filters: state.logsPage.filters,
   notMatchingSearchLogs: state.logsPage.notMatchingSearchLogs,
-  styleConfig: state.logsPage.styleConfig
+  styleConfig: state.logsPage.styleConfig,
+  contentsFilterOpen: state.logsPage.contentsFilterOpen
 })
 
 const mapDispatchToProps = dispatch => ({
   fetchLogBody: logId => dispatch(fetchLogBody(logId)),
-  toggleSideLogs: () => dispatch(toggleSideLogs())
+  toggleSideLogs: () => dispatch(toggleSideLogs()),
+  toggleContentsFilter: () => dispatch(toggleContentsFilter())
 })
 
+const styles = theme => ({
+  sideLogs: {
+    paddingLeft: 0,
+    position: 'fixed',
+    left: 0,
+    top: 64,
+    bottom: 0,
+    overflowY: 'scroll',
+    overflowX: 'hidden',
+    background: theme.palette.background.default
+  },
+  container: {
+    background: theme.palette.background.default
+  },
+  sideLogsToggle: { position: 'fixed', left: '-15px', top: '64px' },
+  contentsFilterToggle: {
+    position: 'fixed',
+    right: '20px',
+    bottom: '-5px',
+    zIndex: 999
+  }
+})
+
+@withStyles(styles)
 @connect(mapStateToProps, mapDispatchToProps)
 export default class LogView extends React.Component {
   componentWillMount() {
@@ -46,7 +76,7 @@ export default class LogView extends React.Component {
       hour12: false
     })
     const props = this.props
-    const sideLogsOpen = this.props.sideLogsOpen
+    const { sideLogsOpen, contentsFilterOpen, classes } = this.props
     const curLogId = props.match.params.id
     const openLog = logId => {
       props.fetchLogBody(logId)
@@ -74,18 +104,12 @@ export default class LogView extends React.Component {
     }
     const logBody = this.getBody(curLogId)
     return (
-      <div>
+      <div className={classes.container}>
         <div
           style={{
-            paddingLeft: 0,
-            position: 'fixed',
-            left: 0,
-            top: 64,
-            bottom: 0,
-            overflowY: 'scroll',
-            overflowX: 'hidden',
             width: sideLogsOpen ? '20%' : '0%'
           }}
+          className={classes.sideLog}
         >
           <List
             style={{ borderRightSize: '1px', width: '100%', paddingLeft: 15 }}
@@ -114,12 +138,24 @@ export default class LogView extends React.Component {
             fab
             mini
             onClick={props.toggleSideLogs}
-            style={{ position: 'fixed', left: '-15px', top: '64px' }}
+            className={classes.sideLogsToggle}
           >
-            {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
+            {sideLogsOpen ? <ArrowLeft /> : <ArrowRight />}
           </Button>
           <ParsedLog body={logBody} style={props.styleConfig} />
-          <ContentsFilter />
+          <Tooltip
+            title={contentsFilterOpen ? 'Close Filter' : 'Filter log content'}
+          >
+            <Button
+              fab
+              mini
+              onClick={props.toggleContentsFilter}
+              className={classes.contentsFilterToggle}
+            >
+              {contentsFilterOpen ? <ArrowDown /> : <ArrowUp />}
+            </Button>
+          </Tooltip>
+          {contentsFilterOpen ? <ContentsFilter /> : null}
         </div>
       </div>
     )

@@ -95,7 +95,7 @@ export default class ContentsFilter extends React.Component {
             options: this.availableItems()
           }}
         />
-        <Paper className={classes.selectedEvents}>
+        <Paper className={classes.selectedEvents} elevation={0}>
           {this.state.selected.map(item => (
             <Chip
               key={item}

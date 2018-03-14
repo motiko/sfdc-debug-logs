@@ -5,8 +5,15 @@ import Table, {
   TableRow,
   TableCell
 } from 'material-ui/Table'
+import { withStyles } from 'material-ui/styles'
 
-export default function LogsTable({ history, logs }) {
+const styles = theme => ({
+  table: {
+    background: theme.palette.background.default
+  }
+})
+
+function LogsTable({ history, logs, classes }) {
   const timeFormatter = Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
@@ -34,7 +41,7 @@ export default function LogsTable({ history, logs }) {
   }
 
   return (
-    <Table>
+    <Table className={classes.table}>
       <TableHead>
         <TableRow>
           <TableCell>Time</TableCell>
@@ -49,3 +56,5 @@ export default function LogsTable({ history, logs }) {
     </Table>
   )
 }
+
+export default withStyles(styles)(LogsTable)

@@ -177,3 +177,7 @@ export function updateFontSize(newSize) {
 export function updateTheme(newTheme) {
   return { type: 'UPDATE_THEME', newTheme }
 }
+
+export function toggleContentsFilter() {
+  return { type: 'TOGGLE_CONTENTS_FILTER' }
+}

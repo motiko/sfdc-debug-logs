@@ -21,7 +21,7 @@ const initalLogsState = {
     start: { type: 'date', value: [0, 0] }
   },
   visibleEvents: [],
-  showContentsFilter: true
+  contentsFilterOpen: true
 }
 
 export default function logs(state = initalLogsState, action) {
@@ -156,6 +156,11 @@ export default function logs(state = initalLogsState, action) {
           ...state.styleConfig,
           theme: action.newTheme
         }
+      }
+    case 'TOGGLE_CONTENTS_FILTER':
+      return {
+        ...state,
+        contentsFilterOpen: !state.contentsFilterOpen
       }
     default:
       return state
