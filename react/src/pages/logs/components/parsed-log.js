@@ -56,25 +56,22 @@ function ParsedLog({ body, classes, style }) {
   )
   return (
     <pre className={classes.logBodyPre} style={{ fontSize: style.fontSize }}>
-      <div id="debugText">
-        <div
-          style={{ color: logThemes[style.theme]['system'] }}
-          className={classes.logElement}
-        >
-          {intro}
-        </div>
-        {theRest.map((body, index) => {
-          return (
-            <LogElement
-              body={body}
-              theme={style.theme}
-              key={index}
-              className={classes.logElement}
-            />
-          )
-        })}
-        {null}
+      <div
+        style={{ color: logThemes[style.theme]['system'] }}
+        className={classes.logElement}
+      >
+        {intro}
       </div>
+      {theRest.map((body, index) => {
+        return (
+          <LogElement
+            body={body}
+            theme={style.theme}
+            key={index}
+            className={classes.logElement}
+          />
+        )
+      })}
     </pre>
   )
 }

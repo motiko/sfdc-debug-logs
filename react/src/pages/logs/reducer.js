@@ -19,7 +19,9 @@ const initalLogsState = {
     length: { type: 'number', value: [0, 2 * Math.pow(10, 6)] },
     duration: { type: 'number', value: [0, 2 * 6 * Math.pow(10, 3)] },
     start: { type: 'date', value: [0, 0] }
-  }
+  },
+  visibleEvents: [],
+  showContentsFilter: true
 }
 
 export default function logs(state = initalLogsState, action) {

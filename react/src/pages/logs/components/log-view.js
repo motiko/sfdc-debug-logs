@@ -9,6 +9,7 @@ import { fetchLogBody, toggleSideLogs } from '../actions'
 import { filterLogs } from '../utils'
 import { maxLogSizeToParse } from '../constants'
 import { logThemes } from './log-themes'
+import ContentsFilter from './contents-filter'
 
 const mapStateToProps = state => ({
   logs: state.logsPage.logs,
@@ -118,6 +119,7 @@ export default class LogView extends React.Component {
             {sideLogsOpen ? <CloseIcon /> : <OpenIcon />}
           </Button>
           <ParsedLog body={logBody} style={props.styleConfig} />
+          <ContentsFilter />
         </div>
       </div>
     )
