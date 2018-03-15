@@ -1,17 +1,13 @@
-const initalLogsState = {
+export const defaultInitalLogsState = {
   logs: {},
   logBodies: {},
   notMatchingSearchLogs: {},
   loading: false,
   message: '',
   sideLogsOpen: true,
-  maxLogs: 50,
   filtersDialogOpen: false,
   styleDialogOpen: false,
-  styleConfig: {
-    theme: 'dark',
-    fontSize: 19
-  },
+  contentsFilterOpen: false,
   filters: {
     user: { type: 'text', value: '' },
     operation: { type: 'text', value: '' },
@@ -20,11 +16,15 @@ const initalLogsState = {
     duration: { type: 'number', value: [0, 2 * 6 * Math.pow(10, 3)] },
     start: { type: 'date', value: [0, 0] }
   },
-  visibleEvents: [],
-  contentsFilterOpen: true
+  maxLogs: 50,
+  styleConfig: {
+    theme: 'dark',
+    fontSize: 19
+  },
+  visibleEvents: []
 }
 
-export default function logs(state = initalLogsState, action) {
+export default function logs(state = defaultInitalLogsState, action) {
   switch (action.type) {
     case 'RESET_SEARCH':
       return {
@@ -147,7 +147,7 @@ export default function logs(state = initalLogsState, action) {
     case 'CLEAR_FILTERS':
       return {
         ...state,
-        filters: initalLogsState.filters
+        filters: defaultInitalLogsState.filters
       }
     case 'UPDATE_THEME':
       return {
