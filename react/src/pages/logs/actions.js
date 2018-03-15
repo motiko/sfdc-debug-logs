@@ -181,3 +181,15 @@ export function updateTheme(newTheme) {
 export function toggleContentsFilter() {
   return { type: 'TOGGLE_CONTENTS_FILTER' }
 }
+
+export function addVisibleEvents(newEvents) {
+  return { type: 'ADD_VISIBLE_EVENTS', newEvents }
+}
+
+export function removeVisibleEvent(eventName) {
+  return { type: 'REMOVE_VISIBLE_EVENT', eventName }
+}
+
+export function clearVisibleEvents() {
+  return { type: 'CLEAR_VISIBLE_EVENTS' }
+}

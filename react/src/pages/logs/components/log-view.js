@@ -40,7 +40,15 @@ const styles = theme => ({
     bottom: 0,
     overflowY: 'scroll',
     overflowX: 'hidden',
-    background: theme.palette.background.default
+    background: theme.palette.background.default,
+    height: '100%'
+  },
+  logView: {
+    overflowY: 'scroll',
+    position: 'fixed',
+    right: 0,
+    top: 64,
+    bottom: 0
   },
   container: {
     background: theme.palette.background.default
@@ -109,7 +117,7 @@ export default class LogView extends React.Component {
           style={{
             width: sideLogsOpen ? '20%' : '0%'
           }}
-          className={classes.sideLog}
+          className={classes.sideLogs}
         >
           <List
             style={{ borderRightSize: '1px', width: '100%', paddingLeft: 15 }}
@@ -125,14 +133,10 @@ export default class LogView extends React.Component {
         </div>
         <div
           style={{
-            overflowY: 'scroll',
-            position: 'fixed',
-            right: 0,
-            top: 64,
-            bottom: 0,
             width: sideLogsOpen ? '80%' : '100%',
             backgroundColor: logThemes[props.styleConfig.theme].background
           }}
+          className={classes.logView}
         >
           <Button
             fab

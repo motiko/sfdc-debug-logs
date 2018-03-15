@@ -162,6 +162,25 @@ export default function logs(state = initalLogsState, action) {
         ...state,
         contentsFilterOpen: !state.contentsFilterOpen
       }
+    case 'ADD_VISIBLE_EVENTS':
+      return {
+        ...state,
+        visibleEvents: [
+          ...new Set([...state.visibleEvents, ...action.newEvents])
+        ]
+      }
+    case 'REMOVE_VISIBLE_EVENT':
+      return {
+        ...state,
+        visibleEvents: state.visibleEvents.filter(
+          event => event !== action.eventName
+        )
+      }
+    case 'CLEAR_VISIBLE_EVENTS':
+      return {
+        ...state,
+        visibleEvents: []
+      }
     default:
       return state
   }

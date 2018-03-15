@@ -12,9 +12,15 @@ import ClearIcon from 'material-ui-icons/Clear'
 import Chip from 'material-ui/Chip'
 import Select from 'react-select'
 import Paper from 'material-ui/Paper'
+import { connect } from 'react-redux'
 import { allEventTypes } from '../../../constants'
 import 'react-select/dist/react-select.css'
 import { styles } from './contents-filter-style'
+import {
+  addVisibleEvents,
+  removeVisibleEvent,
+  clearVisibleEvents
+} from '../actions'
 
 class Option extends React.Component {
   handleClick = event => {
@@ -38,48 +44,46 @@ class Option extends React.Component {
 }
 
 @withStyles(styles)
+@connect(
+  state => ({
+    selected: state.logsPage.visibleEvents
+  }),
+  dispatch => ({
+    handleAdd: newItem => dispatch(addVisibleEvents([newItem])),
+    handleRemove: removedItem => dispatch(removeVisibleEvent(removedItem)),
+    addAll: () => dispatch(addVisibleEvents(allEventTypes)),
+    removeAll: () => dispatch(clearVisibleEvents())
+  })
+)
 export default class ContentsFilter extends React.Component {
-  state = {
-    selected: []
-  }
-
-  handleAdd = newItem => {
-    this.setState(prevState => ({
-      ...prevState,
-      selected: [...prevState.selected, newItem]
-    }))
-  }
-
-  handleRemove = toRemove => {
-    this.setState(oldState => ({
-      ...oldState,
-      selected: [...oldState.selected.filter(item => item !== toRemove)]
-    }))
-  }
-
-  addAll = () => this.setState({ selected: allEventTypes })
-
   availableItems = () => {
     return allEventTypes
       .filter(eventType => {
-        return this.state.selected.indexOf(eventType) == -1
+        return this.props.selected.indexOf(eventType) == -1
       })
       .map(eventType => ({ label: eventType, value: eventType }))
   }
 
   render() {
-    const { classes } = this.props
-    const { selected } = this.state
+    const {
+      classes,
+      selected,
+      addAll,
+      handleAdd,
+      handleRemove,
+      removeAll
+    } = this.props
+    // const { selected } = this.state
 
     return (
       <Paper className={classes.root}>
         <Typography variant="display3" className={classes.title} gutterBottom>
           Filter log contents
           <span style={{ float: 'right' }}>
-            <Button onClick={() => {}} color="primary">
+            <Button onClick={removeAll} color="primary">
               Remove All
             </Button>
-            <Button onClick={this.addAll} color="primary">
+            <Button onClick={addAll} color="primary">
               Add All
             </Button>
           </span>
@@ -89,18 +93,18 @@ export default class ContentsFilter extends React.Component {
           inputComponent={Select}
           inputProps={{
             classes,
-            onChange: this.handleAdd,
+            onChange: handleAdd,
             placeholder: 'Filter by event type',
             simpleValue: true,
             options: this.availableItems()
           }}
         />
         <Paper className={classes.selectedEvents} elevation={0}>
-          {this.state.selected.map(item => (
+          {selected.map(item => (
             <Chip
               key={item}
               label={item}
-              onDelete={() => this.handleRemove(item)}
+              onDelete={() => handleRemove(item)}
               className={classes.chip}
             />
           ))}
