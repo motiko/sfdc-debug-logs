@@ -13,13 +13,19 @@ import Chip from 'material-ui/Chip'
 import Select from 'react-select'
 import Paper from 'material-ui/Paper'
 import { connect } from 'react-redux'
+import Dialog, {
+  DialogActions,
+  DialogContent,
+  DialogTitle
+} from 'material-ui/Dialog'
 import { allEventTypes } from '../../../constants'
 import 'react-select/dist/react-select.css'
 import { styles } from './contents-filter-style'
 import {
   addVisibleEvents,
   removeVisibleEvent,
-  clearVisibleEvents
+  clearVisibleEvents,
+  toggleContentsFilter
 } from '../actions'
 
 class Option extends React.Component {
@@ -29,7 +35,6 @@ class Option extends React.Component {
 
   render() {
     const { children, isFocused, onFocus } = this.props
-
     return (
       <MenuItem
         onFocus={onFocus}
@@ -46,13 +51,15 @@ class Option extends React.Component {
 @withStyles(styles)
 @connect(
   state => ({
-    selected: state.logsPage.visibleEvents
+    selected: state.logsPage.visibleEvents,
+    isOpen: state.logsPage.contentsFilterOpen
   }),
   dispatch => ({
     handleAdd: newItem => dispatch(addVisibleEvents([newItem])),
     handleRemove: removedItem => dispatch(removeVisibleEvent(removedItem)),
     addAll: () => dispatch(addVisibleEvents(allEventTypes)),
-    removeAll: () => dispatch(clearVisibleEvents())
+    removeAll: () => dispatch(clearVisibleEvents()),
+    toggleContentsFilter: () => dispatch(toggleContentsFilter())
   })
 )
 export default class ContentsFilter extends React.Component {
@@ -64,6 +71,12 @@ export default class ContentsFilter extends React.Component {
       .map(eventType => ({ label: eventType, value: eventType }))
   }
 
+  componentDidMount() {
+    if (this.inputElement) {
+      this.inputElement.focus()
+    }
+  }
+
   render() {
     const {
       classes,
@@ -71,45 +84,49 @@ export default class ContentsFilter extends React.Component {
       addAll,
       handleAdd,
       handleRemove,
-      removeAll
+      removeAll,
+      toggleContentsFilter,
+      isOpen
     } = this.props
-    // const { selected } = this.state
 
     return (
-      <Paper className={classes.root}>
-        <Typography variant="display3" className={classes.title} gutterBottom>
-          Filter log contents
-          <span style={{ float: 'right' }}>
-            <Button onClick={removeAll} color="primary">
-              Remove All
-            </Button>
-            <Button onClick={addAll} color="primary">
-              Add All
-            </Button>
-          </span>
-        </Typography>
-        <Input
-          fullWidth
-          inputComponent={Select}
-          inputProps={{
-            classes,
-            onChange: handleAdd,
-            placeholder: 'Filter by event type',
-            simpleValue: true,
-            options: this.availableItems()
-          }}
-        />
-        <Paper className={classes.selectedEvents} elevation={0}>
-          {selected.map(item => (
-            <Chip
-              key={item}
-              label={item}
-              onDelete={() => handleRemove(item)}
-              className={classes.chip}
-            />
-          ))}
-        </Paper>
-      </Paper>
+      <Dialog open={isOpen} onClose={toggleContentsFilter} fullWidth>
+        <DialogTitle id="form-dialog-title">Filter log contents</DialogTitle>
+        <DialogContent>
+          <Input
+            inputRef={element => {
+              this.inputElement = element
+            }}
+            fullWidth
+            inputComponent={Select}
+            inputProps={{
+              classes,
+              onChange: handleAdd,
+              placeholder: 'Filter by event type',
+              simpleValue: true,
+              options: this.availableItems()
+            }}
+          />
+          <Paper className={classes.selectedEvents} elevation={0}>
+            {selected.map(item => (
+              <Chip
+                key={item}
+                label={item}
+                onDelete={() => handleRemove(item)}
+                className={classes.chip}
+              />
+            ))}
+          </Paper>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={removeAll} color="primary">
+            Remove All
+          </Button>
+          <Button onClick={addAll} color="primary">
+            Add All
+          </Button>
+        </DialogActions>
+      </Dialog>
     )
   }
 }

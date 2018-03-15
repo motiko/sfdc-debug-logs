@@ -96,34 +96,32 @@ export default class FilterDialog extends React.Component {
     const lengthFormatter = value => `${(value / 1000).toFixed(2)} k`
     const durationFormatter = value => `${value} ms`
     return (
-      <div>
-        <Dialog
-          open={props.open}
-          onClose={props.toggleFiltersDialog}
-          fullWidth
-          aria-labelledby="form-dialog-title"
-        >
-          <DialogTitle id="form-dialog-title">Filters</DialogTitle>
-          <DialogContent>
-            <DialogContentText>Pick Fields to filter by:</DialogContentText>
-            <form>
-              {filterByText('user', 'User')}
-              {filterByText('operation', 'Operation')}
-              {filterByText('status', 'Status')}
-              {filterByNumber('length', lengthFormatter)}
-              {filterByNumber('duration', durationFormatter)}
-            </form>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={props.clearFilters} color="primary">
-              Clear filters
-            </Button>
-            <Button onClick={props.toggleFiltersDialog} color="primary">
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </div>
+      <Dialog
+        open={props.open}
+        onClose={props.toggleFiltersDialog}
+        fullWidth
+        aria-labelledby="form-dialog-title"
+      >
+        <DialogTitle id="form-dialog-title">Filters</DialogTitle>
+        <DialogContent>
+          <DialogContentText>Pick Fields to filter by:</DialogContentText>
+          <form>
+            {filterByText('user', 'User')}
+            {filterByText('operation', 'Operation')}
+            {filterByText('status', 'Status')}
+            {filterByNumber('length', lengthFormatter)}
+            {filterByNumber('duration', durationFormatter)}
+          </form>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={props.clearFilters} color="primary">
+            Clear filters
+          </Button>
+          <Button onClick={props.toggleFiltersDialog} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     )
   }
 }

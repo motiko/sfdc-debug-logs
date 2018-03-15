@@ -1,21 +1,14 @@
 const ITEM_HEIGHT = 48
 
 export const styles = theme => ({
-  root: {
-    height: 200,
-    position: 'sticky',
-    bottom: 0,
-    padding: theme.spacing.unit * 2,
-    background: theme.palette.background.default
-  },
   chip: {
     margin: theme.spacing.unit / 2,
     display: 'inline-flex'
   },
-  title: theme.typography.headline,
   selectedEvents: {
     marginTop: theme.spacing.unit * 2,
-    maxHeight: ITEM_HEIGHT * 2.5,
+    maxHeight: ITEM_HEIGHT * 4,
+    minHeight: ITEM_HEIGHT * 4,
     overflow: 'auto'
   },
   // waiting on https://github.com/JedWatson/react-select/issues/1679

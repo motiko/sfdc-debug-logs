@@ -4,8 +4,7 @@ import List, { ListItem, ListItemText } from 'material-ui/List'
 import Button from 'material-ui/Button'
 import ArrowLeft from 'material-ui-icons/KeyboardArrowLeft'
 import ArrowRight from 'material-ui-icons/KeyboardArrowRight'
-import ArrowUp from 'material-ui-icons/KeyboardArrowUp'
-import ArrowDown from 'material-ui-icons/KeyboardArrowDown'
+import FilterList from 'material-ui-icons/FilterList'
 import Tooltip from 'material-ui/Tooltip'
 import { withStyles } from 'material-ui/styles'
 import ParsedLog from './parsed-log.js'
@@ -21,8 +20,7 @@ const mapStateToProps = state => ({
   logBodies: state.logsPage.logBodies,
   filters: state.logsPage.filters,
   notMatchingSearchLogs: state.logsPage.notMatchingSearchLogs,
-  styleConfig: state.logsPage.styleConfig,
-  contentsFilterOpen: state.logsPage.contentsFilterOpen
+  styleConfig: state.logsPage.styleConfig
 })
 
 const mapDispatchToProps = dispatch => ({
@@ -47,17 +45,21 @@ const styles = theme => ({
     overflowY: 'scroll',
     position: 'fixed',
     right: 0,
-    top: 64,
+    top: theme.spacing.unit * 8,
     bottom: 0
   },
   container: {
     background: theme.palette.background.default
   },
-  sideLogsToggle: { position: 'fixed', left: '-15px', top: '64px' },
+  sideLogsToggle: {
+    position: 'fixed',
+    left: -(theme.spacing.unit * 2),
+    top: theme.spacing.unit * 9
+  },
   contentsFilterToggle: {
     position: 'fixed',
-    right: '20px',
-    bottom: '-5px',
+    right: theme.spacing.unit * 3,
+    top: theme.spacing.unit * 9,
     zIndex: 999
   }
 })
@@ -146,20 +148,19 @@ export default class LogView extends React.Component {
           >
             {sideLogsOpen ? <ArrowLeft /> : <ArrowRight />}
           </Button>
+
           <ParsedLog body={logBody} style={props.styleConfig} />
-          <Tooltip
-            title={contentsFilterOpen ? 'Close Filter' : 'Filter log content'}
-          >
+          <Tooltip title="Filter log content" placement="left-end">
             <Button
               fab
               mini
               onClick={props.toggleContentsFilter}
               className={classes.contentsFilterToggle}
             >
-              {contentsFilterOpen ? <ArrowDown /> : <ArrowUp />}
+              <FilterList />
             </Button>
           </Tooltip>
-          {contentsFilterOpen ? <ContentsFilter /> : null}
+          <ContentsFilter />
         </div>
       </div>
     )
