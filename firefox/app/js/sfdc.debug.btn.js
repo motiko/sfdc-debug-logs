@@ -49,10 +49,10 @@ function initPage() {
   addReloadControllers();
   addSearchControllers();
   initKeyTraps();
-  // let dontShowHint = JSON.parse(localStorage.getItem('dontShowNewAppHint'))
-  // if(!dontShowHint){
-  //   addHint()
-  // }
+  let dontShowHint = JSON.parse(localStorage.getItem('dontShowNewAppHint2'))
+  if(!dontShowHint){
+    addHint()
+  }
 }
 
 initPage();
@@ -133,7 +133,8 @@ function addHint(){
     var hintContainer = document.createElement('div');
     hintContainer.id = 'hintContainer';
     var hint = document.createElement('span');
-    hint.innerHTML = ['<h4>Try the new logs view with <b> Shift + w</b></h4><br/>',
+    hint.innerHTML = ['<h4>The new view just got better</h4><br/>',
+      '<p> with fast loading, caching, filters and much more.. <br/>Try it now with<b> Shift + w</b></p><br/>',
         '<p style="margin-right: 15px;"> ApexDebugger Extension</p>'].join('');
     var hideTip = document.createElement('button');
     hideTip.textContent = 'X';
@@ -141,7 +142,7 @@ function addHint(){
     hideTip.className = 'closeButton';
     hideTip.onclick = function(){
         hintContainer.style.display = 'none';
-        localStorage.setItem('dontShowNewAppHint',true)
+        localStorage.setItem('dontShowNewAppHint2',true)
     };
     hintContainer.appendChild(hideTip);
     hintContainer.appendChild(hint);
@@ -192,9 +193,10 @@ function loadedLogIds() {
 
 function getMonitoredUsers() {
   return toArray(document.querySelectorAll('th[scope="row"]')).map(function(th) {
+    if(!th.firstElementChild) return null
     var href = th.firstElementChild.href;
     return "'" + href.substr(href.lastIndexOf('/') + 1) + "'";
-  }).join(',');
+  }).filter(x => x).join(',');
 }
 
 function loadNewLogs() {
