@@ -6,6 +6,7 @@ import RemoveIcon from 'material-ui-icons/RemoveCircle'
 import IconButton from 'material-ui/IconButton'
 import { withStyles } from 'material-ui/styles'
 import { logThemes } from './log-themes'
+import { connect } from 'react-redux'
 
 const styles = theme => ({
   expandButton: {
@@ -46,14 +47,28 @@ const idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g,
     ENTERING_MANAGED_PKG: 'system'
   }
 
-function ParsedLog({ body, classes, style }) {
+function ParsedLog({ body, classes, style, visibleEvents }) {
   if (!body || body === '') return <div />
   const intro = body.match(
     /^\d{1,2}\.\d\s[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\))/m
   )
-  const theRest = body.match(
+  const allTheRest = body.match(
     /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|[A-Z_]*[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\))/gm
   )
+  const visibleRest =
+    visibleEvents.length == 0
+      ? allTheRest
+      : allTheRest.filter(body => {
+          const eventTypeMatch = /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|([A-Z_]*)/.exec(
+            body
+          )
+          if (!eventTypeMatch) {
+            console.error(`Didn't find event type for ${body} `)
+            return false
+          }
+          const eventType = eventTypeMatch[1]
+          return visibleEvents.indexOf(eventType) > -1
+        })
   return (
     <pre className={classes.logBodyPre} style={{ fontSize: style.fontSize }}>
       <div
@@ -62,7 +77,7 @@ function ParsedLog({ body, classes, style }) {
       >
         {intro}
       </div>
-      {theRest.map((body, index) => {
+      {visibleRest.map((body, index) => {
         return (
           <LogElement
             body={body}
@@ -76,7 +91,13 @@ function ParsedLog({ body, classes, style }) {
   )
 }
 
-export default withStyles(styles)(ParsedLog)
+const mapStateToProps = state => ({
+  visibleEvents: state.logsPage.visibleEvents
+})
+
+export default connect(mapStateToProps, () => ({}))(
+  withStyles(styles)(ParsedLog)
+)
 
 @withStyles(styles)
 class LogElement extends React.Component {
