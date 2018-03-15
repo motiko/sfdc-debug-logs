@@ -171,6 +171,7 @@ class LogElement extends React.Component {
             className={classes.expandButton}
             aria-label="Add"
             onClick={this.toggleIndentation}
+            style={{ color: logThemes[theme]['rest'] }}
           >
             {indented ? <RemoveIcon /> : <AddIcon />}
           </IconButton>
