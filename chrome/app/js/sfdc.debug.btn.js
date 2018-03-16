@@ -7,6 +7,31 @@ const USERS_TABLE_ID = 'Apex_Trace_List:monitoredUsersForm';
 var showLogsNum = 50;
 var tableElement = document.getElementById(LOGS_TABLE_ID);
 
+function openApp(){
+  if(!document.location.search.includes("openApp=yes")){
+    return
+  }
+  function sendBackVars() {
+      window.postMessage({
+        type: "sessionVars",
+        sessionVars: JSON.stringify(window.SFDCSessionVars)
+      }, "*");
+  }
+
+  window.addEventListener("message", function(event) {
+    if (event.data.type === "sessionVars") {
+      const sessionVars = JSON.parse(event.data.sessionVars)
+      browser.runtime.sendMessage({
+          url: `${browser.extension.getURL('html/app.html')}?oid=${sessionVars.oid}&uid=${sessionVars.uid}&sid=${encodeURIComponent(sid)}&host=${encodeURIComponent(location.hostname)}`,
+          name: `app_${sessionVars.oid}`,
+          command: "openOrFocusTab"
+        });
+      window.close()
+    }
+  });
+  inject(sendBackVars);
+}
+
 function initKeyTraps() {
   Mousetrap.bind('l', clickOn('#load_new_logs'));
   Mousetrap.bind('u', clickOn('#add_current_user'));
@@ -42,6 +67,7 @@ function focusOn(selector) {
 }
 
 function initPage() {
+  openApp()
   getUserId();
   addDeleteAllBtn();
   removeOldDeleteBtn();

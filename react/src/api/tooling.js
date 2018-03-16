@@ -47,8 +47,7 @@ export default class Tooling {
     var payload = {
       TracedEntityId: userId,
       DebugLevelId: debugLevelId,
-      LogType: 'DEVELOPER_LOG',
-      StartDate: new Date()
+      LogType: 'DEVELOPER_LOG'
     }
     return this.request(
       '/services/data/v41.0/tooling/sobjects/TraceFlag',
@@ -57,7 +56,7 @@ export default class Tooling {
       Object.assign({ ExpirationDate: expirationDate }, payload)
     ).catch(err => {
       // fallback, try without expiration date
-      console.info(err)
+      console.error(err)
       this.request(
         '/services/data/v41.0/tooling/sobjects/TraceFlag',
         'POST',

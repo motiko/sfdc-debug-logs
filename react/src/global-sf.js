@@ -5,6 +5,11 @@ function getParam(s) {
   return url.searchParams.get(s)
 }
 
-const globalSf = new SF(getParam('host'), getParam('sid'))
+const globalSf = new SF(
+  getParam('host'),
+  getParam('sid'),
+  getParam('uid'),
+  getParam('oid')
+)
 
 export default globalSf

@@ -4,8 +4,11 @@ import Tooling from './tooling'
 import Batch from './batch'
 
 export default class SF {
-  constructor(host, sid) {
+  constructor(host, sid, userId, orgId) {
     this.hostname = host
+    this.userId = userId
+    this.orgId = orgId
+    this.sid = sid
     this.request = initRequest(host, sid)
     this.batch = new Batch(this.request)
     this.tooling = new Tooling(this.request)
@@ -34,20 +37,20 @@ ORDER BY LastModifiedDate DESC LIMIT ${numLimit}`
   }
 
   async isLogging() {
-    const userId = await this.getUserId()
-    const query = `Select Id, ExpirationDate From TraceFlag Where TracedEntityId = '${userId}' AND ExpirationDate > ${new Date().toJSON()}`
+    const query = `Select Id, ExpirationDate From TraceFlag Where TracedEntityId = '${
+      this.userId
+    }' AND ExpirationDate > ${new Date().toJSON()}`
     return this.tooling.query(query).then(result => result.records.length > 0)
   }
 
   async startLogging() {
-    const userId = await this.getUserId()
     const debugLevelId = await this.tooling.getOrCreateDebugLevel()
-    return this.tooling.createTraceFlag(userId, debugLevelId)
+    return this.tooling.createTraceFlag(this.userId, debugLevelId)
   }
 
-  getUserId() {
-    return this.request('/services/data/v24.0/chatter/users/me').then(
-      me => me.id
-    )
-  }
+  // getIdentity() {
+  //   const request = initRequest('login.salesforce.com', this.sid)
+  //   request(`/id/${this.orgId}/${this.userId}`).then(resp => {
+  //   })
+  // }
 }

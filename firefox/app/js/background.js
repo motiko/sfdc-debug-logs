@@ -1,9 +1,5 @@
 let appTabIds = {}
 
-function openOptionsTab() {
-
-}
-
 function focusTab(tabId) {
   browser.tabs.get(tabId).then((tab) => {
     if (tab) browser.tabs.update(tab.id, {
@@ -54,6 +50,14 @@ browser.runtime.onMessage.addListener((request) => {
       break
     case "openOrFocusTab":
       openOrFocusTab(request.url, request.name)
+      break
+    case "focusAppTab":
+      const appTabNames = Object.keys(appTabIds).filter(tabName => tabName.startsWith("app_") )
+      if(appTabNames.length > 0 && appTabIds[appTabNames[0]]){
+        focusTab(appTabIds[appTabNames[0]])
+        return true
+      }
+      return false
       break
     case "ga":
       // _gaq.push(request.params);

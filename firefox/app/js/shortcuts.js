@@ -1,19 +1,17 @@
 var sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/);
 var sid = sidCookie ? sidCookie[2] : false;
-var orgId;
+var sessionVars;
 
 function sendBackOrgId() {
-  if (document.cookie.indexOf('oid=') > -1) {
     window.postMessage({
       type: "orgId",
-      content: document.cookie.substr(document.cookie.indexOf('oid=') + 4, 15)
+      sessionVars: JSON.stringify(window.SFDCSessionVars)
     }, "*");
-  }
 }
 
 window.addEventListener("message", function(event) {
   if (event.data.type === "orgId") {
-    orgId = event.data.content
+    sessionVars = JSON.parse(event.data.sessionVars)
     shortcutUrl({
       key: 'i',
       path: '/' + event.data.content
@@ -37,12 +35,26 @@ Mousetrap.bind('s', saveObject);
 // shortcutUrl({key:'w', path:'/setup/ui/listApexTraces.apexp'});
 
 function openApp(){
+  if (document.activeElement.nodeName == "OBJECT" &&
+    document.activeElement.data.indexOf('.swf') > -1) {
+    return;
+  }
   logEvent('Shortcut','openApp')
   browser.runtime.sendMessage({
-      url: `${browser.extension.getURL('html/app.html')}?orgId=${orgId}&host=${encodeURIComponent(location.hostname)}&sid=${sid}`,
-      name: `app_${orgId}`,
-      command: "openOrFocusTab"
-    });
+      command: "focusAppTab"
+  }).then((appOpened) => {
+    if(!appOpened){
+      if(document.location.hostname.includes(".salesforce.com")) {
+        browser.runtime.sendMessage({
+            url: `${browser.extension.getURL('html/app.html')}?oid=${sessionVars.oid}&uid=${sessionVars.uid}&sid=${encodeURIComponent(sid)}&host=${encodeURIComponent(location.hostname)}`,
+            name: `app_${sessionVars.oid}`,
+            command: "openOrFocusTab"
+          });
+      }else{
+        openInNewTab('/setup/ui/listApexTraces.apexp?openApp=yes')
+      }
+    }
+  });
 }
 
 function shortcutMethod(char, method) {
