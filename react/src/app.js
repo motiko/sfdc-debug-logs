@@ -27,9 +27,16 @@ class App extends React.Component {
     this.props.store.dispatch(loadMessages())
     window.addEventListener('beforeunload', event => {
       const logsPageState = this.props.store.getState().logsPage
+
       idbKeyval.set(
         'savedSettings',
-        ['maxLogs', 'styleConfig', 'visibleEvents', 'sideLogsOpen'].reduce(
+        [
+          'maxLogs',
+          'styleConfig',
+          'visibleEvents',
+          'sideLogsOpen',
+          'logBodies'
+        ].reduce(
           (acc, curKey) => ({
             ...acc,
             [curKey]: logsPageState[curKey]
@@ -37,11 +44,6 @@ class App extends React.Component {
           {}
         )
       )
-    })
-    navigator.storage.estimate().then(usageData => {
-      if (usageData.usage / usageData.quota > 0.1) {
-        idbKeyval.clear()
-      }
     })
   }
 

@@ -1,5 +1,4 @@
 import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
-import idbKeyval from 'idb-keyval'
 import { filtersToWhereClause } from './utils.js'
 
 const normalize = logsArray => {
@@ -20,17 +19,11 @@ export function fetchLogBody(logId) {
       return
     }
     dispatch({ type: 'FETCH_LOG_BODY_INIT' })
-    const body = await idbKeyval.get(logId)
-    if (body) {
-      console.info('loaded log from cache')
-      return dispatch({ type: 'FETCH_LOG_BODY_DONE', logId, logBody: body })
-    }
     return sf
       .logBody(logId)
       .then(body => {
         console.info('loaded log from server')
         dispatch({ type: 'FETCH_LOG_BODY_DONE', logId, logBody: body })
-        idbKeyval.set(logId, body)
       })
       .catch(err => {
         return dispatch({
@@ -90,13 +83,7 @@ export function search(searchTerm) {
     }
 
     await fillbodiesFrom(id =>
-      idbKeyval.get(id).then(body => {
-        if (body) logBodies[id] = body
-      })
-    )
-    await fillbodiesFrom(id =>
       sf.logBody(id).then(body => {
-        idbKeyval.set(id, body)
         logBodies[id] = body
       })
     )
