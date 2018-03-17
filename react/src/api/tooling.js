@@ -1,3 +1,5 @@
+import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
+
 export default class Tooling {
   constructor(request) {
     this.request = request
@@ -41,8 +43,21 @@ export default class Tooling {
     })
   }
 
+  async removeTraceFlags(userId, debugLevelId) {
+    const query = `Select Id From TraceFlag Where TracedEntityId = '${userId}' AND DebugLevelId= '${debugLevelId}'`
+    const existingTraceFlags = await this.query(query)
+    return Promise.all(
+      existingTraceFlags.records.map(traceFlag =>
+        this.request(
+          `/services/data/v41.0/tooling/sobjects/TraceFlag/${traceFlag.Id}`,
+          'DELETE'
+        )
+      )
+    )
+  }
+
   createTraceFlag(userId, debugLevelId) {
-    const MS_IN_DAY = 1000 * 60 * 60 * 23
+    const MS_IN_DAY = 1000 * 59 * 60 * 24
     let expirationDate = new Date(Date.now() + MS_IN_DAY)
     var payload = {
       TracedEntityId: userId,
@@ -53,10 +68,10 @@ export default class Tooling {
       '/services/data/v41.0/tooling/sobjects/TraceFlag',
       'POST',
       {},
-      Object.assign({ ExpirationDate: expirationDate }, payload)
-    ).catch(err => {
+      { ...payload, ExpirationDate: expirationDate }
+    ).catch(async err => {
       // fallback, try without expiration date
-      console.error(err)
+      await this.removeTraceFlags(userId, debugLevelId)
       this.request(
         '/services/data/v41.0/tooling/sobjects/TraceFlag',
         'POST',
