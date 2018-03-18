@@ -6,7 +6,7 @@ export default class Tooling {
   }
 
   getOrCreateDebugLevel() {
-    const LOG_LEVEL_NAME = 'ApexDebugger'
+    const LOG_LEVEL_NAME = 'ApexDebuggerExtension'
     const headers = {
       Accept: '*/*'
     }
