@@ -180,3 +180,7 @@ export function removeVisibleEvent(eventName) {
 export function clearVisibleEvents() {
   return { type: 'CLEAR_VISIBLE_EVENTS' }
 }
+
+export function updateColor(propName, newColor) {
+  return { type: 'UPDATE_COLOR', propName, newColor }
+}

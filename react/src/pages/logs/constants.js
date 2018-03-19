@@ -23,5 +23,16 @@ export const defaultLogThemes = {
     method: '#BB4444',
     error: '#f92672',
     background: '#ffffcc'
+  },
+  bw: {
+    themeName: 'bw',
+    debug: '#000',
+    soql: '#000',
+    callout: '#000',
+    system: '#000',
+    rest: '#000',
+    method: '#000',
+    error: '#000',
+    background: '#fff'
   }
 }

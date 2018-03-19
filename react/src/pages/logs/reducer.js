@@ -183,6 +183,17 @@ export default function logs(state = defaultInitalLogsState, action) {
         ...state,
         visibleEvents: []
       }
+    case 'UPDATE_COLOR':
+      return {
+        ...state,
+        styleConfig: {
+          ...state.styleConfig,
+          theme: {
+            ...state.styleConfig.theme,
+            [action.propName]: action.newColor
+          }
+        }
+      }
     default:
       return state
   }

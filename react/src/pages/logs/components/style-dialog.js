@@ -14,12 +14,17 @@ import { defaultLogThemes } from '../constants'
 import { withStyles } from 'material-ui/styles'
 import { FormControl } from 'material-ui/Form'
 import Grid from 'material-ui/Grid'
+import ColorPickers from './color-pickers'
+import Divider from 'material-ui/Divider'
 
 const styles = theme => ({
   textField: {
     marginLeft: 2 * theme.spacing.unit,
     marginRight: 2 * theme.spacing.unit,
     width: 200
+  },
+  dialog: {
+    height: '100%'
   }
 })
 
@@ -41,6 +46,10 @@ export default class StyleDialog extends React.Component {
         onClose={onClose}
         fullWidth
         aria-labelledby="form-dialog-title"
+        maxWidth="md"
+        classes={{
+          paper: classes.dialog
+        }}
       >
         <DialogTitle id="form-dialog-title">Log View Style</DialogTitle>
         <DialogContent>
@@ -63,7 +72,7 @@ export default class StyleDialog extends React.Component {
                   select
                   label="Log Color Theme"
                   className={classes.textField}
-                  value={this.props.theme.themeName}
+                  value={theme.themeName}
                   onChange={e =>
                     this.props.updateTheme(defaultLogThemes[e.target.value])
                   }
@@ -78,6 +87,8 @@ export default class StyleDialog extends React.Component {
                 </TextField>
               </Grid>
             </Grid>
+            <Divider />
+            <ColorPickers theme={theme} />
           </form>
         </DialogContent>
         <DialogActions>
