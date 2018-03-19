@@ -5,7 +5,6 @@ import AddIcon from 'material-ui-icons/AddCircle'
 import RemoveIcon from 'material-ui-icons/RemoveCircle'
 import IconButton from 'material-ui/IconButton'
 import { withStyles } from 'material-ui/styles'
-import { logThemes } from './log-themes'
 import { connect } from 'react-redux'
 
 const styles = theme => ({
@@ -47,7 +46,7 @@ const idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g,
     ENTERING_MANAGED_PKG: 'system'
   }
 
-function ParsedLog({ body, classes, style, visibleEvents }) {
+function ParsedLog({ body, classes, logStyleConfig, visibleEvents }) {
   if (!body || body === '') return <div />
   const intro = body.match(
     /^\d{1,2}\.\d\s[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\))/m
@@ -70,9 +69,12 @@ function ParsedLog({ body, classes, style, visibleEvents }) {
           return visibleEvents.indexOf(eventType) > -1
         })
   return (
-    <pre className={classes.logBodyPre} style={{ fontSize: style.fontSize }}>
+    <pre
+      className={classes.logBodyPre}
+      style={{ fontSize: logStyleConfig.fontSize }}
+    >
       <div
-        style={{ color: logThemes[style.theme]['system'] }}
+        style={{ color: logStyleConfig.theme.system }}
         className={classes.logElement}
       >
         {intro}
@@ -81,7 +83,7 @@ function ParsedLog({ body, classes, style, visibleEvents }) {
         return (
           <LogElement
             body={body}
-            theme={style.theme}
+            logTheme={logStyleConfig.theme}
             key={index}
             className={classes.logElement}
           />
@@ -115,7 +117,7 @@ class LogElement extends React.Component {
   }
 
   render() {
-    const { body, classes, theme } = this.props
+    const { body, classes, logTheme } = this.props
     const { indented } = this.state
     const eventTypeMatch = /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|([A-Z_]*)/.exec(
       body
@@ -146,7 +148,7 @@ class LogElement extends React.Component {
         result.push(
           <a
             href={`https://${globalSf.hostname}/${id}`}
-            style={{ color: logThemes[theme][className] }}
+            style={{ color: logTheme[className] }}
             key={result.length}
           >
             {id}
@@ -162,7 +164,7 @@ class LogElement extends React.Component {
     const className = filtered ? filtered[1] : 'rest'
     return (
       <div
-        style={{ color: logThemes[theme][className] }}
+        style={{ color: logTheme[className] }}
         className={classes.logElement}
       >
         {eventType === 'USER_DEBUG' ? (
@@ -171,7 +173,7 @@ class LogElement extends React.Component {
             className={classes.expandButton}
             aria-label="Add"
             onClick={this.toggleIndentation}
-            style={{ color: logThemes[theme]['rest'] }}
+            style={{ color: logTheme.rest }}
           >
             {indented ? <RemoveIcon /> : <AddIcon />}
           </IconButton>

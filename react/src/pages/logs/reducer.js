@@ -1,3 +1,5 @@
+import { defaultLogThemes } from './constants'
+
 export const defaultInitalLogsState = {
   logs: {},
   logBodies: {},
@@ -18,7 +20,7 @@ export const defaultInitalLogsState = {
   },
   maxLogs: 50,
   styleConfig: {
-    theme: 'dark',
+    theme: defaultLogThemes.dark,
     fontSize: 19
   },
   visibleEvents: []

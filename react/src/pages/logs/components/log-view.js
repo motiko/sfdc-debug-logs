@@ -11,7 +11,6 @@ import ParsedLog from './parsed-log.js'
 import { fetchLogBody, toggleSideLogs, toggleContentsFilter } from '../actions'
 import { filterLogs } from '../utils'
 import { maxLogSizeToParse } from '../constants'
-import { logThemes } from './log-themes'
 import ContentsFilter from './contents-filter'
 
 const mapStateToProps = state => ({
@@ -136,7 +135,7 @@ export default class LogView extends React.Component {
         <div
           style={{
             width: sideLogsOpen ? '80%' : '100%',
-            backgroundColor: logThemes[props.styleConfig.theme].background
+            backgroundColor: props.styleConfig.theme.background
           }}
           className={classes.logView}
         >
@@ -149,7 +148,7 @@ export default class LogView extends React.Component {
             {sideLogsOpen ? <ArrowLeft /> : <ArrowRight />}
           </Button>
 
-          <ParsedLog body={logBody} style={props.styleConfig} />
+          <ParsedLog body={logBody} logStyleConfig={props.styleConfig} />
           <Tooltip title="Filter log content" placement="left-end">
             <Button
               fab

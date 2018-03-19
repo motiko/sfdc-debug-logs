@@ -10,8 +10,10 @@ import Dialog, {
 } from 'material-ui/Dialog'
 import { connect } from 'react-redux'
 import { updateFontSize, updateTheme } from '../actions'
-import { logThemes } from './log-themes'
+import { defaultLogThemes } from '../constants'
 import { withStyles } from 'material-ui/styles'
+import { FormControl } from 'material-ui/Form'
+import Grid from 'material-ui/Grid'
 
 const styles = theme => ({
   textField: {
@@ -43,30 +45,39 @@ export default class StyleDialog extends React.Component {
         <DialogTitle id="form-dialog-title">Log View Style</DialogTitle>
         <DialogContent>
           <form>
-            <TextField
-              id="number"
-              label="Font Size"
-              value={fontSize}
-              onChange={e => this.props.updateFontSize(e.target.value)}
-              className={classes.textField}
-              type="number"
-              margin="normal"
-            />
-            <TextField
-              select
-              label="Log Color Theme"
-              className={classes.textField}
-              value={this.props.theme}
-              onChange={e => this.props.updateTheme(e.target.value)}
-              helperText="Please select log color theme"
-              margin="normal"
-            >
-              {Object.keys(logThemes).map(option => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
+            <Grid container direction="column">
+              <Grid item>
+                <TextField
+                  id="number"
+                  label="Font Size"
+                  value={fontSize}
+                  onChange={e => this.props.updateFontSize(e.target.value)}
+                  className={classes.textField}
+                  type="number"
+                  margin="normal"
+                />
+              </Grid>
+              <Grid item>
+                <TextField
+                  fullWidth
+                  select
+                  label="Log Color Theme"
+                  className={classes.textField}
+                  value={this.props.theme.themeName}
+                  onChange={e =>
+                    this.props.updateTheme(defaultLogThemes[e.target.value])
+                  }
+                  helperText="Please select log color theme"
+                  margin="normal"
+                >
+                  {Object.keys(defaultLogThemes).map(option => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            </Grid>
           </form>
         </DialogContent>
         <DialogActions>
