@@ -6,16 +6,17 @@ export default class Tooling {
   }
 
   getOrCreateDebugLevel() {
-    const LOG_LEVEL_NAME = 'ApexDebuggerExtension'
+    const LOG_LEVEL_NAME = 'ApexDbgrExtension'
     const headers = {
       Accept: '*/*'
     }
     const query = encodeURIComponent(
       "Select Id From DebugLevel Where DeveloperName = '" + LOG_LEVEL_NAME + "'"
     )
-    var debugLevelPayload = {
+    const debugLevelPayload = {
       DeveloperName: LOG_LEVEL_NAME,
       MasterLabel: LOG_LEVEL_NAME,
+      Language: 'en_US',
       Workflow: 'DEBUG',
       Validation: 'DEBUG',
       Callout: 'DEBUG',
@@ -26,7 +27,7 @@ export default class Tooling {
       Database: 'DEBUG'
     }
     return this.request(
-      `/services/data/v36.0/tooling/query?q=${query}`,
+      `/services/data/v41.0/tooling/query?q=${query}`,
       'GET',
       headers
     ).then(existingDebugLevel => {
@@ -34,9 +35,9 @@ export default class Tooling {
         return existingDebugLevel.records[0].Id
       } else {
         return this.request(
-          '/services/data/v36.0/tooling/sobjects/DebugLevel',
+          '/services/data/v41.0/tooling/sobjects/DebugLevel',
           'POST',
-          headers,
+          {},
           debugLevelPayload
         ).then(result => result.id)
       }
@@ -76,7 +77,10 @@ export default class Tooling {
         '/services/data/v41.0/tooling/sobjects/TraceFlag',
         'POST',
         {},
-        payload
+        {
+          ...payload,
+          StartDate: new Date()
+        }
       )
     })
   }
