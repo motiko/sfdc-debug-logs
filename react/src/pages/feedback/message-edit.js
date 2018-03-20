@@ -55,7 +55,7 @@ export default class MessageEdit extends React.Component {
 
   render() {
     return (
-      <div>
+      <React.Fragment>
         <TextField
           label="Name (Optional)"
           value={this.state.name}
@@ -80,7 +80,7 @@ export default class MessageEdit extends React.Component {
             <ReplyIcon /> Send
           </Button>
         </DialogActions>
-      </div>
+      </React.Fragment>
     )
   }
 }

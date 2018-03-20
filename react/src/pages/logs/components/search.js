@@ -32,7 +32,7 @@ export default class Search extends React.Component {
 
   render() {
     return (
-      <div>
+      <React.Fragment>
         <TextField
           id="search"
           type="search"
@@ -58,7 +58,7 @@ export default class Search extends React.Component {
             )
           }}
         />
-      </div>
+      </React.Fragment>
     )
   }
 }

@@ -75,22 +75,20 @@ export default class FilterDialog extends React.Component {
       </TextField>
     )
     const filterByNumber = (fieldName, fieldFormatter) => (
-      <div>
-        <div style={{ width: 400, margin: 50 }}>
-          <p>
-            Show logs where {fieldName} is in{' '}
-            {fieldFormatter(props[fieldName].value[0])}
-            {` - `}
-            {fieldFormatter(props[fieldName].value[1])}
-          </p>
-          <Range
-            min={maxRangeValues[fieldName].min}
-            max={maxRangeValues[fieldName].max}
-            value={props[fieldName].value}
-            tipFormatter={fieldFormatter}
-            onChange={props.updateNumericFilter(fieldName)}
-          />
-        </div>
+      <div style={{ width: 400, margin: 50 }}>
+        <p>
+          Show logs where {fieldName} is in{' '}
+          {fieldFormatter(props[fieldName].value[0])}
+          {` - `}
+          {fieldFormatter(props[fieldName].value[1])}
+        </p>
+        <Range
+          min={maxRangeValues[fieldName].min}
+          max={maxRangeValues[fieldName].max}
+          value={props[fieldName].value}
+          tipFormatter={fieldFormatter}
+          onChange={props.updateNumericFilter(fieldName)}
+        />
       </div>
     )
     const lengthFormatter = value => `${(value / 1000).toFixed(2)} k`
