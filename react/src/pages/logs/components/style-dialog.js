@@ -15,7 +15,6 @@ import { withStyles } from 'material-ui/styles'
 import { FormControl } from 'material-ui/Form'
 import Grid from 'material-ui/Grid'
 import ColorPickers from './color-pickers'
-import Divider from 'material-ui/Divider'
 
 const styles = theme => ({
   textField: {
@@ -87,7 +86,6 @@ export default class StyleDialog extends React.Component {
                 </TextField>
               </Grid>
             </Grid>
-            <Divider />
             <ColorPickers theme={theme} />
           </form>
         </DialogContent>

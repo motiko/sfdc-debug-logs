@@ -6,7 +6,7 @@ import RemoveIcon from 'material-ui-icons/RemoveCircle'
 import IconButton from 'material-ui/IconButton'
 import { withStyles } from 'material-ui/styles'
 import { connect } from 'react-redux'
-
+import { sfIdRegex, logEventToType } from '../constants'
 const styles = theme => ({
   expandButton: {
     margin: 0,
@@ -26,25 +26,6 @@ const styles = theme => ({
     marginTop: '0.6em'
   }
 })
-
-const idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g,
-  logEntryToDivTagClass = {
-    USER_DEBUG: 'debug',
-    SYSTEM_: 'system',
-    SOQL_EXECUTE_: 'soql',
-    SOQL_EXECUTE_END: 'soql',
-    METHOD_: 'method',
-    CONSTRUCTOR_: 'method',
-    EXCEPTION_: 'err',
-    FATAL_ERROR: 'err',
-    CODE_UNIT: 'method',
-    CALLOUT: 'callout',
-    VALIDATION_: 'method',
-    EXECUTION_: 'rest',
-    DML_BEGIN: 'rest',
-    DML_END: 'rest',
-    ENTERING_MANAGED_PKG: 'system'
-  }
 
 function ParsedLog({ body, classes, logStyleConfig, visibleEvents }) {
   if (!body || body === '') return <div />
@@ -140,10 +121,10 @@ class LogElement extends React.Component {
     }
 
     const addLinks = elementBody => {
-      if (!idRegex.test(elementBody)) return elementBody
-      let textElements = elementBody.split(idRegex)
+      if (!sfIdRegex.test(elementBody)) return elementBody
+      let textElements = elementBody.split(sfIdRegex)
       let result = []
-      elementBody.replace(idRegex, id => {
+      elementBody.replace(sfIdRegex, id => {
         result.push(textElements.shift())
         result.push(
           <a
@@ -158,7 +139,7 @@ class LogElement extends React.Component {
       return result
     }
 
-    const filtered = Object.entries(logEntryToDivTagClass).find(me =>
+    const filtered = Object.entries(logEventToType).find(me =>
       eventType.startsWith(me[0])
     )
     const className = filtered ? filtered[1] : 'rest'

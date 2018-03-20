@@ -36,3 +36,21 @@ export const defaultLogThemes = {
     background: '#fff'
   }
 }
+
+export const sfIdRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g
+export const logEventToType = {
+  USER_DEBUG: 'debug',
+  SYSTEM_: 'system',
+  ENTERING_MANAGED_PKG: 'system',
+  SOQL_EXECUTE_: 'soql',
+  METHOD_: 'method',
+  CONSTRUCTOR_: 'method',
+  CODE_UNIT: 'method',
+  EXCEPTION_: 'err',
+  FATAL_ERROR: 'err',
+  CALLOUT: 'callout',
+  VALIDATION_: 'method',
+  EXECUTION_: 'rest',
+  DML_BEGIN: 'rest',
+  DML_END: 'rest'
+}
