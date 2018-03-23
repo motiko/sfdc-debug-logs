@@ -1,6 +1,10 @@
 import { defaultLogThemes } from './constants'
 import { defaultStyleConfig, styleConfigReducer } from './dialogs/style/reducer'
 import { defaultFiltersState, filtersReducer } from './dialogs/filter/reducer'
+import {
+  defaultVisibleEvents,
+  visibleEventsReducer
+} from './dialogs/log-content-filter/reducer'
 
 export const defaultInnerLogsState = {
   logs: {},
@@ -12,8 +16,7 @@ export const defaultInnerLogsState = {
   filtersDialogOpen: false,
   styleDialogOpen: false,
   contentsFilterOpen: false,
-  maxLogs: 50,
-  visibleEvents: []
+  maxLogs: 50
 }
 
 function innerLogsReducer(state = defaultInnerLogsState, action) {
@@ -122,25 +125,6 @@ function innerLogsReducer(state = defaultInnerLogsState, action) {
         ...state,
         contentsFilterOpen: !state.contentsFilterOpen
       }
-    case 'ADD_VISIBLE_EVENTS':
-      return {
-        ...state,
-        visibleEvents: [
-          ...new Set([...state.visibleEvents, ...action.newEvents])
-        ]
-      }
-    case 'REMOVE_VISIBLE_EVENT':
-      return {
-        ...state,
-        visibleEvents: state.visibleEvents.filter(
-          event => event !== action.eventName
-        )
-      }
-    case 'CLEAR_VISIBLE_EVENTS':
-      return {
-        ...state,
-        visibleEvents: []
-      }
     default:
       return state
   }
@@ -150,13 +134,15 @@ export default function logs(
   state = {
     ...defaultInnerLogsState,
     styleConfig: defaultStyleConfig,
-    filters: defaultFiltersState
+    filters: defaultFiltersState,
+    visibleEvents: defaultVisibleEvents
   },
   action
 ) {
   return {
     ...innerLogsReducer(state, action),
     styleConfig: styleConfigReducer(state.styleConfig, action),
-    filters: filtersReducer(state.filters, action)
+    filters: filtersReducer(state.filters, action),
+    visibleEvents: visibleEventsReducer(state.visibleEvents, action)
   }
 }
