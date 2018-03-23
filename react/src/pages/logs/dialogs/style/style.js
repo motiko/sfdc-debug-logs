@@ -9,11 +9,12 @@ import Dialog, {
   DialogTitle
 } from 'material-ui/Dialog'
 import { connect } from 'react-redux'
-import { updateFontSize, updateTheme } from '../actions'
-import { defaultLogThemes } from '../constants'
+import { updateFontSize, updateTheme, toggleTextWrap } from './actions'
+import { defaultLogThemes } from '../../constants'
 import { withStyles } from 'material-ui/styles'
 import { FormControl } from 'material-ui/Form'
 import Grid from 'material-ui/Grid'
+import Switch from 'material-ui/Switch'
 import ColorPickers from './color-pickers'
 
 const styles = theme => ({
@@ -32,13 +33,16 @@ const styles = theme => ({
   state => state.logsPage.styleConfig,
   dispatch => ({
     toggleStyleDialog: () => dispatch(toggleStyleDialog()),
+    toggleTextWrap: () => dispatch(toggleTextWrap()),
     updateFontSize: newSize => dispatch(updateFontSize(newSize)),
     updateTheme: newTheme => dispatch(updateTheme(newTheme))
   })
 )
 export default class StyleDialog extends React.Component {
   render() {
-    const { onClose, open, fontSize, theme, classes } = this.props
+    const { onClose, open, fontSize, theme, classes, textWrap } = this.props
+    const { updateFontSize, toggleTextWrap } = this.props
+    debugger
     return (
       <Dialog
         open={open}
@@ -54,16 +58,25 @@ export default class StyleDialog extends React.Component {
         <DialogContent>
           <form>
             <Grid container direction="column">
-              <Grid item>
-                <TextField
-                  id="number"
-                  label="Font Size"
-                  value={fontSize}
-                  onChange={e => this.props.updateFontSize(e.target.value)}
-                  className={classes.textField}
-                  type="number"
-                  margin="normal"
-                />
+              <Grid container direction="row">
+                <Grid item>
+                  <TextField
+                    id="number"
+                    label="Font Size"
+                    value={fontSize}
+                    onChange={e => this.props.updateFontSize(e.target.value)}
+                    className={classes.textField}
+                    type="number"
+                    margin="normal"
+                  />
+                </Grid>
+                <Grid item>
+                  <Switch
+                    checked={textWrap}
+                    onChange={e => toggleTextWrap(e.target.value)}
+                    label="Text Wrap"
+                  />
+                </Grid>
               </Grid>
               <Grid item>
                 <TextField

@@ -1,9 +1,9 @@
 import React from 'react'
 import { connect } from 'react-redux'
-import { updateColor } from '../actions'
+import { updateColor } from './actions'
 import ColorPicker from 'material-ui-color-picker'
 import Grid from 'material-ui/Grid'
-import { logEventToType } from '../constants'
+import { logEventToType } from '../../constants'
 
 const typeToLogEvents = (desiredType, eventToType) =>
   Object.entries(eventToType)

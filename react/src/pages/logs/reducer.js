@@ -1,4 +1,5 @@
 import { defaultLogThemes } from './constants'
+import { defaultStyleConfig, styleConfigReducer } from './dialogs/style/reducer'
 
 export const defaultInitalLogsState = {
   logs: {},
@@ -18,14 +19,10 @@ export const defaultInitalLogsState = {
     duration: { type: 'number', value: [0, 2 * 6 * Math.pow(10, 3)] }
   },
   maxLogs: 50,
-  styleConfig: {
-    theme: defaultLogThemes.dark,
-    fontSize: 19
-  },
   visibleEvents: []
 }
 
-export default function logs(state = defaultInitalLogsState, action) {
+function innerLogsReducer(state = defaultInitalLogsState, action) {
   switch (action.type) {
     case 'RESET_SEARCH':
       return {
@@ -126,14 +123,6 @@ export default function logs(state = defaultInitalLogsState, action) {
         ...state,
         styleDialogOpen: !state.styleDialogOpen
       }
-    case 'UPDATE_FONT_SIZE':
-      return {
-        ...state,
-        styleConfig: {
-          ...state.styleConfig,
-          fontSize: action.newSize
-        }
-      }
     case 'UPDATE_FILTER':
       return {
         ...state,
@@ -149,14 +138,6 @@ export default function logs(state = defaultInitalLogsState, action) {
       return {
         ...state,
         filters: defaultInitalLogsState.filters
-      }
-    case 'UPDATE_THEME':
-      return {
-        ...state,
-        styleConfig: {
-          ...state.styleConfig,
-          theme: action.newTheme
-        }
       }
     case 'TOGGLE_CONTENTS_FILTER':
       return {
@@ -182,18 +163,17 @@ export default function logs(state = defaultInitalLogsState, action) {
         ...state,
         visibleEvents: []
       }
-    case 'UPDATE_COLOR':
-      return {
-        ...state,
-        styleConfig: {
-          ...state.styleConfig,
-          theme: {
-            ...state.styleConfig.theme,
-            [action.propName]: action.newColor
-          }
-        }
-      }
     default:
       return state
+  }
+}
+
+export default function logs(
+  state = { ...defaultInitalLogsState, styleConfig: defaultStyleConfig },
+  action
+) {
+  return {
+    ...innerLogsReducer(state, action),
+    styleConfig: styleConfigReducer(state.styleConfig, action)
   }
 }

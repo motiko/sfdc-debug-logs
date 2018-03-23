@@ -156,15 +156,6 @@ export function toggleStyleDialog() {
   return { type: 'TOGGLE_STYLE_DIALOG' }
 }
 
-export function updateFontSize(newSize) {
-  const newSizeNum = parseInt(newSize)
-  return { type: 'UPDATE_FONT_SIZE', newSize: newSizeNum }
-}
-
-export function updateTheme(newTheme) {
-  return { type: 'UPDATE_THEME', newTheme }
-}
-
 export function toggleContentsFilter() {
   return { type: 'TOGGLE_CONTENTS_FILTER' }
 }
@@ -179,8 +170,4 @@ export function removeVisibleEvent(eventName) {
 
 export function clearVisibleEvents() {
   return { type: 'CLEAR_VISIBLE_EVENTS' }
-}
-
-export function updateColor(propName, newColor) {
-  return { type: 'UPDATE_COLOR', propName, newColor }
 }

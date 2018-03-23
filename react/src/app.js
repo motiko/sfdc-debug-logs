@@ -21,6 +21,7 @@ import LogsPage from './pages/logs/logs'
 import globalSf from './global-sf'
 import './app.css'
 import { defaultInitalLogsState } from './pages/logs/reducer'
+import { defaultStyleConfig } from './pages/logs/dialogs/style/reducer'
 
 class App extends React.Component {
   componentWillMount() {
@@ -77,14 +78,21 @@ const theme = createMuiTheme({
 })
 
 idbKeyval.get('savedSettings').then(savedSettings => {
+  const loadedLogsPageSettings = {
+    maxLogs: savedSettings.maxLogs,
+    styleConfig: { ...defaultStyleConfig, ...savedSettings.styleConfig },
+    visibleEvents: savedSettings.visibleEvents,
+    sideLogsOpen: savedSettings.sideLogsOpen,
+    logBodies: savedSettings.logBodies
+  }
   const store = createStore(
     appReducer,
-    { logsPage: { ...defaultInitalLogsState, ...savedSettings } },
+    { logsPage: { ...defaultInitalLogsState, ...loadedLogsPageSettings } },
     applyMiddleware(thunk.withExtraArgument(globalSf))
   )
 
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // window._store = store
+  // window._store = store //
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 
   const ProvidedApp = () => (
