@@ -1,7 +1,8 @@
 import { defaultLogThemes } from './constants'
 import { defaultStyleConfig, styleConfigReducer } from './dialogs/style/reducer'
+import { defaultFiltersState, filtersReducer } from './dialogs/filter/reducer'
 
-export const defaultInitalLogsState = {
+export const defaultInnerLogsState = {
   logs: {},
   logBodies: {},
   notMatchingSearchLogs: {},
@@ -11,18 +12,11 @@ export const defaultInitalLogsState = {
   filtersDialogOpen: false,
   styleDialogOpen: false,
   contentsFilterOpen: false,
-  filters: {
-    user: { type: 'text', value: '' },
-    operation: { type: 'text', value: '' },
-    status: { type: 'text', value: '' },
-    length: { type: 'number', value: [0, 2.5 * Math.pow(10, 6)] },
-    duration: { type: 'number', value: [0, 2 * 6 * Math.pow(10, 3)] }
-  },
   maxLogs: 50,
   visibleEvents: []
 }
 
-function innerLogsReducer(state = defaultInitalLogsState, action) {
+function innerLogsReducer(state = defaultInnerLogsState, action) {
   switch (action.type) {
     case 'RESET_SEARCH':
       return {
@@ -123,22 +117,6 @@ function innerLogsReducer(state = defaultInitalLogsState, action) {
         ...state,
         styleDialogOpen: !state.styleDialogOpen
       }
-    case 'UPDATE_FILTER':
-      return {
-        ...state,
-        filters: {
-          ...state.filters,
-          [action.filterName]: {
-            ...state.filters[action.filterName],
-            value: action.newValue
-          }
-        }
-      }
-    case 'CLEAR_FILTERS':
-      return {
-        ...state,
-        filters: defaultInitalLogsState.filters
-      }
     case 'TOGGLE_CONTENTS_FILTER':
       return {
         ...state,
@@ -169,11 +147,16 @@ function innerLogsReducer(state = defaultInitalLogsState, action) {
 }
 
 export default function logs(
-  state = { ...defaultInitalLogsState, styleConfig: defaultStyleConfig },
+  state = {
+    ...defaultInnerLogsState,
+    styleConfig: defaultStyleConfig,
+    filters: defaultFiltersState
+  },
   action
 ) {
   return {
     ...innerLogsReducer(state, action),
-    styleConfig: styleConfigReducer(state.styleConfig, action)
+    styleConfig: styleConfigReducer(state.styleConfig, action),
+    filters: filtersReducer(state.filters, action)
   }
 }

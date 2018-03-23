@@ -20,7 +20,7 @@ import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs/logs'
 import globalSf from './global-sf'
 import './app.css'
-import { defaultInitalLogsState } from './pages/logs/reducer'
+import { defaultInnerLogsState } from './pages/logs/reducer'
 import { defaultStyleConfig } from './pages/logs/dialogs/style/reducer'
 
 class App extends React.Component {
@@ -87,7 +87,7 @@ idbKeyval.get('savedSettings').then(savedSettings => {
   }
   const store = createStore(
     appReducer,
-    { logsPage: { ...defaultInitalLogsState, ...loadedLogsPageSettings } },
+    { logsPage: { ...defaultInnerLogsState, ...loadedLogsPageSettings } },
     applyMiddleware(thunk.withExtraArgument(globalSf))
   )
 

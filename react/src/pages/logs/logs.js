@@ -20,7 +20,7 @@ import LogView from './components/log-view'
 import TrackingLogs from './components/tracking-logs'
 import Search from './components/search'
 import LogsTable from './components/logs-table'
-import FilterDialog from './components/filter-dialog'
+import FilterDialog from './dialogs/filter/filter-dialog'
 import StyleDialog from './dialogs/style/style'
 import {
   loadLogs,

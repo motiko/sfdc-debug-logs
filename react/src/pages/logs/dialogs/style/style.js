@@ -42,7 +42,6 @@ export default class StyleDialog extends React.Component {
   render() {
     const { onClose, open, fontSize, theme, classes, textWrap } = this.props
     const { updateFontSize, toggleTextWrap } = this.props
-    debugger
     return (
       <Dialog
         open={open}

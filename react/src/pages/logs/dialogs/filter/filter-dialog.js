@@ -11,7 +11,7 @@ import { FormControlLabel, FormControl, FormHelperText } from 'material-ui/Form'
 import { connect } from 'react-redux'
 import MenuItem from 'material-ui/Menu/MenuItem'
 import { withStyles } from 'material-ui/styles'
-import { toggleFiltersDialog, updateFilter, clearFilters } from '../actions'
+import { toggleFiltersDialog, updateFilter, clearFilters } from './actions'
 import Slider from 'rc-slider'
 import Tooltip from 'rc-tooltip'
 import 'rc-slider/assets/index.css'
@@ -21,7 +21,7 @@ const createSliderWithTooltip = Slider.createSliderWithTooltip
 const Range = createSliderWithTooltip(Slider.Range)
 
 const maxRangeValues = {
-  length: { min: 0, max: 2 * Math.pow(10, 6) },
+  length: { min: 0, max: 2.5 * Math.pow(10, 6) },
   duration: { min: 0, max: 2 * 6 * Math.pow(10, 3) }
 }
 
