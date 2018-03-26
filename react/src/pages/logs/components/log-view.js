@@ -11,7 +11,7 @@ import ParsedLog from './parsed-log.js'
 import { fetchLogBody, toggleSideLogs, toggleContentsFilter } from '../actions'
 import { filterLogs } from '../utils'
 import { maxLogSizeToParse } from '../constants'
-import ContentsFilter from './contents-filter'
+import ContentsFilter from '../dialogs/log-content-filter/contents-filter'
 
 const mapStateToProps = state => ({
   logs: state.logsPage.logs,

@@ -18,7 +18,7 @@ import Dialog, {
   DialogContent,
   DialogTitle
 } from 'material-ui/Dialog'
-import { allEventTypes } from '../constants'
+import { allEventTypes } from '../../constants'
 import 'react-select/dist/react-select.css'
 import { styles } from './contents-filter-style'
 import {
@@ -26,7 +26,7 @@ import {
   removeVisibleEvent,
   clearVisibleEvents,
   toggleContentsFilter
-} from '../actions'
+} from '../../actions'
 
 class Option extends React.Component {
   handleClick = event => {
