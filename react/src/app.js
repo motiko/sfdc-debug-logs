@@ -24,7 +24,7 @@ import { defaultInnerLogsState } from './pages/logs/reducer'
 import { defaultStyleConfig } from './pages/logs/dialogs/style/reducer'
 
 class App extends React.Component {
-  componentWillMount() {
+  componentDidMount() {
     this.props.store.dispatch(loadMessages())
     window.addEventListener('beforeunload', event => {
       const logsPageState = this.props.store.getState().logsPage

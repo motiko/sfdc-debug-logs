@@ -37,7 +37,7 @@ const mapDispatchToProps = dispatch => ({
 })
 
 class FeedbackPageComponent extends React.Component {
-  componentWillMount() {
+  componentDidMount() {
     this.props.loadMessages()
   }
 

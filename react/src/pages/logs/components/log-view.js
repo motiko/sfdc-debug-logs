@@ -66,7 +66,7 @@ const styles = theme => ({
 @withStyles(styles)
 @connect(mapStateToProps, mapDispatchToProps)
 export default class LogView extends React.Component {
-  componentWillMount() {
+  componentDidMount() {
     this.props.fetchLogBody(this.props.match.params.id)
   }
 

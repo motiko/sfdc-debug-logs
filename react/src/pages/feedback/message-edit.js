@@ -21,10 +21,6 @@ export default class MessageEdit extends React.Component {
     }
   }
 
-  componentWillMount() {
-    this.setState({ name: '', body: '', error: '' })
-  }
-
   handleBodyChange(e) {
     const newBody = e.target.value
     const newLines = newBody.match(/\n/g)
