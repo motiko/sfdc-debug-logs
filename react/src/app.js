@@ -1,4 +1,6 @@
 // import 'react-devtools'
+import persistState, { mergePersistedState } from 'redux-localstorage'
+import filter from 'redux-localstorage-filter'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { MuiThemeProvider, createMuiTheme } from 'material-ui/styles'
@@ -13,7 +15,7 @@ import {
 import { Provider } from 'react-redux'
 import idbKeyval from 'idb-keyval'
 import thunk from 'redux-thunk'
-import { createStore, applyMiddleware } from 'redux'
+import { compose, createStore, applyMiddleware } from 'redux'
 import appReducer from './reducers'
 import { loadMessages } from './pages/feedback/actions'
 import FeedbackPage from './pages/feedback/feedback'
@@ -26,26 +28,6 @@ import { defaultStyleConfig } from './pages/logs/dialogs/style/reducer'
 class App extends React.Component {
   componentDidMount() {
     this.props.store.dispatch(loadMessages())
-    window.addEventListener('beforeunload', event => {
-      const logsPageState = this.props.store.getState().logsPage
-
-      idbKeyval.set(
-        'savedSettings',
-        [
-          'maxLogs',
-          'styleConfig',
-          'visibleEvents',
-          'sideLogsOpen',
-          'logBodies'
-        ].reduce(
-          (acc, curKey) => ({
-            ...acc,
-            [curKey]: logsPageState[curKey]
-          }),
-          {}
-        )
-      )
-    })
   }
 
   render() {
@@ -77,31 +59,52 @@ const theme = createMuiTheme({
   }
 })
 
-idbKeyval.get('savedSettings').then(savedSettings => {
-  const loadedLogsPageSettings = {
-    maxLogs: savedSettings.maxLogs,
-    styleConfig: { ...defaultStyleConfig, ...savedSettings.styleConfig },
-    visibleEvents: savedSettings.visibleEvents,
-    sideLogsOpen: savedSettings.sideLogsOpen,
-    logBodies: savedSettings.logBodies
-  }
-  const store = createStore(
-    appReducer,
-    { logsPage: { ...defaultInnerLogsState, ...loadedLogsPageSettings } },
-    applyMiddleware(thunk.withExtraArgument(globalSf))
+const indexDbAdapter = {
+  put: (key, value, callback) => idbKeyval.set(key, value).then(callback),
+  get: (key, callback) => {
+    idbKeyval
+      .get(key)
+      .then(res => callback(null, res))
+      .catch(callback)
+  },
+  del: (key, callback) => idbKeyval.del(key).then(callback)
+}
+
+const storage = compose(
+  filter([
+    'logsPage.maxLogs',
+    'logsPage.sideLogsOpen',
+    'logsPage.styleConfig',
+    'logsPage.logBodies',
+    'logsPage.visibleEvents'
+  ])
+)(indexDbAdapter)
+
+const reducer = compose(
+  mergePersistedState((initialState, persistedState) => ({
+    ...initialState,
+    logsPage: { ...initialState.logsPage, ...persistedState.logsPage }
+  }))
+)(appReducer)
+
+const store = createStore(
+  reducer,
+  compose(
+    applyMiddleware(thunk.withExtraArgument(globalSf)),
+    persistState(storage)
   )
+)
 
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // window._store = store //
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// window._store = store //
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 
-  const ProvidedApp = () => (
-    <MuiThemeProvider theme={theme}>
-      <Provider store={store}>
-        <App store={store} />
-      </Provider>
-    </MuiThemeProvider>
-  )
+const ProvidedApp = () => (
+  <MuiThemeProvider theme={theme}>
+    <Provider store={store}>
+      <App store={store} />
+    </Provider>
+  </MuiThemeProvider>
+)
 
-  ReactDOM.render(<ProvidedApp />, document.getElementById('container'))
-})
+ReactDOM.render(<ProvidedApp />, document.getElementById('container'))
