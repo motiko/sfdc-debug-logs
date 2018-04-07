@@ -12,7 +12,7 @@ import { connect } from 'react-redux'
 import { updateFontSize, updateTheme, toggleTextWrap } from './actions'
 import { defaultLogThemes } from '../../constants'
 import { withStyles } from 'material-ui/styles'
-import { FormControl } from 'material-ui/Form'
+import { FormControl, FormControlLabel } from 'material-ui/Form'
 import Grid from 'material-ui/Grid'
 import Switch from 'material-ui/Switch'
 import ColorPickers from './color-pickers'
@@ -25,7 +25,8 @@ const styles = theme => ({
   },
   dialog: {
     height: '100%'
-  }
+  },
+  toggleContainer: { marginTop: 'auto', marginBottom: theme.spacing.unit }
 })
 
 @withStyles(styles)
@@ -69,10 +70,14 @@ export default class StyleDialog extends React.Component {
                     margin="normal"
                   />
                 </Grid>
-                <Grid item>
-                  <Switch
-                    checked={textWrap}
-                    onChange={e => toggleTextWrap(e.target.value)}
+                <Grid item className={classes.toggleContainer}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={textWrap}
+                        onChange={e => toggleTextWrap(e.target.value)}
+                      />
+                    }
                     label="Text Wrap"
                   />
                 </Grid>
