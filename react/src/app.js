@@ -75,7 +75,6 @@ const storage = compose(
     'logsPage.maxLogs',
     'logsPage.sideLogsOpen',
     'logsPage.styleConfig',
-    'logsPage.logBodies',
     'logsPage.visibleEvents'
   ])
 )(indexDbAdapter)
