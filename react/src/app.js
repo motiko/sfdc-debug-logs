@@ -1,5 +1,6 @@
 // import 'react-devtools'
 import persistState, { mergePersistedState } from 'redux-localstorage'
+import adapter from 'redux-localstorage/lib/adapters/sessionStorage'
 import filter from 'redux-localstorage-filter'
 import React from 'react'
 import ReactDOM from 'react-dom'
@@ -59,17 +60,6 @@ const theme = createMuiTheme({
   }
 })
 
-const indexDbAdapter = {
-  put: (key, value, callback) => idbKeyval.set(key, value).then(callback),
-  get: (key, callback) => {
-    idbKeyval
-      .get(key)
-      .then(res => callback(null, res))
-      .catch(callback)
-  },
-  del: (key, callback) => idbKeyval.del(key).then(callback)
-}
-
 const storage = compose(
   filter([
     'logsPage.maxLogs',
@@ -77,7 +67,7 @@ const storage = compose(
     'logsPage.styleConfig',
     'logsPage.visibleEvents'
   ])
-)(indexDbAdapter)
+)(adapter(window.sessionStorage))
 
 const reducer = compose(
   mergePersistedState((initialState, persistedState) => ({
