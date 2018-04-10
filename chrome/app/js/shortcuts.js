@@ -10,7 +10,7 @@ function sendBackOrgId() {
 }
 
 window.addEventListener("message", function(event) {
-  if (event.data.type === "orgId") {
+  if (event.data.type === "orgId" && event.data.sessionVars) {
     sessionVars = JSON.parse(event.data.sessionVars)
     shortcutUrl({
       key: 'i',
