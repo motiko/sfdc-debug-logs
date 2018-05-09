@@ -54,7 +54,7 @@ class LogsPage extends React.Component {
     const props = this.props
     props.refresh()
     document.body.addEventListener('keyup', e => {
-      if (e.target.nodeName === 'INPUT') {
+      if (e.target.nodeName === 'INPUT' || e.target.nodeName === 'TEXTAREA') {
         return
       }
 
