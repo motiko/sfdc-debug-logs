@@ -8,3 +8,4 @@ libs
 node_modules/
 build/
 lib-srcs/
+tags/
