@@ -12,9 +12,14 @@ function sendBackOrgId() {
 window.addEventListener("message", function(event) {
   if (event.data.type === "orgId" && event.data.sessionVars) {
     sessionVars = JSON.parse(event.data.sessionVars)
+    browser.runtime.sendMessage({
+      command: "updateVars",
+      vars: sessionVars,
+      sid: sid
+    })
     shortcutUrl({
       key: 'i',
-      path: '/' + event.data.content
+      path: '/' + sessionVars.oid
     });
   }
 });

@@ -25,5 +25,4 @@ function sfRequest(path, method = 'GET', headers = {}, body) {
 }
 
 function logEvent(eventCat, eventName, eventLabel){
-    browser.runtime.sendMessage({command: "ga", params: eventParams})
 }

@@ -9,7 +9,7 @@ export default class SF {
     this.userId = userId
     this.orgId = orgId
     this.sid = sid
-    this.request = initRequest(host, sid)
+    this.request = initRequest(host, sid, orgId)
     this.batch = new Batch(this.request)
     this.tooling = new Tooling(this.request)
   }

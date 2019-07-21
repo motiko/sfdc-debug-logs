@@ -1,4 +1,5 @@
-let appTabIds = {}
+let appTabIds = {};
+let orgVars = {};
 
 function focusTab(tabId) {
   browser.tabs.get(tabId).then((tab) => {
@@ -9,7 +10,7 @@ function focusTab(tabId) {
       if (tab.windowId != currentWindow.id) {
         browser.windows.update(tab.windowId, {
           focused: true
-        })
+        });
       }
     })
   })
@@ -59,6 +60,27 @@ browser.runtime.onMessage.addListener((request) => {
       }
       return false
       break
+    case "updateVars":
+      const { vars, sid } = request;
+        console.log(request)
+      if (sid && vars) {
+        orgVars = {
+          ...orgVars,
+          [vars.oid]: {
+            sessionVars: vars,
+            sid
+          }
+        };
+        console.log(orgVars)
+        const tabId = appTabIds[ `app_${vars.oid}` ]
+        if(tabId){
+          browser.tabs.sendMessage(tabId, request)
+        }
+      }
+      break;
+    case "getVars":
+      return orgVars[request.orgId]
+      break;
   }
   return true
 });
