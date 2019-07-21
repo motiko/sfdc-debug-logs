@@ -1,4 +1,5 @@
 let appTabIds = {}
+let orgVars = {};
 
 function focusTab(tabId) {
   browser.tabs.get(tabId).then((tab) => {
@@ -41,7 +42,7 @@ browser.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
 
 })
 
-browser.runtime.onMessage.addListener((request) => {
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.command) {
     case "openTab":
       browser.tabs.create({
@@ -59,9 +60,26 @@ browser.runtime.onMessage.addListener((request) => {
       }
       return false
       break
-    case "ga":
-      // _gaq.push(request.params);
-      break
+    case "updateVars":
+      const { vars, sid } = request;
+      if (sid && vars) {
+        orgVars = {
+          ...orgVars,
+          [vars.oid]: {
+            sessionVars: vars,
+            sid
+          }
+        };
+        const tabId = appTabIds[ `app_${vars.oid}` ]
+        if(tabId){
+          browser.tabs.sendMessage(tabId, request)
+        }
+      }
+      break;
+    case "getVars":
+      sendResponse( orgVars[request.orgId])
+      return orgVars[request.orgId]
+      break;
   }
   return true
 });
