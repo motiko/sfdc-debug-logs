@@ -50,7 +50,8 @@ class FeedbackPageComponent extends React.Component {
               <BackIcon />
             </IconButton>
             <Button color="contrast" onClick={() => this.props.toggleDialog()}>
-              <MessageIcon />New Message
+              <MessageIcon />
+              New Message
             </Button>
           </Toolbar>
         </AppBar>
@@ -95,8 +96,9 @@ class FeedbackPageComponent extends React.Component {
   }
 }
 
-const FeedbackPage = connect(mapStateToProps, mapDispatchToProps)(
-  FeedbackPageComponent
-)
+const FeedbackPage = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(FeedbackPageComponent)
 
 export default FeedbackPage

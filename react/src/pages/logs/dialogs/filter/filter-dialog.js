@@ -47,7 +47,10 @@ const styles = theme => ({
 })
 
 @withStyles(styles)
-@connect(state => state.logsPage.filters, mapDispatchToProps)
+@connect(
+  state => state.logsPage.filters,
+  mapDispatchToProps
+)
 export default class FilterDialog extends React.Component {
   render() {
     let props = this.props

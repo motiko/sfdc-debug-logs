@@ -78,9 +78,10 @@ const mapStateToProps = state => ({
   visibleEvents: state.logsPage.visibleEvents
 })
 
-export default connect(mapStateToProps, () => ({}))(
-  withStyles(styles)(ParsedLog)
-)
+export default connect(
+  mapStateToProps,
+  () => ({})
+)(withStyles(styles)(ParsedLog))
 
 @withStyles(styles)
 class LogElement extends React.Component {

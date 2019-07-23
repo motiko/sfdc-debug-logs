@@ -40,8 +40,9 @@ const mapDispatchToProps = dispatch => ({
   startLogging: () => dispatch(startLogging())
 })
 
-const TrackingLogs = connect(mapStateToProps, mapDispatchToProps)(
-  TrackingLogsComponent
-)
+const TrackingLogs = connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(TrackingLogsComponent)
 
 export default TrackingLogs
