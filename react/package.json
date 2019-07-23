@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "ff extension",
+  "name": "apex-debugger",
+  "description": "browser extension",
   "version": "0.0.1",
   "author": "motiko",
   "license": "MIT",
@@ -49,6 +49,7 @@
     "prettier": "^1.11.1",
     "reactify": "^1.1.1",
     "uglify-js": "^3.3.16",
-    "uglifyify": "^4.0.5"
+    "uglifyify": "^4.0.5",
+    "extend": ">=2.0.2"
   }
 }
