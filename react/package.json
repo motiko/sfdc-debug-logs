@@ -7,7 +7,7 @@
   "main": "",
   "private": true,
   "scripts": {
-    "build": "browserify -g [ envify --NODE_ENV production ] -t [ babelify  ] -t [ browserify-css --global ] -g [ uglifyify ] src/*.js | uglifyjs --compress --mangle | tee ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js > /dev/null",
+    "build": "touch ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js && browserify -g [ envify --NODE_ENV production ] -t [ babelify  ] -t [ browserify-css --global ] -g [ uglifyify ] src/*.js | uglifyjs --compress --mangle | tee ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js > /dev/null",
     "watch": "watchify -t [ babelify ]  -t [ browserify-css --global  ] src/*.js -o '| tee ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js > /dev/null'",
     "clean": "rm ../firefox/app/js/build/app.js ../chrome/app/js/build/app.js",
     "react-devtools": "react-devtools",
