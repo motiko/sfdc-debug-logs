@@ -1,7 +1,7 @@
 {
   "name": "Apex Debugger",
   "short_name": "Apex Debgr",
-  "version": "0.7.11",
+  "version": "0.7.12",
   "manifest_version": 2,
   "author": "Moti Korets",
   "icons": {
@@ -29,6 +29,7 @@
         "css/debug.css"
       ],
       "matches": [
+        "https://*.force.com/p/setup/layout/ApexDebugLogDetailEdit/*",
         "https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*"
       ],
       "js": [
@@ -43,6 +44,7 @@
     },
     {
       "matches": [
+        "https://*.force.com/setup/ui/listApexTraces.apexp*",
         "https://*.salesforce.com/setup/ui/listApexTraces.apexp*"
       ],
       "css": [
@@ -71,6 +73,8 @@
     },
     {
       "matches": [
+        "https://*.force.com/01p*",
+        "https://*.force.com/setup/build/allTriggers.apexp*",
         "https://*.salesforce.com/01p*",
         "https://*.salesforce.com/setup/build/allTriggers.apexp*"
       ],

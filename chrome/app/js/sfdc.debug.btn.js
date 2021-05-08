@@ -77,7 +77,7 @@ function initPage() {
   initKeyTraps();
   let dontShowHint = JSON.parse(localStorage.getItem('dontShowNewAppHint2'))
   if(!dontShowHint){
-    addHint()
+    // addHint()
   }
 }
 
