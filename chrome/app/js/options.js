@@ -41,11 +41,22 @@ function newShortcutLine() {
 
 function buildShortcuts(shortcuts = default_shortcuts) {
   return shortcuts.map((shortcut) => {
-    template = newShortcutLine()
-    template.querySelector('.val_name').value = shortcut.name
-    template.querySelector('.val_key').value = shortcut.key
-    template.querySelector('.val_path').value = shortcut.path
-    return template
+    template = newShortcutLine();
+    template.querySelector(".val_name").value = shortcut.name;
+    template.querySelector(".val_key").value = shortcut.key;
+    if (shortcut.path) {
+      template.querySelector(".val_path").value = shortcut.path;
+    } else {
+      template
+        .querySelector(".val_path")
+        .parentNode.removeChild(template.querySelector(".val_path"));
+    }
+    if (shortcut.app) {
+      template
+        .querySelector(".remove_btn")
+        .parentNode.removeChild(template.querySelector(".remove_btn"));
+    }
+    return template;
   })
 }
 
@@ -62,13 +73,21 @@ function save(event) {
     return
   }
   const toSetting = (trNode) => {
-    let path = trNode.querySelector('.val_path').value
+    let path = trNode.querySelector('.val_path')
+    if (!path) {
+      return {
+        app: true,
+        name: trNode.querySelector(".val_name").value,
+        key: trNode.querySelector(".val_key").value,
+      };
+    }
+    path = path.value
     path = path[0] == '/' ? path : '/' + path
     return {
-      name: trNode.querySelector('.val_name').value,
-      key: trNode.querySelector('.val_key').value,
-      path: path
-    }
+      name: trNode.querySelector(".val_name").value,
+      key: trNode.querySelector(".val_key").value,
+      path: path,
+    };
   }
   const shortcuts = [...document.getElementById('shortcutsTable').children]
   browser.storage.sync.set({

@@ -30,7 +30,10 @@ browser.storage.sync.get('shortcuts')
   .then(function({
     shortcuts = default_shortcuts
   }) {
-    shortcuts.forEach(shortcutUrl)
+    shortcuts.filter(s => s.path).forEach(shortcutUrl)
+    shortcuts.filter(s => s.app).forEach(shortcut => {
+      shortcutMethod(shortcut.key, openApp)
+    })
     Mousetrap.bind('shift+w', openApp);
   });
 
