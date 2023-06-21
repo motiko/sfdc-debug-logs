@@ -44,7 +44,7 @@ function buildShortcuts(shortcuts = default_shortcuts) {
     template = newShortcutLine();
     template.querySelector(".val_name").value = shortcut.name;
     template.querySelector(".val_key").value = shortcut.key;
-    if (shortcut.path) {
+    if (shortcut.path !== undefined) {
       template.querySelector(".val_path").value = shortcut.path;
     } else {
       template
@@ -55,6 +55,19 @@ function buildShortcuts(shortcuts = default_shortcuts) {
       template
         .querySelector(".remove_btn")
         .parentNode.removeChild(template.querySelector(".remove_btn"));
+      
+      
+    }
+    if(shortcut.token){
+      template
+        .querySelector(".remove_btn")
+        .parentNode.removeChild(template.querySelector(".remove_btn"));
+      const key = template.querySelector(".val_key")
+      key.parentNode.removeChild(key);
+      const path = template.querySelector(".val_path")
+      path.required = false
+      path.placeholder = "API Token"
+      path.classList.add('token_val')      
     }
     return template;
   })
@@ -74,6 +87,10 @@ function save(event) {
   }
   const toSetting = (trNode) => {
     let path = trNode.querySelector('.val_path')
+    const name = trNode.querySelector(".val_name").value
+    if(name === "Token"){
+      return { name: "Token", key:"", path: path.value, token: true}
+    }
     if (!path) {
       return {
         app: true,

@@ -51,6 +51,7 @@
         "css/debug.logs.css"
       ],
       "js": [
+        "js/lib/browser-polyfill/0.2.1/browser-polyfill.min.js",
         "js/lib/mousetrap/1.6.1/mousetrap.min.js",
         "js/utils.js",
         "js/sfdc.debug.btn.js"

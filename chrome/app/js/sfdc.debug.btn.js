@@ -1,5 +1,4 @@
 var userId;
-var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
 
 const LOGS_TABLE_ID = 'Apex_Trace_List:traceForm:traceTable:thetracetable:tb';
 const LOGS_TABLE_ID_ESCAPED = LOGS_TABLE_ID.replace(/:/g, '\\:');
