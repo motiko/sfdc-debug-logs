@@ -1,5 +1,3 @@
-var sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/);
-var sid = sidCookie ? sidCookie[2] : false;
 var sessionVars;
 
 function sendBackOrgId() {

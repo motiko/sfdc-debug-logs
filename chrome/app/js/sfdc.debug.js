@@ -2,7 +2,6 @@ var selectedText,
   currentResult,
   maxResult,
   keyPrefixes = [],
-  sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2],
   idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g,
   debugDescRegex = /(\d\d:\d\d:\d\d\.\d{3}\s+\(\d{8}\))\|(\w+)\|/,
   logEntryToDivTagClass = [{
@@ -51,7 +50,7 @@ var selectedText,
     logEntry: '|ENTERING_MANAGED_PKG',
     divClass: 'system systemMethodLog searchable'
   }];
-
+  
 function setSetting(key, value) {
   localStorage.setItem(key, value);
 }
