@@ -1,6 +1,5 @@
 const default_shortcuts = [
   { name: "Apex Debugger", key: "w", app: true },
-  { name: "Token", key:"", path:"", token: true},
   {
     name: "Debug Logs",
     key: "d",

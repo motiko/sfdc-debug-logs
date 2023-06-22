@@ -1,13 +1,11 @@
 const sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/)
 var sid = sidCookie && sidCookie.length >= 3 ? sidCookie[2] : null;
-browser.storage.sync.get('shortcuts').then(function({
-  shortcuts = default_shortcuts
+browser.storage.local.get('token').then(function({
+  token
 }) {
-  shortcuts.filter(s => s.token).forEach((s) => {
-    if(s.path){
-      sid = sid || s.path
+    if(token){
+      sid = sid || token;
     }
-  })
 });
 
 function inject(fn) {
