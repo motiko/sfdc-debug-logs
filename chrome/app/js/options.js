@@ -13,6 +13,14 @@ function onload() {
   $i('new_btn').addEventListener('click', (event) => {
     shortcutsTable.appendChild(newShortcutLine())
   })
+  browser.storage.local.get('token').then(function({
+    token
+  }) {
+    if (token) {
+      const tokenElement = document.querySelector('.token_val')
+      tokenElement.value = token
+    }
+  });
   browser.storage.sync.get('shortcuts').then(function({
     shortcuts
   }) {
@@ -89,7 +97,7 @@ function save(event) {
     let path = trNode.querySelector('.val_path')
     const name = trNode.querySelector(".val_name").value
     if(name === "Token"){
-      return { name: "Token", key:"", path: path.value, token: true}
+      return null;
     }
     if (!path) {
       return {
@@ -107,8 +115,15 @@ function save(event) {
     };
   }
   const shortcuts = [...document.getElementById('shortcutsTable').children]
+  const tokenElement = document.querySelector('.token_val')
+  const token = tokenElement ? tokenElement.value : null;
+  if(token){
+    browser.storage.local.set({
+      'token': token
+    })
+  }
   browser.storage.sync.set({
-    'shortcuts': shortcuts.map(toSetting)
+    'shortcuts': shortcuts.map(toSetting).filter(x => x)
   })
 }
 
