@@ -50,7 +50,7 @@ function openApp(){
       command: "focusAppTab"
   }).then((appOpened) => {
     if(!appOpened){
-      if(document.location.hostname.includes(".salesforce.com")) {
+      if(document.location.hostname.includes(".salesforce")) {
         browser.runtime.sendMessage({
             url: `${browser.extension.getURL('html/app.html')}?oid=${sessionVars.oid}&uid=${sessionVars.uid}&sid=${encodeURIComponent(sid)}&host=${encodeURIComponent(location.hostname)}`,
             name: `app_${sessionVars.oid}`,
