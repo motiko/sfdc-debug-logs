@@ -1,7 +1,7 @@
 {
   "name": "Apex Debugger",
   "short_name": "Apex Debgr",
-  "version": "0.7.16",
+  "version": "0.7.17",
   "manifest_version": 2,
   "author": "Moti Korets",
   "icons": {
@@ -30,7 +30,8 @@
       ],
       "matches": [
         "https://*.force.com/p/setup/layout/ApexDebugLogDetailEdit/*",
-        "https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*"
+        "https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*",
+        "https://*.salesforce-setup.com/p/setup/layout/ApexDebugLogDetailEdit/*"
       ],
       "js": [
         "js/lib/browser-polyfill/0.2.1/browser-polyfill.min.js",
@@ -45,7 +46,8 @@
     {
       "matches": [
         "https://*.force.com/setup/ui/listApexTraces.apexp*",
-        "https://*.salesforce.com/setup/ui/listApexTraces.apexp*"
+        "https://*.salesforce.com/setup/ui/listApexTraces.apexp*",
+        "https://*.salesforce-setup.com/setup/ui/listApexTraces.apexp*"
       ],
       "css": [
         "css/debug.logs.css"
@@ -61,7 +63,8 @@
     {
       "matches": [
         "https://*.force.com/*",
-        "https://*.salesforce.com/*"
+        "https://*.salesforce.com/*",
+        "https://*.salesforce-setup.com/*"
       ],
       "js": [
         "js/lib/browser-polyfill/0.2.1/browser-polyfill.min.js",
@@ -77,7 +80,9 @@
         "https://*.force.com/01p*",
         "https://*.force.com/setup/build/allTriggers.apexp*",
         "https://*.salesforce.com/01p*",
-        "https://*.salesforce.com/setup/build/allTriggers.apexp*"
+        "https://*.salesforce-setup.com/01p*",
+        "https://*.salesforce.com/setup/build/allTriggers.apexp*",
+        "https://*.salesforce-setup.com/setup/build/allTriggers.apexp*"
       ],
       "js": [
         "js/sfdc.classes.js"
@@ -88,6 +93,7 @@
   "permissions": [
     "https://*.force.com/*",
     "https://*.salesforce.com/*",
+    "https://*.salesforce-setup.com/*",
     "storage"
   ]
 }
