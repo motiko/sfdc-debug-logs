@@ -1,7 +1,7 @@
 {
   "name": "Apex Debugger",
   "short_name": "Apex Debgr",
-  "version": "0.7.16",
+  "version": "0.7.17",
   "manifest_version": 2,
   "author": "Moti Korets",
   "icons": {
@@ -30,7 +30,7 @@
       ],
       "matches": [
         "https://*.force.com/p/setup/layout/ApexDebugLogDetailEdit/*",
-        "https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*"
+        "https://*.salesforce.com/p/setup/layout/ApexDebugLogDetailEdit/*",
         "https://*.salesforce-setup.com/p/setup/layout/ApexDebugLogDetailEdit/*"
       ],
       "js": [
