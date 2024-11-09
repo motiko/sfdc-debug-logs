@@ -1,8 +1,8 @@
 {
   "name": "Apex Debugger",
   "short_name": "Apex Debgr",
-  "version": "0.7.17",
-  "manifest_version": 2,
+  "version": "0.8.0",
+  "manifest_version": 3,
   "author": "Moti Korets",
   "icons": {
     "16": "img/16.png",
@@ -11,19 +11,19 @@
   },
   "description": "Debug Salesforce apex code with ease",
   "background": {
-    "scripts": [
-      "js/lib/browser-polyfill/0.2.1/browser-polyfill.min.js",
-      "js/background.js"
-    ],
-    "persistent": false
+    "service_worker": "js/background.js"
   },
   "options_ui": {
     "page": "html/options.html"
   },
-  "browser_action": {
-    "default_icon": "img/16.png"
+  "action": {
+    "default_icon": {
+      "16": "img/16.png"
+    }
   },
-  "content_security_policy": "script-src 'self' ; object-src 'self'; connect-src https://adbg.herokuapp.com https://*.force.com https://*.salesforce.com",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src https://*.force.com https://*.salesforce.com"
+  },
   "content_scripts": [{
       "css": [
         "css/debug.css"
@@ -34,14 +34,14 @@
         "https://*.salesforce-setup.com/p/setup/layout/ApexDebugLogDetailEdit/*"
       ],
       "js": [
-        "js/lib/browser-polyfill/0.2.1/browser-polyfill.min.js",
         "js/lib/mousetrap/1.6.1/mousetrap.min.js",
         "js/lib/beautify/1.7.4/beautify.min.js",
         "js/lib/beautify/1.7.4/beautify-html.min.js",
         "js/utils.js",
         "js/sfdc.debug.js"
       ],
-      "run_at": "document_end"
+      "run_at": "document_end",
+      "world": "MAIN"
     },
     {
       "matches": [
@@ -53,12 +53,12 @@
         "css/debug.logs.css"
       ],
       "js": [
-        "js/lib/browser-polyfill/0.2.1/browser-polyfill.min.js",
         "js/lib/mousetrap/1.6.1/mousetrap.min.js",
         "js/utils.js",
         "js/sfdc.debug.btn.js"
       ],
-      "run_at": "document_end"
+      "run_at": "document_end",
+      "world": "MAIN"
     },
     {
       "matches": [
@@ -67,13 +67,13 @@
         "https://*.salesforce-setup.com/*"
       ],
       "js": [
-        "js/lib/browser-polyfill/0.2.1/browser-polyfill.min.js",
         "js/default_shortcuts.js",
         "js/lib/mousetrap/1.6.1/mousetrap.min.js",
         "js/utils.js",
         "js/shortcuts.js"
       ],
-      "run_at": "document_end"
+      "run_at": "document_end",
+      "world": "MAIN"
     },
     {
       "matches": [
@@ -87,13 +87,16 @@
       "js": [
         "js/sfdc.classes.js"
       ],
-      "run_at": "document_end"
+      "run_at": "document_end",
+      "world": "MAIN"
     }
   ],
   "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
     "https://*.force.com/*",
     "https://*.salesforce.com/*",
-    "https://*.salesforce-setup.com/*",
-    "storage"
+    "https://*.salesforce-setup.com/*"
   ]
 }

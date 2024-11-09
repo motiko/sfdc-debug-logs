@@ -1,6 +1,6 @@
 const sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/)
 var sid = sidCookie && sidCookie.length >= 3 ? sidCookie[2] : null;
-browser.storage.local.get('token').then(function({
+chrome.storage.local.get('token').then(function({
   token
 }) {
     if(token){
@@ -9,11 +9,12 @@ browser.storage.local.get('token').then(function({
 });
 
 function inject(fn) {
-  var script = document.createElement('script');
-  script.setAttribute("type", "application/javascript");
-  script.textContent = '(' + fn + ')();';
-  document.body.appendChild(script); // run the script
-  document.body.removeChild(script); // clean up
+  // var script = document.createElement('script');
+  // script.setAttribute("type", "application/javascript");
+  // script.textContent = '(' + fn + ')();';
+  // document.body.appendChild(script); // run the script
+  // document.body.removeChild(script); // clean up
+  console.log('Inject is deprecated')
 }
 
 function sfRequest(path, method = 'GET', headers = {}, body) {

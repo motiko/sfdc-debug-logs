@@ -1,3 +1,4 @@
+/*
 let appTabIds = {};
 let orgVars = {};
 
@@ -85,3 +86,4 @@ browser.runtime.onMessage.addListener((request) => {
   return true
 });
 
+*/
