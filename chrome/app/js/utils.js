@@ -5,11 +5,15 @@ async function getToken() {
   if(sid){
     return sid
   }
-  const token = await chrome.runtime.sendMessage({
+  console.log('Apex Debugger: ','Session ID not found in cookie if httpOnly is enabled, you need to manually set it in the extension options')
+  const result = await chrome.runtime.sendMessage({
     command: "getToken"
   })
-  console.log('getToken', token)
-  return token
+  if(!result.token){
+   console.log('Apex Debugger:', 'Token is not set in the extension options see here how to get it', 'https://www.decodeforce.com/blogs/get-session-id-in-apex')
+   console.log('After getting it set it in the extension options (last field) and try again')
+  }
+  return result.token
 }
 // chrome.storage.local.get('token').then(function({
 //   token
@@ -30,7 +34,6 @@ function inject(fn) {
 
 async function sfRequest(path, method = 'GET', headers = {}, body) {
   const token = await getToken()
-  console.log('token', token)
   if (headers['X-SFDC-Session']) {
     headers['X-SFDC-Session'] = token
   }else{
@@ -45,6 +48,7 @@ async function sfRequest(path, method = 'GET', headers = {}, body) {
       if (result.ok) {
         return result
       } else {
+        console.log('Apex Debugger:','Make sure Session ID is valid and not expired')
         throw Error(`${result.status} : ${result.statusText}`)
       }
     })

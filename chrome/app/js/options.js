@@ -117,11 +117,9 @@ function save(event) {
   const shortcuts = [...document.getElementById('shortcutsTable').children]
   const tokenElement = document.querySelector('.token_val')
   const token = tokenElement ? tokenElement.value : null;
-  if(token){
     chrome.storage.local.set({
       'token': token
     })
-  }
   chrome.storage.sync.set({
     'shortcuts': shortcuts.map(toSetting).filter(x => x)
   })
