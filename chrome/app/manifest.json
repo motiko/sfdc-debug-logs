@@ -36,11 +36,9 @@
       "js": [
         "js/lib/beautify/1.7.4/beautify.min.js",
         "js/lib/beautify/1.7.4/beautify-html.min.js",
-        "js/utils.js",
         "js/sfdc.debug.js"
       ],
-      "run_at": "document_end",
-      "world": "MAIN"
+      "run_at": "document_idle"
     },
     {
       "matches": [
@@ -52,11 +50,9 @@
         "css/debug.logs.css"
       ],
       "js": [
-        "js/utils.js",
         "js/sfdc.debug.btn.js"
       ],
-      "run_at": "document_end",
-      "world": "MAIN"
+      "run_at": "document_idle"
     },
     {
       "matches": [
@@ -70,7 +66,7 @@
         "js/utils.js",
         "js/shortcuts.js"
       ],
-      "run_at": "document_idle"
+      "run_at": "document_end"
     },
     {
       "matches": [
@@ -84,8 +80,7 @@
       "js": [
         "js/sfdc.classes.js"
       ],
-      "run_at": "document_idle",
-      "world": "MAIN"
+      "run_at": "document_idle"
     }
   ],
   "permissions": [

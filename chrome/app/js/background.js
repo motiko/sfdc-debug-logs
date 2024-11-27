@@ -43,6 +43,29 @@ browser.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
 
 })*/
 
+let appTabIds = {};
+
+function openOrFocusTab(url, name) {
+  if (appTabIds[name]) {
+    focusTab(appTabIds[name])
+  } else {
+    openTab(url, name)
+  }
+}
+
+function openTab(url, name) {
+  chrome.tabs.create({
+    'url': url,
+    'selected': true
+  }, function(tab) {
+    console.log('tab', tab)
+    appTabIds[name] = tab.id
+  });
+}
+
+chrome.action.onClicked.addListener(
+  () => openOrFocusTab(chrome.runtime.getURL('html/options.html'), "options"))
+
 chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
   console.log('request', request)
   console.log('sender', sender)
