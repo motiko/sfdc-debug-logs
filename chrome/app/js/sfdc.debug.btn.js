@@ -92,21 +92,12 @@ function removeOldDeleteBtn() {
 }
 
 function getUserId() {
-  window.addEventListener("message", function(event) {
-    if (event.data.type === "userId") {
-      userId = event.data.content;
-    }
-  });
-
-  function sendBackUserId() {
-    if (window.UserContext) {
-      window.postMessage({
-        type: `userId`,
-        content: UserContext.userId
-      }, "*");
-    }
-  }
-  inject(sendBackUserId);
+  const disco = document.cookie.match(/(^|;\s*)disco=(.+?);/);
+  let discoMatch = disco && disco.length >= 3 ? disco[2] : null;
+  let ids = discoMatch.split(':')
+  userId = ids[2];
+  console.log('disco', disco)
+  console.log('userId', userId)
 }
 
 function addAddUserBtn() {
@@ -357,13 +348,14 @@ function clearTable() {
   document.getElementById(LOGS_TABLE_ID).innerHTML = '';
 }
 
-function addCurrentUser(event) {
+async function addCurrentUser(event) {
   logEvent('LogsList','addCurrentUser')
   if (event) event.preventDefault();
+  const token = await getToken()
   const logLevelName = "ApexDebugger"
   const headers = {
     "Content-Type": 'application/json; charset=UTF-8',
-    "Authorization": 'Bearer ' + sid,
+    "Authorization": 'Bearer ' + token,
     "Accept": "*/*"
   }
   const query = encodeURI("Select Id From DebugLevel Where DeveloperName = '" + logLevelName + "'")
