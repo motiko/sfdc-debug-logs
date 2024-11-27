@@ -15,6 +15,20 @@ async function getToken() {
   }
   return result.token
 }
+
+function parseDiscoCookie() {
+  const disco = document.cookie.match(/(^|;\s*)disco=(.+?);/);
+  let discoMatch = disco && disco.length >= 3 ? disco[2] : null;
+  let ids = discoMatch.split(":");
+  let orgId = ids[1];
+  let userId = ids[2];
+  return { orgId, userId };
+}
+
+function getUserId() {
+  const { userId } = parseDiscoCookie();
+  return userId;
+}
 // chrome.storage.local.get('token').then(function({
 //   token
 // }) {

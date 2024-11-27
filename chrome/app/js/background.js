@@ -44,6 +44,7 @@ browser.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
 })*/
 
 let appTabNames = ['options_tab','app_tab']
+let appTabIds = {}
 
 function focusTab(tabId) {
   return chrome.tabs.get(tabId).then((tab) => {
@@ -129,7 +130,8 @@ chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
       openOrFocusTab(request.url, request.name)
       break
     case "focusAppTab":
-      const appTabNames = Object.keys(appTabIds).filter(tabName => tabName.startsWith("app_") )
+      // const appTabNames = Object.keys(appTabIds).filter(tabName => tabName.startsWith("app_") )
+      const appTabNames = []
       if(appTabNames.length > 0 && appTabIds[appTabNames[0]]){
         focusTab(appTabIds[appTabNames[0]])
         return true

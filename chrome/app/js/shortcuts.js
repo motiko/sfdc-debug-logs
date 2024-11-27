@@ -60,20 +60,22 @@ Mousetrap.bind('e', editObject);
 Mousetrap.bind('s', saveObject);
 // shortcutUrl({key:'w', path:'/setup/ui/listApexTraces.apexp'});
 
-function openApp(){
+async function openApp(){
   if (document.activeElement.nodeName == "OBJECT" &&
     document.activeElement.data.indexOf('.swf') > -1) {
     return;
   }
   logEvent('Shortcut','openApp')
-  browser.runtime.sendMessage({
+  const { orgId, userId } = parseDiscoCookie();
+  const sid = await getToken();
+  chrome.runtime.sendMessage({
       command: "focusAppTab"
   }).then((appOpened) => {
     if(!appOpened){
       if(document.location.hostname.includes(".salesforce")) {
-        browser.runtime.sendMessage({
-            url: `${browser.extension.getURL('html/app.html')}?oid=${sessionVars.oid}&uid=${sessionVars.uid}&sid=${encodeURIComponent(sid)}&host=${encodeURIComponent(location.hostname)}`,
-            name: `app_${sessionVars.oid}`,
+        chrome.runtime.sendMessage({
+            url: `${chrome.runtime.getURL('html/app.html')}?oid=${orgId}&uid=${userId}&sid=${encodeURIComponent(sid)}&host=${encodeURIComponent(location.hostname)}`,
+            name: `app_${orgId}`,
             command: "openOrFocusTab"
           });
       }else{
