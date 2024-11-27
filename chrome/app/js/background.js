@@ -43,11 +43,41 @@ browser.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
 
 })*/
 
-let appTabIds = {};
+let appTabNames = ['options_tab','app_tab']
 
-function openOrFocusTab(url, name) {
-  if (appTabIds[name]) {
-    focusTab(appTabIds[name])
+function focusTab(tabId) {
+  return chrome.tabs.get(tabId).then((tab) => {
+    if (tab) chrome.tabs.update(tab.id, {
+      active: true
+    })
+    chrome.windows.getCurrent({}).then((currentWindow) => {
+      if (tab.windowId != currentWindow.id) {
+        chrome.windows.update(tab.windowId, {
+          focused: true
+        });
+      }
+    })
+  })}
+
+chrome.tabs.onRemoved.addListener((closedTabId, changeInfo, tab) => {
+  appTabNames.forEach(async (name) => {
+    const tabId = await chrome.storage.sync.get(name) 
+    console.log('closedTabId', closedTabId)
+    console.log('tabId', tabId)
+    if(closedTabId == tabId){
+      chrome.storage.sync.set({
+        [name]: undefined
+      })
+    }
+  })
+})
+
+async function openOrFocusTab(url, name) {
+  const ids = await chrome.storage.sync.get(name) 
+  console.log('ids', ids)
+  console.log('name', name)
+  if (ids[name]) {
+    focusTab(ids[name]).catch((err) => openTab(url, name))
   } else {
     openTab(url, name)
   }
@@ -59,12 +89,14 @@ function openTab(url, name) {
     'selected': true
   }, function(tab) {
     console.log('tab', tab)
-    appTabIds[name] = tab.id
+    chrome.storage.sync.set({
+      [name]: tab.id
+    })
   });
 }
 
 chrome.action.onClicked.addListener(
-  () => openOrFocusTab(chrome.runtime.getURL('html/options.html'), "options"))
+  () => openOrFocusTab(chrome.runtime.getURL('html/options.html'), "options_tab"))
 
 chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
   console.log('request', request)
