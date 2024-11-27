@@ -1,5 +1,16 @@
 const sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/)
-var sid = sidCookie && sidCookie.length >= 3 ? sidCookie[2] : null;
+let sid = sidCookie && sidCookie.length >= 3 ? sidCookie[2] : null;
+
+async function getToken() {
+  if(sid){
+    return sid
+  }
+  const token = await chrome.runtime.sendMessage({
+    command: "getToken"
+  })
+  console.log('getToken', token)
+  return token
+}
 // chrome.storage.local.get('token').then(function({
 //   token
 // }) {
@@ -17,9 +28,13 @@ function inject(fn) {
   console.log('Inject is deprecated')
 }
 
-function sfRequest(path, method = 'GET', headers = {}, body) {
-  if (!headers['X-SFDC-Session']) {
-    headers['Authorization'] = 'Bearer ' + sid
+async function sfRequest(path, method = 'GET', headers = {}, body) {
+  const token = await getToken()
+  console.log('token', token)
+  if (headers['X-SFDC-Session']) {
+    headers['X-SFDC-Session'] = token
+  }else{
+    headers['Authorization'] = 'Bearer ' + token
   }
   return fetch(location.origin + path, {
       method,

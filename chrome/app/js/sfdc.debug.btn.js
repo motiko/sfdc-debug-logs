@@ -6,6 +6,8 @@ const USERS_TABLE_ID = 'Apex_Trace_List:monitoredUsersForm';
 var showLogsNum = 50;
 var tableElement = document.getElementById(LOGS_TABLE_ID);
 
+
+
 function openApp(){
   if(!document.location.search.includes("openApp=yes")){
     return
@@ -524,7 +526,7 @@ function createJob(objectName, operation) {
    </jobInfo>`;
   return sfRequest('/services/async/34.0/job', 'POST', {
         'Content-Type': 'application/xml',
-        'X-SFDC-Session': sid
+        'X-SFDC-Session': true
       },
       queryJob).then(r => r.text())
     .then(function(response) {
@@ -553,7 +555,7 @@ function pollBatchStatus(jobId, batchId) {
 
 function checkBatchStatus(jobId, batchId) {
   return sfRequest(`/services/async/34.0/job/${jobId}/batch/${batchId}`, 'GET', {
-      'X-SFDC-Session': sid
+      'X-SFDC-Session': true
     })
     .then(r => r.text())
     .then(function(resultXml) {
@@ -564,7 +566,7 @@ function checkBatchStatus(jobId, batchId) {
 function createBatch(jobId, csv) {
   return sfRequest(`/services/async/34.0/job/${jobId}/batch`, 'POST', {
         'Content-Type': 'text/csv; charset=UTF-8',
-        'X-SFDC-Session': sid
+        'X-SFDC-Session': true
       },
       csv).then(r => r.text())
     .then(function(response) {

@@ -102,6 +102,15 @@ chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
   console.log('request', request)
   console.log('sender', sender)
   switch (request.command) {
+    case "getToken":
+      chrome.storage.sync.get('token').then(function({
+        token
+      }) {
+        sendResponse({
+          token
+        })
+      })
+      break
     case "getShortcuts":
       chrome.storage.sync.get('shortcuts').then(function({
         shortcuts
