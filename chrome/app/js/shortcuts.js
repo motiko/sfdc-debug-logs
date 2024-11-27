@@ -1,38 +1,43 @@
 var sessionVars;
 
-function sendBackOrgId() {
-    window.postMessage({
-      type: "orgId",
-      sessionVars: JSON.stringify(window.SFDCSessionVars)
-    }, "*");
-}
+// function sendBackOrgId() {
+//     window.postMessage({
+//       type: "orgId",
+//       sessionVars: JSON.stringify(window.SFDCSessionVars)
+//     }, "*");
+// }
 
-window.addEventListener("message", function(event) {
-  if (event.data.type === "orgId" && event.data.sessionVars) {
-    sessionVars = JSON.parse(event.data.sessionVars)
-    browser.runtime.sendMessage({
-      command: "updateVars",
-      vars: sessionVars,
-      sid: sid
-    })
-    shortcutUrl({
-      key: 'i',
-      path: '/' + sessionVars.oid
-    });
-  }
-});
+// window.addEventListener("message", function(event) {
+//   if (event.data.type === "orgId" && event.data.sessionVars) {
+//     sessionVars = JSON.parse(event.data.sessionVars)
+//     browser.runtime.sendMessage({
+//       command: "updateVars",
+//       vars: sessionVars,
+//       sid: sid
+//     })
+//     shortcutUrl({
+//       key: 'i',
+//       path: '/' + sessionVars.oid
+//     });
+//   }
+// });
 
-inject(sendBackOrgId);
+// inject(sendBackOrgId);
 
-browser.storage.sync.get('shortcuts')
-  .then(function({
+// browser.storage.sync.get('shortcuts')
+  function setShortcuts({
     shortcuts = default_shortcuts
   }) {
+    console.log(shortcuts)
     shortcuts.filter(s => s.path).forEach(shortcutUrl)
     shortcuts.filter(s => s.app).forEach(shortcut => {
       shortcutMethod(shortcut.key, openApp)
     })
     Mousetrap.bind('shift+w', openApp);
+  }
+
+  setShortcuts({
+    shortcuts: default_shortcuts
   });
 
 shortcutMethod('l', openLastLog);
@@ -92,10 +97,12 @@ function shortcutUrl({
 }
 
 function openInNewTab(path) {
-  browser.runtime.sendMessage({
-      url: `${location.protocol}//${location.host}${path}`,
-      command: "openTab"
-    });
+  console.log('openInNewTab', path)
+  window.open(path, '_blank');
+  // browser.runtime.sendMessage({
+  //     url: `${location.protocol}//${location.host}${path}`,
+  //     command: "openTab"
+  //   });
 }
 
 

@@ -34,7 +34,6 @@
         "https://*.salesforce-setup.com/p/setup/layout/ApexDebugLogDetailEdit/*"
       ],
       "js": [
-        "js/lib/mousetrap/1.6.1/mousetrap.min.js",
         "js/lib/beautify/1.7.4/beautify.min.js",
         "js/lib/beautify/1.7.4/beautify-html.min.js",
         "js/utils.js",
@@ -53,7 +52,6 @@
         "css/debug.logs.css"
       ],
       "js": [
-        "js/lib/mousetrap/1.6.1/mousetrap.min.js",
         "js/utils.js",
         "js/sfdc.debug.btn.js"
       ],

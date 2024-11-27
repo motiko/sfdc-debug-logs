@@ -1,12 +1,12 @@
 const sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/)
 var sid = sidCookie && sidCookie.length >= 3 ? sidCookie[2] : null;
-chrome.storage.local.get('token').then(function({
-  token
-}) {
-    if(token){
-      sid = sid || token;
-    }
-});
+// chrome.storage.local.get('token').then(function({
+//   token
+// }) {
+//     if(token){
+//       sid = sid || token;
+//     }
+// });
 
 function inject(fn) {
   // var script = document.createElement('script');
