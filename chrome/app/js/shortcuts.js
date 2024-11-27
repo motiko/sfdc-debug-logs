@@ -1,5 +1,5 @@
 var sessionVars;
-
+console.log('SFDCSessionVars', window.SFDCSessionVars)
 // function sendBackOrgId() {
 //     window.postMessage({
 //       type: "orgId",
@@ -36,9 +36,24 @@ var sessionVars;
     Mousetrap.bind('shift+w', openApp);
   }
 
-  setShortcuts({
-    shortcuts: default_shortcuts
-  });
+  async function sendMessage(message) {
+    try {
+      console.log('MEssage:', message);
+      const response = await chrome.runtime.sendMessage(message);
+      console.log('Response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error:', error);
+      throw error;
+    }
+  }
+
+async function  getShortcuts() {
+    const response = await sendMessage({command: "getShortcuts"});
+    setShortcuts({shortcuts: response.shortcuts})
+}
+
+getShortcuts();
 
 shortcutMethod('l', openLastLog);
 Mousetrap.bind('e', editObject);

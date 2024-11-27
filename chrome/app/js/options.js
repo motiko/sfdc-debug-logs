@@ -13,7 +13,7 @@ function onload() {
   $i('new_btn').addEventListener('click', (event) => {
     shortcutsTable.appendChild(newShortcutLine())
   })
-  browser.storage.local.get('token').then(function({
+  chrome.storage.local.get('token').then(function({
     token
   }) {
     if (token) {
@@ -21,7 +21,7 @@ function onload() {
       tokenElement.value = token
     }
   });
-  browser.storage.sync.get('shortcuts').then(function({
+  chrome.storage.sync.get('shortcuts').then(function({
     shortcuts
   }) {
     const shortcutLines = buildShortcuts(shortcuts)
@@ -118,11 +118,11 @@ function save(event) {
   const tokenElement = document.querySelector('.token_val')
   const token = tokenElement ? tokenElement.value : null;
   if(token){
-    browser.storage.local.set({
+    chrome.storage.local.set({
       'token': token
     })
   }
-  browser.storage.sync.set({
+  chrome.storage.sync.set({
     'shortcuts': shortcuts.map(toSetting).filter(x => x)
   })
 }

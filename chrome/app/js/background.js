@@ -41,12 +41,23 @@ browser.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
       .forEach(key => appTabIds[key] = undefined)
   }
 
-})
+})*/
 
-browser.runtime.onMessage.addListener((request) => {
+chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
+  console.log('request', request)
+  console.log('sender', sender)
   switch (request.command) {
+    case "getShortcuts":
+      chrome.storage.sync.get('shortcuts').then(function({
+        shortcuts
+      }) {
+        sendResponse({
+          shortcuts
+        })
+      })
+      break
     case "openTab":
-      browser.tabs.create({
+      chrome.tabs.create({
         url: request.url
       })
       break
@@ -75,7 +86,7 @@ browser.runtime.onMessage.addListener((request) => {
         console.log(orgVars)
         const tabId = appTabIds[ `app_${vars.oid}` ]
         if(tabId){
-          browser.tabs.sendMessage(tabId, request)
+          chrome.tabs.sendMessage(tabId, request)
         }
       }
       break;
@@ -85,5 +96,3 @@ browser.runtime.onMessage.addListener((request) => {
   }
   return true
 });
-
-*/

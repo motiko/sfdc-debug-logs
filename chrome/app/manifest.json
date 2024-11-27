@@ -70,8 +70,7 @@
         "js/utils.js",
         "js/shortcuts.js"
       ],
-      "run_at": "document_end",
-      "world": "MAIN"
+      "run_at": "document_idle"
     },
     {
       "matches": [
@@ -85,7 +84,7 @@
       "js": [
         "js/sfdc.classes.js"
       ],
-      "run_at": "document_end",
+      "run_at": "document_idle",
       "world": "MAIN"
     }
   ],
