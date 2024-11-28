@@ -1,8 +1,8 @@
 import React from 'react'
 import Button from 'material-ui/Button'
-import CheckBlankIcon from 'material-ui-icons/CheckBoxOutlineBlank'
+import CheckBlankIcon from '@material-ui/icons/CheckBoxOutlineBlank'
 import { connect } from 'react-redux'
-import CheckIcon from 'material-ui-icons/CheckBox'
+import CheckIcon from '@material-ui/icons/CheckBox'
 import {
   startLogging,
   checkIsLogging,

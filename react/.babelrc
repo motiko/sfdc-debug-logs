@@ -1,8 +1,19 @@
 {
-  "presets": ["env", "react"],
+  "presets": [
+    ["@babel/preset-env", {
+      "useBuiltIns": "usage",
+      "corejs": 2
+    }],
+    "@babel/preset-react"
+  ],
   "plugins": [
-    "transform-class-properties",
-    "transform-object-rest-spread",
-    "transform-decorators-legacy"
+    ["@babel/plugin-proposal-decorators",  { "version": "legacy" }],
+    ["@babel/plugin-transform-runtime", {
+      "corejs": 2,
+      "helpers": true,
+      "regenerator": true
+    }],
+    ["@babel/plugin-proposal-class-properties", { "loose": false}],
+    "@babel/plugin-proposal-object-rest-spread"
   ]
 }

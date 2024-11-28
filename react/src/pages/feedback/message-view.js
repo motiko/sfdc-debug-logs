@@ -1,6 +1,6 @@
 import React from 'react'
 import List, { ListItem, ListItemText, ListItemIcon } from 'material-ui/List'
-import ReplyIcon from 'material-ui-icons/Reply'
+import ReplyIcon from '@material-ui/icons/Reply'
 
 export default function MessageView({ message: m, onReply, nested }) {
   function repliesList(replies) {

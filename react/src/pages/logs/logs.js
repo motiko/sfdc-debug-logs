@@ -1,16 +1,16 @@
 import React from 'react'
 import Snackbar from 'material-ui/Snackbar'
-import ChatIcon from 'material-ui-icons/Chat'
-import HomeIcon from 'material-ui-icons/Home'
+import ChatIcon from '@material-ui/icons/Chat'
+import HomeIcon from '@material-ui/icons/Home'
 import Button from 'material-ui/Button'
 import { Link, Route, Switch } from 'react-router-dom'
 import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
 import Grid from 'material-ui/Grid'
-import RefreshIcon from 'material-ui-icons/Autorenew'
-import DeleteIcon from 'material-ui-icons/DeleteForever'
-import FilterList from 'material-ui-icons/FilterList'
-import StyleIcon from 'material-ui-icons/Style'
+import RefreshIcon from '@material-ui/icons/Autorenew'
+import DeleteIcon from '@material-ui/icons/DeleteForever'
+import FilterList from '@material-ui/icons/FilterList'
+import StyleIcon from '@material-ui/icons/Style'
 import TextField from 'material-ui/TextField'
 import { CircularProgress } from 'material-ui/Progress'
 import IconButton from 'material-ui/IconButton'
@@ -174,12 +174,6 @@ class LogsPage extends React.Component {
                   style={{ width: '6em', marginBottom: 2 }}
                   onBlur={props.refresh}
                 />
-                <Link to="/feedback" style={{ textDecoration: 'none' }}>
-                  <Button color="contrast">
-                    <ChatIcon />
-                    Give Feedback
-                  </Button>
-                </Link>
                 <TrackingLogs sf={props.sf} />
               </Grid>
             </Grid>
