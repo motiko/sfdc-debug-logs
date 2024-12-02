@@ -29,13 +29,6 @@ function getUserId() {
   const { userId } = parseDiscoCookie();
   return userId;
 }
-// chrome.storage.local.get('token').then(function({
-//   token
-// }) {
-//     if(token){
-//       sid = sid || token;
-//     }
-// });
 
 function inject(fn) {
   // var script = document.createElement('script');
