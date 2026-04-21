@@ -18,8 +18,8 @@ import idbKeyval from 'idb-keyval'
 import thunk from 'redux-thunk'
 import { compose, createStore, applyMiddleware } from 'redux'
 import appReducer from './reducers'
-import { loadMessages } from './pages/feedback/actions'
-import FeedbackPage from './pages/feedback/feedback'
+// import { loadMessages } from './pages/feedback/actions'
+// import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs/logs'
 import globalSf from './global-sf'
 import './app.css'
@@ -28,7 +28,7 @@ import { defaultStyleConfig } from './pages/logs/dialogs/style/reducer'
 
 class App extends React.Component {
   componentDidMount() {
-    this.props.store.dispatch(loadMessages())
+    // this.props.store.dispatch(loadMessages())
   }
 
   render() {
@@ -36,11 +36,6 @@ class App extends React.Component {
       <Router history={hashHistory}>
         <Switch>
           <Route path="/logs" render={ownProps => <LogsPage {...ownProps} />} />
-          <Route
-            exact
-            path="/feedback"
-            render={ownProps => <FeedbackPage {...ownProps} />}
-          />
           <Route render={ownProps => <LogsPage {...ownProps} />} />
         </Switch>
       </Router>
@@ -51,12 +46,12 @@ class App extends React.Component {
 const theme = createMuiTheme({
   palette: {
     primary: teal,
-    secondary: indigo
-    // // type: 'dark'
-    // background: {
-    //   default: '#d6c2c2',
-    //   paper: '#d6c2c2'
-    // }
+    secondary: indigo,
+    type: 'dark',
+    background: {
+      default: '#d6c2c2',
+      paper: '#d6c2c2'
+    }
   }
 })
 

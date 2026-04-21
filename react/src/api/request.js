@@ -2,9 +2,9 @@ export default function initRequest(host, sid, orgId) {
   let sessionId = sid
   let retries = 0
   const max_retries = 3
-  getSessionId(orgId).then(s => (sessionId = s))
+  // getSessionId(orgId).then(s => (sessionId = s))
   function getSessionId(orgId) {
-    return browser.runtime
+    return chrome.runtime
       .sendMessage({
         command: 'getVars',
         orgId
@@ -26,8 +26,7 @@ export default function initRequest(host, sid, orgId) {
       headers['Content-Type'] = 'application/json; charset=UTF-8'
       body = JSON.stringify(body)
     }
-    return window
-      .fetch(`https://${host}${path}`, { method, body, headers })
+    return fetch(`https://${host}${path}`, { method, body, headers })
       .then(result => {
         console.log(result)
         if (result.ok) {

@@ -1,9 +1,9 @@
 import React from 'react'
 import List from 'material-ui/List'
 import Button from 'material-ui/Button'
-import BackIcon from 'material-ui-icons/ArrowBack'
+import BackIcon from '@material-ui/icons/ArrowBack'
 import IconButton from 'material-ui/IconButton'
-import MessageIcon from 'material-ui-icons/Message'
+import MessageIcon from '@material-ui/icons/Message'
 import MessageEdit from './message-edit'
 import MessageView from './message-view'
 import Dialog, {
@@ -96,9 +96,9 @@ class FeedbackPageComponent extends React.Component {
   }
 }
 
-const FeedbackPage = connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(FeedbackPageComponent)
+// const FeedbackPage = connect(
+//   mapStateToProps,
+//   mapDispatchToProps
+// )(FeedbackPageComponent)
 
-export default FeedbackPage
+export default FeedbackPageComponent

@@ -1,3 +1,4 @@
+/*
 let appTabIds = {};
 let orgVars = {};
 
@@ -40,12 +41,88 @@ browser.tabs.onRemoved.addListener((tabId, changeInfo, tab) => {
       .forEach(key => appTabIds[key] = undefined)
   }
 
+})*/
+
+let appTabNames = ['options_tab','app_tab']
+let appTabIds = {}
+
+function focusTab(tabId) {
+  return chrome.tabs.get(tabId).then((tab) => {
+    if (tab) chrome.tabs.update(tab.id, {
+      active: true
+    })
+    chrome.windows.getCurrent({}).then((currentWindow) => {
+      if (tab.windowId != currentWindow.id) {
+        chrome.windows.update(tab.windowId, {
+          focused: true
+        });
+      }
+    })
+  })}
+
+chrome.tabs.onRemoved.addListener((closedTabId, changeInfo, tab) => {
+  appTabNames.forEach(async (name) => {
+    const tabId = await chrome.storage.sync.get(name) 
+    console.log('closedTabId', closedTabId)
+    console.log('tabId', tabId)
+    if(closedTabId == tabId){
+      chrome.storage.sync.set({
+        [name]: undefined
+      })
+    }
+  })
 })
 
-browser.runtime.onMessage.addListener((request) => {
+async function openOrFocusTab(url, name) {
+  const ids = await chrome.storage.sync.get(name) 
+  console.log('ids', ids)
+  console.log('name', name)
+  if (ids[name]) {
+    focusTab(ids[name]).catch((err) => openTab(url, name))
+  } else {
+    openTab(url, name)
+  }
+}
+
+function openTab(url, name) {
+  chrome.tabs.create({
+    'url': url,
+    'selected': true
+  }, function(tab) {
+    console.log('tab', tab)
+    chrome.storage.sync.set({
+      [name]: tab.id
+    })
+  });
+}
+
+chrome.action.onClicked.addListener(
+  () => openOrFocusTab(chrome.runtime.getURL('html/options.html'), "options_tab"))
+
+chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
+  console.log('request', request)
+  console.log('sender', sender)
   switch (request.command) {
+    case "getToken":
+      chrome.storage.local.get('token').then(function({
+        token
+      }) {
+        sendResponse({
+          token
+        })
+      })
+      break
+    case "getShortcuts":
+      chrome.storage.sync.get('shortcuts').then(function({
+        shortcuts
+      }) {
+        sendResponse({
+          shortcuts
+        })
+      })
+      break
     case "openTab":
-      browser.tabs.create({
+      chrome.tabs.create({
         url: request.url
       })
       break
@@ -53,7 +130,8 @@ browser.runtime.onMessage.addListener((request) => {
       openOrFocusTab(request.url, request.name)
       break
     case "focusAppTab":
-      const appTabNames = Object.keys(appTabIds).filter(tabName => tabName.startsWith("app_") )
+      // const appTabNames = Object.keys(appTabIds).filter(tabName => tabName.startsWith("app_") )
+      const appTabNames = []
       if(appTabNames.length > 0 && appTabIds[appTabNames[0]]){
         focusTab(appTabIds[appTabNames[0]])
         return true
@@ -74,7 +152,7 @@ browser.runtime.onMessage.addListener((request) => {
         console.log(orgVars)
         const tabId = appTabIds[ `app_${vars.oid}` ]
         if(tabId){
-          browser.tabs.sendMessage(tabId, request)
+          chrome.tabs.sendMessage(tabId, request)
         }
       }
       break;
@@ -84,4 +162,3 @@ browser.runtime.onMessage.addListener((request) => {
   }
   return true
 });
-

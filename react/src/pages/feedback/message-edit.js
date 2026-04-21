@@ -1,5 +1,5 @@
 import React from 'react'
-import ReplyIcon from 'material-ui-icons/Reply'
+import ReplyIcon from '@material-ui/icons/Reply'
 import Button from 'material-ui/Button'
 import TextField from 'material-ui/TextField'
 import { DialogActions } from 'material-ui/Dialog'

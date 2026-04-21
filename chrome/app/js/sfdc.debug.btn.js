@@ -1,234 +1,227 @@
-var userId;
-
-const LOGS_TABLE_ID = 'Apex_Trace_List:traceForm:traceTable:thetracetable:tb';
-const LOGS_TABLE_ID_ESCAPED = LOGS_TABLE_ID.replace(/:/g, '\\:');
-const USERS_TABLE_ID = 'Apex_Trace_List:monitoredUsersForm';
+const LOGS_TABLE_ID = "Apex_Trace_List:traceForm:traceTable:thetracetable:tb";
+const LOGS_TABLE_ID_ESCAPED = LOGS_TABLE_ID.replace(/:/g, "\\:");
+const USERS_TABLE_ID = "Apex_Trace_List:monitoredUsersForm";
 var showLogsNum = 50;
 var tableElement = document.getElementById(LOGS_TABLE_ID);
 
-function openApp(){
-  if(!document.location.search.includes("openApp=yes")){
-    return
+async function openApp() {
+  if (!document.location.search.includes("openApp=yes")) {
+    return;
   }
-  function sendBackVars() {
-      window.postMessage({
-        type: "sessionVars",
-        sessionVars: JSON.stringify(window.SFDCSessionVars)
-      }, "*");
-  }
+  const { orgId, userId } = parseDiscoCookie();
+  const token = await getToken();
 
-  window.addEventListener("message", function(event) {
-    if (event.data.type === "sessionVars") {
-      const sessionVars = JSON.parse(event.data.sessionVars)
-      browser.runtime.sendMessage({
-          url: `${browser.extension.getURL('html/app.html')}?oid=${sessionVars.oid}&uid=${sessionVars.uid}&sid=${encodeURIComponent(sid)}&host=${encodeURIComponent(location.hostname)}`,
-          name: `app_${sessionVars.oid}`,
-          command: "openOrFocusTab"
-        });
-      window.close()
-    }
+  console.log('location.hostname', document.location.hostname)
+  chrome.runtime.sendMessage({
+    url: `${browser.extension.getURL("html/app.html")}?oid=${
+    orgId
+    }&uid=${userId}&sid=${encodeURIComponent(
+      token
+    )}&host=${encodeURIComponent(document.location.hostname)}`,
+    name: `app_${orgId}`,
+    command: "openOrFocusTab",
   });
-  inject(sendBackVars);
+  window.close();
 }
 
 function initKeyTraps() {
-  Mousetrap.bind('l', clickOn('#load_new_logs'));
-  Mousetrap.bind('u', clickOn('#add_current_user'));
-  Mousetrap.bind('c', clickOn('#clear_search'));
-  Mousetrap.bind('r', focusOn('#FilterByText'));
-  Mousetrap.bind('a', function() {
-    logEvent('LogsList','hotKey','#real_delete_all')
-    let dontConfirm = JSON.parse(localStorage.getItem('dontConfirmDeleteAllHotKey'))
+  Mousetrap.bind("l", clickOn("#load_new_logs"));
+  Mousetrap.bind("u", clickOn("#add_current_user"));
+  Mousetrap.bind("c", clickOn("#clear_search"));
+  Mousetrap.bind("r", focusOn("#FilterByText"));
+  Mousetrap.bind("a", function () {
+    logEvent("LogsList", "hotKey", "#real_delete_all");
+    let dontConfirm = JSON.parse(
+      localStorage.getItem("dontConfirmDeleteAllHotKey")
+    );
     if (dontConfirm) {
-      clickOn('#real_delete_all')()
-    }else{
-      if(confirm("This will delete all logs")){
-        localStorage.setItem('dontConfirmDeleteAllHotKey',true)
-        clickOn('#real_delete_all')()
+      clickOn("#real_delete_all")();
+    } else {
+      if (confirm("This will delete all logs")) {
+        localStorage.setItem("dontConfirmDeleteAllHotKey", true);
+        clickOn("#real_delete_all")();
       }
     }
   });
 }
 
 function clickOn(selector) {
-  return function() {
-    logEvent('LogsList','hotKey',selector)
-    document.querySelector(selector).click()
-  }
+  return function () {
+    logEvent("LogsList", "hotKey", selector);
+    document.querySelector(selector).click();
+  };
 }
 
 function focusOn(selector) {
-  return function(event) {
-    event.preventDefault()
-    logEvent('LogsList','hotKey',selector)
-    document.querySelector(selector).focus()
-  }
+  return function (event) {
+    event.preventDefault();
+    logEvent("LogsList", "hotKey", selector);
+    document.querySelector(selector).focus();
+  };
 }
 
 function initPage() {
-  openApp()
-  getUserId();
+  openApp();
   addDeleteAllBtn();
   removeOldDeleteBtn();
   addAddUserBtn();
   addReloadControllers();
   addSearchControllers();
   initKeyTraps();
-  let dontShowHint = JSON.parse(localStorage.getItem('dontShowNewAppHint2'))
-  if(!dontShowHint){
-    // addHint()
-  }
+  // let dontShowHint = JSON.parse(localStorage.getItem('dontShowNewAppHint2'))
+  // if(!dontShowHint){
+  // addHint()
+  // }
 }
 
 initPage();
 
 function removeOldDeleteBtn() {
   var oldButtons = document.querySelectorAll('[value="Delete All"]');
-  toArray(oldButtons).forEach(function(button) {
+  toArray(oldButtons).forEach(function (button) {
     button.parentNode.removeChild(button);
   });
 }
 
-function getUserId() {
-  window.addEventListener("message", function(event) {
-    if (event.data.type === "userId") {
-      userId = event.data.content;
-    }
-  });
 
-  function sendBackUserId() {
-    if (window.UserContext) {
-      window.postMessage({
-        type: `userId`,
-        content: UserContext.userId
-      }, "*");
-    }
-  }
-  inject(sendBackUserId);
-}
 
 function addAddUserBtn() {
-  var pbButton = document.getElementById(USERS_TABLE_ID).querySelector('.pbButton');
-  var addUserButton = document.createElement('input');
-  addUserButton.type = 'button';
-  addUserButton.className = 'btn';
-  addUserButton.value = 'Add Current (U)ser';
-  addUserButton.id = "add_current_user"
+  var pbButton = document
+    .getElementById(USERS_TABLE_ID)
+    .querySelector(".pbButton");
+  var addUserButton = document.createElement("input");
+  addUserButton.type = "button";
+  addUserButton.className = "btn";
+  addUserButton.value = "Add Current (U)ser";
+  addUserButton.id = "add_current_user";
   addUserButton.onclick = addCurrentUser;
   pbButton.appendChild(addUserButton);
 }
 
 function addReloadControllers() {
-  document.getElementById('Apex_Trace_List:traceForm:traceTableNextPrev')
-    .style.display = 'none';
-  document.getElementById('Apex_Trace_List:traceForm:traceTable')
-    .querySelector('.mainTitle').style.display = 'none';
-  var numOfLogsLabel = document.createElement('label');
-  numOfLogsLabel.style.float = 'right';
-  numOfLogsLabel.innerHTML = `Maximum logs per Page:&nbsp;` +
+  document.getElementById(
+    "Apex_Trace_List:traceForm:traceTableNextPrev"
+  ).style.display = "none";
+  document
+    .getElementById("Apex_Trace_List:traceForm:traceTable")
+    .querySelector(".mainTitle").style.display = "none";
+  var numOfLogsLabel = document.createElement("label");
+  numOfLogsLabel.style.float = "right";
+  numOfLogsLabel.innerHTML =
+    `Maximum logs per Page:&nbsp;` +
     `<input type="number" min="25" max="1000" step="25" value="${showLogsNum}" >`;
-  numOfLogsLabel.firstElementChild.onchange = function() {
+  numOfLogsLabel.firstElementChild.onchange = function () {
     showLogsNum = this.value;
     loadLogs();
   };
-  document.getElementById("Apex_Trace_List:traceForm")
-    .querySelector('.pbButton').appendChild(numOfLogsLabel);
+  document
+    .getElementById("Apex_Trace_List:traceForm")
+    .querySelector(".pbButton")
+    .appendChild(numOfLogsLabel);
 }
 
 function addDeleteAllBtn() {
-  var deleteAllContainer = document.getElementById("Apex_Trace_List:traceForm")
-    .querySelector('.pbButton');
-  var realDeleteAllBtn = document.createElement('input');
-  realDeleteAllBtn.type = 'button';
-  realDeleteAllBtn.className = 'btn';
-  realDeleteAllBtn.value = 'Delete (A)ll ';
-  realDeleteAllBtn.id = 'real_delete_all'
+  var deleteAllContainer = document
+    .getElementById("Apex_Trace_List:traceForm")
+    .querySelector(".pbButton");
+  var realDeleteAllBtn = document.createElement("input");
+  realDeleteAllBtn.type = "button";
+  realDeleteAllBtn.className = "btn";
+  realDeleteAllBtn.value = "Delete (A)ll ";
+  realDeleteAllBtn.id = "real_delete_all";
   realDeleteAllBtn.onclick = realDeleteAll;
   deleteAllContainer.appendChild(realDeleteAllBtn);
-  var loadNewLogsBtn = document.createElement('input');
-  loadNewLogsBtn.type = 'button';
-  loadNewLogsBtn.className = 'btn';
-  loadNewLogsBtn.value = '(L)oad New Logs';
-  loadNewLogsBtn.id = "load_new_logs"
+  var loadNewLogsBtn = document.createElement("input");
+  loadNewLogsBtn.type = "button";
+  loadNewLogsBtn.className = "btn";
+  loadNewLogsBtn.value = "(L)oad New Logs";
+  loadNewLogsBtn.id = "load_new_logs";
   loadNewLogsBtn.onclick = loadNewLogs;
   deleteAllContainer.appendChild(loadNewLogsBtn);
 }
 
-function addHint(){
-    var hintContainer = document.createElement('div');
-    hintContainer.id = 'hintContainer';
-    var hint = document.createElement('span');
-    hint.innerHTML = ['<h4>The new view just got better</h4><br/>',
-      '<p> with fast loading, caching, filters and much more.. <br/>Try it now with<b> Shift + w</b></p><br/>',
-        '<p style="margin-right: 15px;"> ApexDebugger Extension</p>'].join('');
-    var hideTip = document.createElement('button');
-    hideTip.textContent = 'X';
-    hideTip.title = 'Close';
-    hideTip.className = 'closeButton';
-    hideTip.onclick = function(){
-        hintContainer.style.display = 'none';
-        localStorage.setItem('dontShowNewAppHint2',true)
-    };
-    hintContainer.appendChild(hideTip);
-    hintContainer.appendChild(hint);
-    var title = document.querySelector(".bPageTitle")
-    title.parentNode.insertBefore(hintContainer, title)
+function addHint() {
+  var hintContainer = document.createElement("div");
+  hintContainer.id = "hintContainer";
+  var hint = document.createElement("span");
+  hint.innerHTML = [
+    "<h4>The new view just got better</h4><br/>",
+    "<p> with fast loading, caching, filters and much more.. <br/>Try it now with<b> Shift + w</b></p><br/>",
+    '<p style="margin-right: 15px;"> ApexDebugger Extension</p>',
+  ].join("");
+  var hideTip = document.createElement("button");
+  hideTip.textContent = "X";
+  hideTip.title = "Close";
+  hideTip.className = "closeButton";
+  hideTip.onclick = function () {
+    hintContainer.style.display = "none";
+    localStorage.setItem("dontShowNewAppHint2", true);
+  };
+  hintContainer.appendChild(hideTip);
+  hintContainer.appendChild(hint);
+  var title = document.querySelector(".bPageTitle");
+  title.parentNode.insertBefore(hintContainer, title);
 }
 
 function realDeleteAll(event) {
-  logEvent('LogsList','realDeleteAll')
+  logEvent("LogsList", "realDeleteAll");
   event.preventDefault();
-  document.body.style.cursor = 'wait';
+  document.body.style.cursor = "wait";
 
-  sfRequest('/services/data/v32.0/tooling/query/?q=' +
-      encodeURIComponent('Select Id From ApexLog'))
-    .then(r => r.json())
-    .then(function(reponseObject) {
-      if(reponseObject.records.length == 0){
-        document.body.style.cursor = 'auto';
+  sfRequest(
+    "/services/data/v32.0/tooling/query/?q=" +
+      encodeURIComponent("Select Id From ApexLog")
+  )
+    .then((r) => r.json())
+    .then(function (reponseObject) {
+      if (reponseObject.records.length == 0) {
+        document.body.style.cursor = "auto";
         return;
       }
-      var logIdsCsv = reponseObject.records.map(function(logObj) {
-        return `"${logObj.Id}"`;
-      }).reduce(function(sum, id) {
-        return sum + '\n' + id;
-      }, '"Id"');
-      return createJob('ApexLog', 'delete').then(function(jobId) {
-        createBatch(jobId, logIdsCsv).then(function(batchId) {
-          pollBatchStatus(jobId, batchId).then(function() {
+      var logIdsCsv = reponseObject.records
+        .map(function (logObj) {
+          return `"${logObj.Id}"`;
+        })
+        .reduce(function (sum, id) {
+          return sum + "\n" + id;
+        }, '"Id"');
+      return createJob("ApexLog", "delete").then(function (jobId) {
+        createBatch(jobId, logIdsCsv).then(function (batchId) {
+          pollBatchStatus(jobId, batchId).then(function () {
             location.reload();
           });
         });
-
       });
     });
 }
 
-
 function loadedLogIds() {
   var trs = toArray(document.getElementById(LOGS_TABLE_ID).children);
-  return trs.map(function(tr) {
+  return trs.map(function (tr) {
     var td = tr.firstElementChild;
     var a = td.firstElementChild;
-    var params = a.href.split('=');
+    var params = a.href.split("=");
     var id = params.pop();
     return id;
   });
 }
 
 function getMonitoredUsers() {
-  return toArray(document.querySelectorAll('th[scope="row"]')).map(function(th) {
-    if(!th.firstElementChild) return null
-    var href = th.firstElementChild.href;
-    return "'" + href.substr(href.lastIndexOf('/') + 1) + "'";
-  }).filter(x => x).join(',');
+  return toArray(document.querySelectorAll('th[scope="row"]'))
+    .map(function (th) {
+      if (!th.firstElementChild) return null;
+      var href = th.firstElementChild.href;
+      return "'" + href.substr(href.lastIndexOf("/") + 1) + "'";
+    })
+    .filter((x) => x)
+    .join(",");
 }
 
 function loadNewLogs() {
-  logEvent('LogsList','loadNewLogs')
+  logEvent("LogsList", "loadNewLogs");
   var oldLogIds = loadedLogIds();
-  requestLogs().then(function(logs) {
-    var deltaLogs = logs.filter(function(log) {
+  requestLogs().then(function (logs) {
+    var deltaLogs = logs.filter(function (log) {
       return oldLogIds.indexOf(log.Id) === -1;
     });
     var deltaLogTrs = deltaLogs.map(logRecordToTr);
@@ -239,10 +232,16 @@ function loadNewLogs() {
 }
 
 function removeOldLogs() {
-  var oldTrs = toArray(document.querySelectorAll(`#${LOGS_TABLE_ID_ESCAPED} tr:nth-child(n+${parseInt(showLogsNum, 10) + 1})`));
+  var oldTrs = toArray(
+    document.querySelectorAll(
+      `#${LOGS_TABLE_ID_ESCAPED} tr:nth-child(n+${
+        parseInt(showLogsNum, 10) + 1
+      })`
+    )
+  );
   animateTrsRemoval(oldTrs);
-  setTimeout(function() {
-    [].map.call(oldTrs, function(tr) {
+  setTimeout(function () {
+    [].map.call(oldTrs, function (tr) {
       try {
         tableElement.removeChild(tr);
       } catch (e) {
@@ -252,13 +251,12 @@ function removeOldLogs() {
   }, 1000);
 }
 
-
 function loadLogs(event) {
   if (event) {
     event.preventDefault();
   }
   clearTable();
-  return requestLogs().then(function(logs) {
+  return requestLogs().then(function (logs) {
     logs.map(logRecordToTr).forEach(addToTable);
   });
 }
@@ -273,68 +271,71 @@ function addToTable(tr) {
 
 function requestLogs() {
   var monitoredUsers = getMonitoredUsers();
-  var selectQuery = [`SELECT LogUser.Name,Application,DurationMilliseconds,`,
+  var selectQuery = [
+    `SELECT LogUser.Name,Application,DurationMilliseconds,`,
     `Id,LastModifiedDate,Location,LogLength,LogUserId,`,
     `Operation,Request,StartTime,Status,SystemModstamp From `,
     `ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY `,
-    `LastModifiedDate ASC LIMIT ${showLogsNum}`
-  ].join('');
-  return sfRequest('/services/data/v32.0/tooling/query/?q=' + encodeURIComponent(selectQuery))
-    .then(r => r.json())
-    .then(responseObj => responseObj.records)
-    .catch(function(err) {
+    `LastModifiedDate ASC LIMIT ${showLogsNum}`,
+  ].join("");
+  return sfRequest(
+    "/services/data/v32.0/tooling/query/?q=" + encodeURIComponent(selectQuery)
+  )
+    .then((r) => r.json())
+    .then((responseObj) => responseObj.records)
+    .catch(function (err) {
       console.error(err);
     });
 }
 
 function animateTrsRemoval(trs) {
-  trs.forEach(function(tr) {
-    [].map.call(tr.children, function(td) {
-      td.className = '';
-      td.style.padding = '0px';
+  trs.forEach(function (tr) {
+    [].map.call(tr.children, function (td) {
+      td.className = "";
+      td.style.padding = "0px";
     });
-    tr.style.fontSize = '0px';
-    tr.style.padding = '0px !important';
-    tr.style.height = '0px';
+    tr.style.fontSize = "0px";
+    tr.style.padding = "0px !important";
+    tr.style.height = "0px";
   });
 }
 
 function animateTrsAddition(trs) {
   prepareTransition(trs);
   setTimeout(function makeTransition() {
-    trs.forEach(function(tr) {
-      tr.style.height = '23px';
+    trs.forEach(function (tr) {
+      tr.style.height = "23px";
     });
   }, 0);
   setTimeout(function finishTransition() {
-    trs.forEach(function(tr) {
-      tr.style.fontSize = '12px';
-      [].map.call(tr.children, function(td, i) {
-        td.className = i === 0 ? 'dataCell  actionColumn' : 'dataCell';
-        td.style.padding = '';
+    trs.forEach(function (tr) {
+      tr.style.fontSize = "12px";
+      [].map.call(tr.children, function (td, i) {
+        td.className = i === 0 ? "dataCell  actionColumn" : "dataCell";
+        td.style.padding = "";
       });
     });
   }, 1000);
 }
 
 function prepareTransition(logTrs) {
-  logTrs.forEach(function(tr) {
-    tr.style.fontSize = '0px';
-    tr.style.padding = '0px !important';
-    tr.style.height = '0px';
-    [].map.call(tr.children, function(td) {
-      td.className = '';
-      td.style.padding = '0px';
+  logTrs.forEach(function (tr) {
+    tr.style.fontSize = "0px";
+    tr.style.padding = "0px !important";
+    tr.style.height = "0px";
+    [].map.call(tr.children, function (td) {
+      td.className = "";
+      td.style.padding = "0px";
     });
   });
 }
 
 function logRecordToTr(logObj) {
-  var tr = document.createElement('tr');
-  tr.style.webkitTransition = 'all 500ms';
-  tr.style.mozTransition = 'all 500ms';
-  tr.style.transition = 'all 500ms';
-  tr.style.height = '23px';
+  var tr = document.createElement("tr");
+  tr.style.webkitTransition = "all 500ms";
+  tr.style.mozTransition = "all 500ms";
+  tr.style.transition = "all 500ms";
+  tr.style.height = "23px";
   tr.onfocus = "if (window.hiOn){hiOn(this);}";
   tr.dataset.id = logObj.Id;
   var startTime = new Date(Date.parse(logObj.StartTime)).toLocaleString();
@@ -352,95 +353,99 @@ function logRecordToTr(logObj) {
 }
 
 function clearTable() {
-  document.getElementById(LOGS_TABLE_ID).innerHTML = '';
+  document.getElementById(LOGS_TABLE_ID).innerHTML = "";
 }
 
-function addCurrentUser(event) {
-  logEvent('LogsList','addCurrentUser')
+async function addCurrentUser(event) {
+  logEvent("LogsList", "addCurrentUser");
   if (event) event.preventDefault();
-  const logLevelName = "ApexDebugger"
+  const token = await getToken();
+  const logLevelName = "ApexDebugger";
   const headers = {
-    "Content-Type": 'application/json; charset=UTF-8',
-    "Authorization": 'Bearer ' + sid,
-    "Accept": "*/*"
-  }
-  const query = encodeURI("Select Id From DebugLevel Where DeveloperName = '" + logLevelName + "'")
+    "Content-Type": "application/json; charset=UTF-8",
+    Authorization: "Bearer " + token,
+    Accept: "*/*",
+  };
+  const query = encodeURI(
+    "Select Id From DebugLevel Where DeveloperName = '" + logLevelName + "'"
+  );
   var debugLevelPayload = {
     DeveloperName: logLevelName,
     MasterLabel: logLevelName,
-    Workflow: 'DEBUG',
-    Validation: 'DEBUG',
-    Callout: 'DEBUG',
-    ApexCode: 'DEBUG',
-    ApexProfiling: 'DEBUG',
-    Visualforce: 'DEBUG',
-    System: 'DEBUG',
-    Database: 'DEBUG'
-  }
+    Workflow: "DEBUG",
+    Validation: "DEBUG",
+    Callout: "DEBUG",
+    ApexCode: "DEBUG",
+    ApexProfiling: "DEBUG",
+    Visualforce: "DEBUG",
+    System: "DEBUG",
+    Database: "DEBUG",
+  };
   return fetch(`/services/data/v36.0/tooling/query?q=${query}`, {
-      headers
-    })
-    .then(res => res.json())
-    .then(existingDebugLevel => {
+    headers,
+  })
+    .then((res) => res.json())
+    .then((existingDebugLevel) => {
       if (existingDebugLevel.records.length > 0) {
-        return existingDebugLevel.records[0].Id
+        return existingDebugLevel.records[0].Id;
       } else {
-        return fetch('/services/data/v36.0/tooling/sobjects/DebugLevel', {
-          method: 'POST',
+        return fetch("/services/data/v36.0/tooling/sobjects/DebugLevel", {
+          method: "POST",
           headers,
-          body: JSON.stringify(debugLevelPayload)
-        }).then(res => res.json().then(result => result.id))
+          body: JSON.stringify(debugLevelPayload),
+        }).then((res) => res.json().then((result) => result.id));
       }
-    }).then(dlId => {
-      var payload = {
-        TracedEntityId: userId,
-        DebugLevelId: dlId,
-        LogType: 'USER_DEBUG'
-      };
-      fetch('/services/data/v36.0/tooling/sobjects/TraceFlag/', {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload)
-      }).then(function(res) {
-        res.json().then()
-      })
     })
+    .then((dlId) => {
+      var payload = {
+        TracedEntityId: getUserId(),
+        DebugLevelId: dlId,
+        LogType: "USER_DEBUG",
+      };
+      fetch("/services/data/v36.0/tooling/sobjects/TraceFlag/", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(payload),
+      }).then(function (res) {
+        res.json().then();
+      });
+    });
 }
 
 function addSearchControllers() {
-  var iframe = document.createElement('iframe');
-  iframe.id = 'remember';
-  iframe.name = 'remember';
-  iframe.style.display = 'none';
-  iframe.src = 'about:blank';
+  var iframe = document.createElement("iframe");
+  iframe.id = "remember";
+  iframe.name = "remember";
+  iframe.style.display = "none";
+  iframe.src = "about:blank";
   document.body.appendChild(iframe);
-  var form = document.createElement('form');
-  form.method = 'post';
-  form.target = 'remember';
-  form.action = '/';
+  var form = document.createElement("form");
+  form.method = "post";
+  form.target = "remember";
+  form.action = "/";
   form.onsubmit = searchLogs;
-  var input = document.createElement('input');
-  input.type = 'text';
-  input.id = 'FilterByText';
-  input.autocomplete = 'on';
-  input.placeholder = 'Sea(r)ch logs..';
+  var input = document.createElement("input");
+  input.type = "text";
+  input.id = "FilterByText";
+  input.autocomplete = "on";
+  input.placeholder = "Sea(r)ch logs..";
   input.onkeydown = handleSearchKey;
-  var filter = document.createElement('button');
-  filter.textContent = 'Search';
-  filter.type = 'submit';
-  var clearFilterBtn = document.createElement('button');
-  clearFilterBtn.textContent = '(C)lear';
-  clearFilterBtn.id = 'clear_search'
+  var filter = document.createElement("button");
+  filter.textContent = "Search";
+  filter.type = "submit";
+  var clearFilterBtn = document.createElement("button");
+  clearFilterBtn.textContent = "(C)lear";
+  clearFilterBtn.id = "clear_search";
   clearFilterBtn.onclick = clearFilter;
-  var loadingImage = document.createElement('img');
-  loadingImage.src = '/img/loading.gif';
-  loadingImage.style.display = 'none';
-  loadingImage.id = 'LoadinImage';
+  var loadingImage = document.createElement("img");
+  loadingImage.src = "/img/loading.gif";
+  loadingImage.style.display = "none";
+  loadingImage.id = "LoadinImage";
   form.appendChild(input);
   form.appendChild(filter);
   form.appendChild(clearFilterBtn);
   form.appendChild(loadingImage);
-  var logsTitle = document.querySelector('.apexp .pbTitle');
+  var logsTitle = document.querySelector(".apexp .pbTitle");
   logsTitle.appendChild(form);
 }
 
@@ -452,15 +457,16 @@ function handleSearchKey(e) {
 
 function clearFilter(e) {
   if (e) e.preventDefault();
-  document.getElementById('FilterByText').value = '';
+  document.getElementById("FilterByText").value = "";
   resetResults();
 }
 
 function resetResults() {
-  toArray(document.getElementById(LOGS_TABLE_ID).children)
-    .forEach(function(element) {
-      element.style.background = 'white';
-    });
+  toArray(document.getElementById(LOGS_TABLE_ID).children).forEach(function (
+    element
+  ) {
+    element.style.background = "white";
+  });
 }
 
 function toArray(nodeElements) {
@@ -468,49 +474,56 @@ function toArray(nodeElements) {
 }
 
 function searchLogs() {
-  logEvent('LogsList','searchLogs')
+  logEvent("LogsList", "searchLogs");
   resetResults();
-  document.body.style.cursor = 'wait';
-  document.getElementById('LoadinImage').style.display = 'inline';
-  var searchText = document.getElementById('FilterByText').value;
-  var searchRegex = new RegExp(escapeRegExp(searchText), 'gi');
+  document.body.style.cursor = "wait";
+  document.getElementById("LoadinImage").style.display = "inline";
+  var searchText = document.getElementById("FilterByText").value;
+  var searchRegex = new RegExp(escapeRegExp(searchText), "gi");
   var logTableRows = toArray(document.getElementById(LOGS_TABLE_ID).children);
-  var visibleLogRows = logTableRows.map(function(row) {
-    if (!row.querySelector('td>a')) {
-      return null;
-    }
-    // consider for perfomance: row.children[0].children[0]
-    var link = row.querySelector('td>a').href;
-    logIdParam = link.split('?')[1].split('&').filter(function(keyVal) {
-      return keyVal.indexOf('apex_log_id=') === 0;
+  var visibleLogRows = logTableRows
+    .map(function (row) {
+      if (!row.querySelector("td>a")) {
+        return null;
+      }
+      // consider for perfomance: row.children[0].children[0]
+      var link = row.querySelector("td>a").href;
+      logIdParam = link
+        .split("?")[1]
+        .split("&")
+        .filter(function (keyVal) {
+          return keyVal.indexOf("apex_log_id=") === 0;
+        });
+      logIdParam = logIdParam[0];
+      return {
+        element: row,
+        id: logIdParam.split("=")[1],
+      };
+    })
+    .filter(function (e) {
+      return e;
     });
-    logIdParam = logIdParam[0];
-    return {
-      element: row,
-      id: logIdParam.split('=')[1]
-    };
-  }).filter(function(e) {
-    return e;
-  });
-  var promises = visibleLogRows.map(function(logRow) {
-    return sfRequest('/services/data/v32.0/tooling/sobjects/ApexLog/' +
-        logRow.id + '/Body')
-      .then(r => r.text())
-      .then(rawLogContents => {
+  var promises = visibleLogRows.map(function (logRow) {
+    return sfRequest(
+      "/services/data/v32.0/tooling/sobjects/ApexLog/" + logRow.id + "/Body"
+    )
+      .then((r) => r.text())
+      .then((rawLogContents) => {
         if (searchRegex.test(rawLogContents)) {
-          logRow.element.style.background = 'rgb(104, 170, 87)';
+          logRow.element.style.background = "rgb(104, 170, 87)";
           return true;
         }
         return false;
-      }).catch(function(err) {
+      })
+      .catch(function (err) {
         console.error(err);
-        document.body.style.cursor = 'default';
-        document.getElementById('LoadinImage').style.display = 'none';
+        document.body.style.cursor = "default";
+        document.getElementById("LoadinImage").style.display = "none";
       });
   });
-  Promise.all(promises).then(function() {
-    document.body.style.cursor = 'default';
-    document.getElementById('LoadinImage').style.display = 'none';
+  Promise.all(promises).then(function () {
+    document.body.style.cursor = "default";
+    document.getElementById("LoadinImage").style.display = "none";
   });
 }
 
@@ -522,20 +535,25 @@ function createJob(objectName, operation) {
         <concurrencyMode>Parallel</concurrencyMode>
         <contentType>CSV</contentType>
    </jobInfo>`;
-  return sfRequest('/services/async/34.0/job', 'POST', {
-        'Content-Type': 'application/xml',
-        'X-SFDC-Session': sid
-      },
-      queryJob).then(r => r.text())
-    .then(function(response) {
+  return sfRequest(
+    "/services/async/34.0/job",
+    "POST",
+    {
+      "Content-Type": "application/xml",
+      "X-SFDC-Session": true,
+    },
+    queryJob
+  )
+    .then((r) => r.text())
+    .then(function (response) {
       return response.match(/<id>(.*)<\/id>/)[1];
     });
 }
 
 function pollBatchStatus(jobId, batchId) {
-  return new Promise(function(resolve, reject) {
-    var intervalId = setInterval(function() {
-      checkBatchStatus(jobId, batchId).then(function(state) {
+  return new Promise(function (resolve, reject) {
+    var intervalId = setInterval(function () {
+      checkBatchStatus(jobId, batchId).then(function (state) {
         if (state === "Completed") {
           resolve(state);
           clearInterval(intervalId);
@@ -544,30 +562,37 @@ function pollBatchStatus(jobId, batchId) {
           reject(state);
           clearInterval(intervalId);
         }
-
       });
-
     }, 1000);
   });
 }
 
 function checkBatchStatus(jobId, batchId) {
-  return sfRequest(`/services/async/34.0/job/${jobId}/batch/${batchId}`, 'GET', {
-      'X-SFDC-Session': sid
-    })
-    .then(r => r.text())
-    .then(function(resultXml) {
+  return sfRequest(
+    `/services/async/34.0/job/${jobId}/batch/${batchId}`,
+    "GET",
+    {
+      "X-SFDC-Session": true,
+    }
+  )
+    .then((r) => r.text())
+    .then(function (resultXml) {
       return resultXml.match(/<state>(.*)<\/state>/)[1];
     });
 }
 
 function createBatch(jobId, csv) {
-  return sfRequest(`/services/async/34.0/job/${jobId}/batch`, 'POST', {
-        'Content-Type': 'text/csv; charset=UTF-8',
-        'X-SFDC-Session': sid
-      },
-      csv).then(r => r.text())
-    .then(function(response) {
+  return sfRequest(
+    `/services/async/34.0/job/${jobId}/batch`,
+    "POST",
+    {
+      "Content-Type": "text/csv; charset=UTF-8",
+      "X-SFDC-Session": true,
+    },
+    csv
+  )
+    .then((r) => r.text())
+    .then(function (response) {
       return response.match(/<id>(.*)<\/id>/)[1];
     });
 }

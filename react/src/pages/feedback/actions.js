@@ -18,7 +18,7 @@ export function sendMessage(message, replyToId) {
       }
     }
     const afterSent = response => {
-      dispatch(loadMessages())
+      // dispatch(loadMessages())
       dispatch(toggleDialog())
       dispatch(setReplyTo(null))
     }
