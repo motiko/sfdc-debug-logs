@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@babel/plugin-proposal-decorators": "^7.22.0",
-    "@babel/runtime": "^7.26.0",
+    "@babel/runtime": "^7.26.10",
     "@babel/runtime-corejs2": "^7.26.0",
     "@material-ui/icons": "^1.1.1",
     "browserify": "^16.3.0",
