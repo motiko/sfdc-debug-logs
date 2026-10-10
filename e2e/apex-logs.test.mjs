@@ -10,6 +10,9 @@
 
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { login, frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { Salesforce } from './lib/salesforce.mjs'
 import { launchWithExtension } from './lib/browser.mjs'
@@ -30,6 +33,8 @@ List<User> users = [SELECT Id, Name FROM User LIMIT 1];
 try { Integer x = 1 / 0; } catch (Exception e) { System.debug('caught ' + e.getMessage()); }
 `
 
+const ARTIFACTS = join(dirname(fileURLToPath(import.meta.url)), 'artifacts')
+
 let session, sf, log, ext
 
 before(async () => {
@@ -49,6 +54,14 @@ before(async () => {
 })
 
 after(() => ext && ext.close())
+
+// Saves a screenshot and console log for debugging failures (uploaded by CI).
+async function saveArtifacts(page, name, lines) {
+  mkdirSync(ARTIFACTS, { recursive: true })
+  await page.screenshot({ path: join(ARTIFACTS, `${name}.png`), fullPage: true }).catch(() => {})
+  const url = page.url().replace(/sid=[^&]+/, 'sid=<redacted>')
+  writeFileSync(join(ARTIFACTS, `${name}.log`), [`url: ${url}`, ...lines].join('\n') + '\n')
+}
 
 function collectPageErrors(page) {
   const errors = []
@@ -139,14 +152,24 @@ test('classic log view', async t => {
 test('React log viewer', async t => {
   // Open the app the way users do: Shift+W on a Salesforce page.
   const sfPage = await ext.browser.newPage()
+  const consoleLog = []
+  sfPage.on('console', m => consoleLog.push(`page ${m.type()}: ${m.text()}`))
+  sfPage.on('pageerror', e => consoleLog.push(`page error: ${e.message}`))
+  ext.background.on('console', m => consoleLog.push(`worker ${m.type()}: ${m.text()}`))
   await sfPage.goto(frontdoorUrl(session, '/setup/ui/listApexTraces.apexp'), {
     waitUntil: 'networkidle2'
   })
+  // frontdoor.jsp can still be redirecting when goto resolves; key presses
+  // during that navigation are lost.
+  await sfPage.waitForFunction(
+    () => location.pathname.includes('listApexTraces') && document.readyState === 'complete',
+    { timeout: 30000 }
+  )
   const appTarget = ext.browser.waitForTarget(t => t.url().includes('/html/app.html'), {
     timeout: 30000
   })
-  // The shortcut is bound only after an async storage read, so retry the
-  // key press until the app tab opens.
+  // The shortcut is bound only after an async message to the service
+  // worker, so retry the key press until the app tab opens.
   let opened = false
   appTarget.then(() => (opened = true), () => {})
   for (let i = 0; i < 20 && !opened; i++) {
@@ -155,7 +178,13 @@ test('React log viewer', async t => {
     await sfPage.keyboard.up('Shift')
     await new Promise(r => setTimeout(r, 1000))
   }
-  const app = await (await appTarget).page()
+  let app
+  try {
+    app = await (await appTarget).page()
+  } catch (e) {
+    await saveArtifacts(sfPage, 'shift-w', consoleLog)
+    throw new Error(`Shift+W did not open the app (${e.message}); see e2e/artifacts/`)
+  }
   // Network failures (e.g. unreachable optional services) are not page bugs.
   const errors = collectPageErrors(app)
   await app.setViewport({ width: 1400, height: 1000 })

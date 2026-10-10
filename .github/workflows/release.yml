@@ -71,6 +71,13 @@ jobs:
           SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
         run: npm test
 
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-artifacts
+          path: e2e/artifacts/
+          if-no-files-found: ignore
+
       - name: Package
         run: scripts/package.sh
 
