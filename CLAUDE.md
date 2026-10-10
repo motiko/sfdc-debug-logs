@@ -39,6 +39,8 @@ The toolchain is Babel 7 with browserify, on old libraries (material-ui `1.0.0-b
 
 Expected styles are read from `debug.css` and `constants.js`, so new themes are covered automatically. Shared login code lives in `scripts/lib/sf-auth.mjs`. Page errors are reported as test diagnostics, not failures.
 
+CI: `.github/workflows/e2e.yml` runs the flow on pushes to `main`, same-repo pull requests and manual dispatch, using repository secrets `SF_USER`, `SF_PASS`, `SF_TOKEN` and optional `SF_LOGIN_URL`. Runs are serialized because they share one org. In CI (`CI` set) Chrome starts with `--no-sandbox`.
+
 ## Architecture
 
 **Content scripts** (loaded per URL pattern in `manifest.json`):

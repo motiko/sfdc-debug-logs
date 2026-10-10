@@ -1,0 +1,50 @@
+name: e2e
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Runs share one Salesforce org; don't let them overlap.
+concurrency:
+  group: e2e-salesforce-org
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    # Pull requests from forks don't get secrets, so they can't log in.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            react/package-lock.json
+            e2e/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix react
+          npm ci --prefix e2e
+
+      # The flow downloads Chrome for Testing into .chrome-test; the runner
+      # image's preinstalled Google Chrome already provides its system libraries.
+      - uses: actions/cache@v4
+        with:
+          path: .chrome-test
+          key: chrome-for-testing-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
+
+      - name: Run end-to-end flow
+        working-directory: e2e
+        env:
+          SF_USER: ${{ secrets.SF_USER }}
+          SF_PASS: ${{ secrets.SF_PASS }}
+          SF_TOKEN: ${{ secrets.SF_TOKEN }}
+          SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
+        run: npm test
