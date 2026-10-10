@@ -11,3 +11,4 @@ tags/
 tags
 
 .chrome-test/
+.env.local

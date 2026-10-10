@@ -30,6 +30,7 @@ npm test               # runs `standard` (lint only; there are no unit tests)
 
 `scripts/chrome-dev.sh [url]` (or `npm run chrome`) launches an isolated browser with the unpacked `chrome/app` extension. Regular Chrome 137+ ignores `--load-extension` and won't run Manifest V2, so the script downloads **Chrome for Testing 138** into `.chrome-test/` (gitignored) and re-enables MV2 with `--disable-features`. The profile in `.chrome-test/profile` persists, so a Salesforce login survives restarts. The DevTools protocol is on port 9222 (override with `CDP_PORT`).
 
+- **Auto-login:** if `.env.local` exists (gitignored; keys in `.env.example`: `SF_USER`, `SF_PASS`, `SF_TOKEN`, optional `SF_LOGIN_URL`) and no URL argument is given, Chrome starts blank and `scripts/sf-login.mjs` logs in via SOAP `login()` + `frontdoor.jsp`, landing on the Debug Logs page. The session id goes over CDP, not the command line. Rerun it on its own against a running browser with `node scripts/sf-login.mjs [retURL]`.
 - After changing content or background scripts, reload the extension on `chrome://extensions`. React changes only need a page reload after `watch:chrome` rebuilds.
 - Without an org, the React app still renders if you open `chrome-extension://<id>/html/app.html?oid=..&uid=..&sid=..&host=..` with dummy values (API calls fail). The extension id is shown on `chrome://extensions`. Formatting follows `react/.prettierrc` (no semicolons, single quotes). The root `.eslintrc` is a legacy config for the plain extension scripts.
 
