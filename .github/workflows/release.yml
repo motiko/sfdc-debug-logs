@@ -1,134 +1,45 @@
-name: release
+name: Release
 
-# Pushing a v<version> tag (see RELEASING.md) tests, packages and publishes
-# the extension to the Chrome Web Store. Running it manually only builds,
-# tests and packages, which is a safe dry run.
+# Runs when a version tag is pushed: scripts/version.sh patch|minor|major bumps
+# chrome/app/manifest.json, commits and tags vX.Y.Z; then `git push --follow-tags`.
 on:
   push:
-    tags: ['v*']
-  workflow_dispatch:
+    tags: ["v*"]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # Shares the Salesforce org with e2e.yml.
-    concurrency:
-      group: e2e-salesforce-org
-      cancel-in-progress: false
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Check version
-        id: version
-        run: |
-          VERSION="$(node -p "require('./chrome/app/manifest.json').version")"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_REF_TYPE" = tag ]; then
-            if [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
-              echo "::error::Tag $GITHUB_REF_NAME does not match manifest version $VERSION"
-              exit 1
-            fi
-            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-              echo "::error::Tag $GITHUB_REF_NAME is not on main"
-              exit 1
-            fi
-          fi
-
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: |
-            react/package-lock.json
-            e2e/package-lock.json
-
-      - name: Install dependencies
+          cache-dependency-path: react/package-lock.json
+      - name: Check that the tag matches manifest.json
         run: |
-          npm ci --prefix react
-          npm ci --prefix e2e
-
-      - uses: actions/cache@v6
-        with:
-          path: .chrome-test
-          key: chrome-for-testing-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
-
-      # Rebuilds chrome/app/js/build/app.js, so the package below contains
-      # exactly the bundle that was tested.
-      - name: Build and run end-to-end flow
-        working-directory: e2e
-        env:
-          SF_USER: ${{ secrets.SF_USER }}
-          SF_PASS: ${{ secrets.SF_PASS }}
-          SF_TOKEN: ${{ secrets.SF_TOKEN }}
-          SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
-        run: npm test
-
-      - uses: actions/upload-artifact@v7
-        if: failure()
-        with:
-          name: e2e-artifacts
-          path: e2e/artifacts/
-          if-no-files-found: ignore
-
-      - name: Package
-        run: scripts/package.sh
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: apex-debugger-${{ steps.version.outputs.version }}
-          path: dist/apex-debugger-${{ steps.version.outputs.version }}.zip
-          if-no-files-found: error
-
-  publish:
-    needs: build
-    if: github.ref_type == 'tag'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # Add required reviewers to this environment to approve each release.
-    environment: chrome-web-store
-    permissions:
-      contents: write # create the GitHub release
-      id-token: write # workload identity federation
-    env:
-      VERSION: ${{ needs.build.outputs.version }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: apex-debugger-${{ needs.build.outputs.version }}
-          path: dist
-
-      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
-        id: google
-        with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
-          token_format: access_token
-          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
-          create_credentials_file: false
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-
-      - name: Publish to Chrome Web Store
-        env:
-          CWS_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
-          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
-          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
-          CWS_PUBLISH_TYPE: ${{ vars.CWS_PUBLISH_TYPE || 'DEFAULT_PUBLISH' }}
-        run: node scripts/cws-publish.mjs "dist/apex-debugger-$VERSION.zip" "$VERSION"
-
+          version=$(node -p "require('./chrome/app/manifest.json').version")
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME doesn't match manifest.json version $version"
+            exit 1
+          fi
+      - run: npm ci --prefix react
+      - run: npm run build --prefix react
+      - name: Zip the extension
+        run: cd chrome/app && zip -r -X "$GITHUB_WORKSPACE/apex-debugger-$GITHUB_REF_NAME.zip" . -x '*.DS_Store' 'js/build/.gitignore'
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" "dist/apex-debugger-$VERSION.zip" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        run: gh release create "$GITHUB_REF_NAME" "apex-debugger-$GITHUB_REF_NAME.zip" --generate-notes
+
+  chrome-web-store:
+    needs: release
+    uses: ./.github/workflows/publish-chrome-web-store.yml
+    with:
+      tag: ${{ github.ref_name }}
+    permissions:
+      contents: read
+      id-token: write
