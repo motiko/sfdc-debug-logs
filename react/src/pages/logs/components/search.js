@@ -46,7 +46,7 @@ export default class Search extends React.Component {
               <InputAdornment position="end">
                 <Tooltip title="Search">
                   <IconButton
-                    color="contrast"
+                    color="inherit"
                     onClick={() =>
                       this.props.handleSearch(this.state.searchTerm)
                     }

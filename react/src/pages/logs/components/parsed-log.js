@@ -151,7 +151,7 @@ class LogElement extends React.Component {
       >
         {eventType === 'USER_DEBUG' ? (
           <IconButton
-            color="contrast"
+            color="inherit"
             className={classes.expandButton}
             aria-label="Add"
             onClick={this.toggleIndentation}

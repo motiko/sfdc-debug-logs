@@ -49,7 +49,7 @@ class FeedbackPageComponent extends React.Component {
             <IconButton tooltip="Back" onClick={() => window.history.back()}>
               <BackIcon />
             </IconButton>
-            <Button color="contrast" onClick={() => this.props.toggleDialog()}>
+            <Button color="inherit" onClick={() => this.props.toggleDialog()}>
               <MessageIcon />
               New Message
             </Button>

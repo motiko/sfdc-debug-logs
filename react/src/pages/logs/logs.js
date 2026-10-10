@@ -108,8 +108,8 @@ class LogsPage extends React.Component {
                 <Grid container direction="row" justify="flex-start">
                   <Grid item>
                     <Tooltip title="Home">
-                      <Link to="/">
-                        <IconButton color="contrast">
+                      <Link to="/" style={{ color: 'inherit' }}>
+                        <IconButton color="inherit">
                           <HomeIcon />
                         </IconButton>
                       </Link>
@@ -117,33 +117,33 @@ class LogsPage extends React.Component {
                   </Grid>
                   <Grid item>
                     <Search
-                      color="contrast"
+                      color="inherit"
                       handleSearch={searchTerm => props.search(searchTerm)}
                     />
                   </Grid>
                   <Grid item>
                     <div>
                       <Tooltip title="Load logs">
-                        <IconButton color="contrast" onClick={props.refresh}>
+                        <IconButton color="inherit" onClick={props.refresh}>
                           <RefreshIcon />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Filter logs">
                         <IconButton
-                          color="contrast"
+                          color="inherit"
                           onClick={props.toggleFiltersDialog}
                         >
                           <FilterList />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Delete All">
-                        <IconButton color="contrast" onClick={props.deleteAll}>
+                        <IconButton color="inherit" onClick={props.deleteAll}>
                           <DeleteIcon />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Style settings">
                         <IconButton
-                          color="contrast"
+                          color="inherit"
                           onClick={props.toggleStyleDialog}
                         >
                           <StyleIcon />
@@ -174,8 +174,11 @@ class LogsPage extends React.Component {
                   style={{ width: '6em', marginBottom: 2 }}
                   onBlur={props.refresh}
                 />
-                <Link to="/feedback" style={{ textDecoration: 'none' }}>
-                  <Button color="contrast">
+                <Link
+                  to="/feedback"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                  <Button color="inherit">
                     <ChatIcon />
                     Give Feedback
                   </Button>

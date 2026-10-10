@@ -9,3 +9,5 @@ node_modules/
 lib-srcs/
 tags/
 tags
+
+.chrome-test/
