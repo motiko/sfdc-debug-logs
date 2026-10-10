@@ -34,7 +34,9 @@ export async function launchWithExtension() {
     ignoreDefaultArgs: ['--disable-extensions'],
     args: [
       `--load-extension=${EXTENSION}`,
-      `--disable-extensions-except=${EXTENSION}`
+      `--disable-extensions-except=${EXTENSION}`,
+      // GitHub's Ubuntu runners block the user namespaces Chrome's sandbox needs.
+      ...(process.env.CI ? ['--no-sandbox'] : [])
     ]
   })
   // Chrome for Testing also runs built-in extensions' workers; match ours.
