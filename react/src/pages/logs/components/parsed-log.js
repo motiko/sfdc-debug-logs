@@ -1,8 +1,8 @@
 import globalSf from '../../../global-sf'
 import React from 'react'
 import Icon from 'material-ui/Icon'
-import AddIcon from '@material-ui/icons/AddCircle'
-import RemoveIcon from '@material-ui/icons/RemoveCircle'
+import AddIcon from 'material-ui-icons/AddCircle'
+import RemoveIcon from 'material-ui-icons/RemoveCircle'
 import IconButton from 'material-ui/IconButton'
 import { withStyles } from 'material-ui/styles'
 import { connect } from 'react-redux'
@@ -52,7 +52,11 @@ function ParsedLog({ body, classes, logStyleConfig, visibleEvents }) {
   return (
     <pre
       className={classes.logBodyPre}
-      style={{ fontSize: logStyleConfig.fontSize }}
+      style={{
+        fontSize: logStyleConfig.fontSize,
+        whiteSpace: logStyleConfig.textWrap ? 'pre-wrap' : 'pre',
+        overflowWrap: logStyleConfig.textWrap ? 'break-word' : 'normal'
+      }}
     >
       <div
         style={{ color: logStyleConfig.theme.system }}
@@ -151,7 +155,7 @@ class LogElement extends React.Component {
       >
         {eventType === 'USER_DEBUG' ? (
           <IconButton
-            color="contrast"
+            color="inherit"
             className={classes.expandButton}
             aria-label="Add"
             onClick={this.toggleIndentation}

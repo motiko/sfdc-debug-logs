@@ -21,7 +21,7 @@ npm run watch   # watchify dev build to the same file
 npm test        # runs `standard` (lint only; there are no unit tests)
 ```
 
-The toolchain is Babel 7 with browserify, on old libraries (material-ui `1.0.0-beta.38` pinned exactly, React 16, react-router 4, Redux 3). Keep to those APIs rather than modern equivalents. In material-ui beta.38 the `color="contrast"` prop no longer exists; use `color="inherit"`. Formatting follows `react/.prettierrc` (no semicolons, single quotes).
+The toolchain is Babel 7 with browserify, on old libraries (material-ui `1.0.0-beta.38` pinned exactly, React 16, react-router 4, Redux 3). Keep to those APIs rather than modern equivalents. In material-ui beta.38 the `color="contrast"` prop no longer exists; use `color="inherit"`. Use `material-ui-icons` for icons, not `@material-ui/icons`: the latter pulls in `@material-ui/core`, a second JSS instance whose generated class names collide with material-ui's and break layouts. Formatting follows `react/.prettierrc` (no semicolons, single quotes).
 
 ## Local Chrome testing
 
