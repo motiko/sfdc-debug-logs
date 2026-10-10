@@ -18,9 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -35,7 +35,7 @@ jobs:
 
       # The flow downloads Chrome for Testing into .chrome-test; the runner
       # image's preinstalled Google Chrome already provides its system libraries.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .chrome-test
           key: chrome-for-testing-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}

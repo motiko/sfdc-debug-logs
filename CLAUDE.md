@@ -59,4 +59,4 @@ CI: `.github/workflows/e2e.yml` runs the flow on pushes to `main`, same-repo pul
 
 ## Releasing
 
-Bump `version` in `chrome/app/manifest.json`. Any new remote host the app calls must be added to `content_security_policy.extension_pages` `connect-src` and to `host_permissions`.
+See [RELEASING.md](RELEASING.md). In short: `scripts/release.sh prepare <version>` opens a version-bump PR; after merging, `scripts/release.sh tag` pushes `v<version>`, and `.github/workflows/release.yml` runs the e2e flow, packages `chrome/app` (`scripts/package.sh`) and publishes with `scripts/cws-publish.mjs` (Chrome Web Store API v2, workload identity federation, approval via the `chrome-web-store` environment). `manifest.json` `version` is the source of truth; tags must match it. Any new remote host the app calls must be added to `content_security_policy.extension_pages` `connect-src` and to `host_permissions`.

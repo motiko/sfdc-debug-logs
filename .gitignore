@@ -12,3 +12,4 @@ tags
 
 .chrome-test/
 .env.local
+dist/
