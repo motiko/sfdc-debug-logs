@@ -101,14 +101,14 @@ You need the [gcloud CLI](https://cloud.google.com/sdk/docs/install), a Google C
      --location=global --workload-identity-pool=github \
      --issuer-uri=https://token.actions.githubusercontent.com \
      --attribute-mapping="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id" \
-     --attribute-condition="assertion.repository_id == '$REPO_ID'"
+     --attribute-condition="assertion.repository_id == '$REPO_ID' && (assertion.ref == 'refs/heads/main' || assertion.ref.startsWith('refs/tags/v'))"
 
    gcloud iam service-accounts add-iam-policy-binding $SERVICE_ACCOUNT \
      --role=roles/iam.workloadIdentityUser \
      --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository_id/$REPO_ID"
    ```
 
-   The condition uses the repository's numeric ID, not its name, so a renamed or recreated repository with the same name can't use the pool.
+   The condition uses the repository's numeric ID, not its name, so a renamed or recreated repository with the same name can't use the pool. It also only accepts runs from `main` or a `v*` tag, so a workflow changed on another branch can't get a token.
 
    Right after creating a project, Google can take a minute to apply your owner role. If a command fails with `IAM_PERMISSION_DENIED`, wait a moment and run it again.
 
@@ -128,7 +128,20 @@ You need the [gcloud CLI](https://cloud.google.com/sdk/docs/install), a Google C
 
    These are variables, not secrets: none of them grants access on its own.
 
-4. Check the setup without uploading anything:
+4. Anyone who can push a `v*` tag can publish, because the workflow runs from the tagged commit. Allow only admins to create, move or delete release tags:
+
+   ```sh
+   gh api -X POST repos/$REPO/rulesets --input - <<'JSON'
+   {"name": "Release tags", "target": "tag", "enforcement": "active",
+    "conditions": {"ref_name": {"include": ["refs/tags/v*"], "exclude": []}},
+    "rules": [{"type": "creation"}, {"type": "update"}, {"type": "deletion"}],
+    "bypass_actors": [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]}
+   JSON
+   ```
+
+   `actor_id` 5 is the repository admin role, so you can still push release tags.
+
+5. Check the setup without uploading anything:
 
    ```sh
    gh workflow run publish-chrome-web-store.yml -f check_only=true
