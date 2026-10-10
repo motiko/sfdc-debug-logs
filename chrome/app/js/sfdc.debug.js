@@ -320,7 +320,7 @@ function haltEvent(event) {
 }
 
 function removeIllegalIdLinks() {
-  sfRequest('/services/data/v29.0/sobjects').then(r => r.json())
+  sfRequest('/services/data/v59.0/sobjects').then(r => r.json())
     .then(function(response) {
       var sobjects = response.sobjects;
       keyPrefixes = sobjects.filter(function(sobj) {

@@ -1,16 +1,16 @@
 import React from 'react'
 import Snackbar from 'material-ui/Snackbar'
-import ChatIcon from '@material-ui/icons/Chat'
-import HomeIcon from '@material-ui/icons/Home'
+import ChatIcon from 'material-ui-icons/Chat'
+import HomeIcon from 'material-ui-icons/Home'
 import Button from 'material-ui/Button'
 import { Link, Route, Switch } from 'react-router-dom'
 import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'
 import Grid from 'material-ui/Grid'
-import RefreshIcon from '@material-ui/icons/Autorenew'
-import DeleteIcon from '@material-ui/icons/DeleteForever'
-import FilterList from '@material-ui/icons/FilterList'
-import StyleIcon from '@material-ui/icons/Style'
+import RefreshIcon from 'material-ui-icons/Autorenew'
+import DeleteIcon from 'material-ui-icons/DeleteForever'
+import FilterList from 'material-ui-icons/FilterList'
+import StyleIcon from 'material-ui-icons/Style'
 import TextField from 'material-ui/TextField'
 import { CircularProgress } from 'material-ui/Progress'
 import IconButton from 'material-ui/IconButton'
@@ -108,8 +108,8 @@ class LogsPage extends React.Component {
                 <Grid container direction="row" justify="flex-start">
                   <Grid item>
                     <Tooltip title="Home">
-                      <Link to="/">
-                        <IconButton color="contrast" aria-label="Home">
+                      <Link to="/" style={{ color: 'inherit' }}>
+                        <IconButton color="inherit" aria-label="Home">
                           <HomeIcon />
                         </IconButton>
                       </Link>
@@ -117,7 +117,7 @@ class LogsPage extends React.Component {
                   </Grid>
                   <Grid item>
                     <Search
-                      color="contrast"
+                      color="inherit"
                       handleSearch={searchTerm => props.search(searchTerm)}
                     />
                   </Grid>
@@ -125,7 +125,7 @@ class LogsPage extends React.Component {
                     <div>
                       <Tooltip title="Load logs">
                         <IconButton
-                          color="contrast"
+                          color="inherit"
                           aria-label="Load logs"
                           onClick={props.refresh}
                         >
@@ -134,7 +134,7 @@ class LogsPage extends React.Component {
                       </Tooltip>
                       <Tooltip title="Filter logs">
                         <IconButton
-                          color="contrast"
+                          color="inherit"
                           aria-label="Filter logs"
                           onClick={props.toggleFiltersDialog}
                         >
@@ -143,7 +143,7 @@ class LogsPage extends React.Component {
                       </Tooltip>
                       <Tooltip title="Delete All">
                         <IconButton
-                          color="contrast"
+                          color="inherit"
                           aria-label="Delete all logs"
                           onClick={props.deleteAll}
                         >
@@ -152,7 +152,7 @@ class LogsPage extends React.Component {
                       </Tooltip>
                       <Tooltip title="Style settings">
                         <IconButton
-                          color="contrast"
+                          color="inherit"
                           aria-label="Style settings"
                           onClick={props.toggleStyleDialog}
                         >

@@ -1,7 +1,7 @@
 import React from 'react'
 import TextField from 'material-ui/TextField'
-import SearchIcon from '@material-ui/icons/Search'
-import ClearIcon from '@material-ui/icons/Clear'
+import SearchIcon from 'material-ui-icons/Search'
+import ClearIcon from 'material-ui-icons/Clear'
 import IconButton from 'material-ui/IconButton'
 import Input, { InputLabel, InputAdornment } from 'material-ui/Input'
 import Tooltip from 'material-ui/Tooltip'
@@ -46,7 +46,7 @@ export default class Search extends React.Component {
               <InputAdornment position="end">
                 <Tooltip title="Search">
                   <IconButton
-                    color="contrast"
+                    color="inherit"
                     onClick={() =>
                       this.props.handleSearch(this.state.searchTerm)
                     }

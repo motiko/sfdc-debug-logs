@@ -1,9 +1,9 @@
 import React from 'react'
 import List from 'material-ui/List'
 import Button from 'material-ui/Button'
-import BackIcon from '@material-ui/icons/ArrowBack'
+import BackIcon from 'material-ui-icons/ArrowBack'
 import IconButton from 'material-ui/IconButton'
-import MessageIcon from '@material-ui/icons/Message'
+import MessageIcon from 'material-ui-icons/Message'
 import MessageEdit from './message-edit'
 import MessageView from './message-view'
 import Dialog, {
@@ -49,7 +49,7 @@ class FeedbackPageComponent extends React.Component {
             <IconButton tooltip="Back" onClick={() => window.history.back()}>
               <BackIcon />
             </IconButton>
-            <Button color="contrast" onClick={() => this.props.toggleDialog()}>
+            <Button color="inherit" onClick={() => this.props.toggleDialog()}>
               <MessageIcon />
               New Message
             </Button>
