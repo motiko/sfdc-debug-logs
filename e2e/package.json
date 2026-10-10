@@ -1,0 +1,12 @@
+{
+  "name": "apex-debugger-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm --prefix ../react run build --silent && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --test-concurrency=1 --test-timeout=300000 apex-logs.test.mjs"
+  },
+  "devDependencies": {
+    "@puppeteer/browsers": "^3.2.4",
+    "puppeteer-core": "^25.13.0"
+  }
+}
