@@ -1,0 +1,8 @@
+version: 2
+updates:
+  # Keeps workflow actions current, including the SHA-pinned
+  # google-github-actions/auth in release.yml.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
