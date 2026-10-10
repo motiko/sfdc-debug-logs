@@ -37,9 +37,11 @@ export async function launchWithExtension() {
       `--disable-extensions-except=${EXTENSION}`
     ]
   })
-  const swTarget = await browser.waitForTarget(t => t.type() === 'service_worker', {
-    timeout: 15000
-  })
+  // Chrome for Testing also runs built-in extensions' workers; match ours.
+  const swTarget = await browser.waitForTarget(
+    t => t.type() === 'service_worker' && t.url().endsWith('/js/background.js'),
+    { timeout: 15000 }
+  )
   const background = await swTarget.worker()
   const extensionId = new URL(swTarget.url()).host
   const close = async () => {
