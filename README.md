@@ -74,56 +74,49 @@ If the Chrome Web Store isn't configured (see below), step 3 is skipped with a w
 
 ### One-time setup: Chrome Web Store publishing
 
-The workflow authenticates without stored secrets. GitHub Actions gets an OIDC token, Google [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation) exchanges it for a short-lived access token of a service account, and that service account is registered as a publisher account in the Chrome Web Store. Only workflows from this repository can use it.
+The workflow authenticates without stored secrets. GitHub Actions gets an OIDC token, Google [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation) exchanges it for a short-lived access token of a service account, and that service account is registered as a publisher account in the Chrome Web Store.
 
-You need the [gcloud CLI](https://cloud.google.com/sdk/docs/install), a Google Cloud project, and access to the Chrome Web Store developer account. If you already did this for another extension, you can reuse the project and pool: add a provider for this repository and bind the service account to it.
+This repository shares the Google Cloud project `kcr-translate-release` (pool and provider `github`, service account `cws-publisher`) with [kcr-translate-ext](https://github.com/motiko/kcr-translate-ext) and any-translate, which publish under the same Chrome Web Store publisher. The provider only accepts tokens from the repository IDs in its condition. Creating the project, pool, provider and service account from scratch is described in kcr-translate-ext's README.
 
-1. Set up the Google Cloud side:
+You need the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and owner access to the project.
+
+1. Allow this repository on the shared provider and service account:
 
    ```sh
    gcloud auth login
-   PROJECT_ID=apex-debugger-release          # any free project ID
+   gcloud config set project kcr-translate-release
    REPO=motiko/sfdc-debug-logs
-   REPO_ID=$(gh api repos/$REPO --jq .id)
+   REPO_ID=$(gh api repos/$REPO --jq .id)    # 25717851
+   SERVICE_ACCOUNT=cws-publisher@kcr-translate-release.iam.gserviceaccount.com
+   PROVIDER=projects/745435432082/locations/global/workloadIdentityPools/github/providers/github
 
-   gcloud projects create $PROJECT_ID --name="Apex Debugger release"
-   gcloud config set project $PROJECT_ID
-   PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+   # Shows the repository IDs allowed now
+   gcloud iam workload-identity-pools providers describe github \
+     --location=global --workload-identity-pool=github --format='value(attributeCondition)'
 
-   gcloud services enable chromewebstore.googleapis.com iam.googleapis.com \
-     iamcredentials.googleapis.com sts.googleapis.com
-
-   gcloud iam service-accounts create cws-publisher --display-name="Chrome Web Store publisher"
-   SERVICE_ACCOUNT=cws-publisher@$PROJECT_ID.iam.gserviceaccount.com
-
-   gcloud iam workload-identity-pools create github --location=global --display-name="GitHub Actions"
-   gcloud iam workload-identity-pools providers create-oidc github \
+   # Replaces the whole condition: list every ID from above plus $REPO_ID
+   gcloud iam workload-identity-pools providers update-oidc github \
      --location=global --workload-identity-pool=github \
-     --issuer-uri=https://token.actions.githubusercontent.com \
-     --attribute-mapping="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id" \
-     --attribute-condition="assertion.repository_id == '$REPO_ID' && (assertion.ref == 'refs/heads/main' || assertion.ref.startsWith('refs/tags/v'))"
+     --attribute-condition="assertion.repository_id in ['171104265', '367571871', '$REPO_ID']"
 
    gcloud iam service-accounts add-iam-policy-binding $SERVICE_ACCOUNT \
      --role=roles/iam.workloadIdentityUser \
-     --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository_id/$REPO_ID"
+     --member="principalSet://iam.googleapis.com/projects/745435432082/locations/global/workloadIdentityPools/github/attribute.repository_id/$REPO_ID"
    ```
 
-   The condition uses the repository's numeric ID, not its name, so a renamed or recreated repository with the same name can't use the pool. It also only accepts runs from `main` or a `v*` tag, so a workflow changed on another branch can't get a token.
+   The condition uses numeric repository IDs, not names, so a renamed or recreated repository with the same name can't use the pool. `update-oidc` overwrites the condition, so dropping an ID from the list locks that repository out.
 
-   Right after creating a project, Google can take a minute to apply your owner role. If a command fails with `IAM_PERMISSION_DENIED`, wait a moment and run it again.
-
-2. In the [Developer Dashboard](https://chrome.google.com/webstore/devconsole), select the publisher that owns the extension (dropdown at the top right), open **Settings**, and add the service account email (`cws-publisher@<project-id>.iam.gserviceaccount.com`) in the **Service account** section. A publisher can have only one service account.
+2. The service account must be the service account of the publisher that owns the extension. In the [Developer Dashboard](https://chrome.google.com/webstore/devconsole), select that publisher (dropdown at the top right), open **Settings**, and check that `cws-publisher@kcr-translate-release.iam.gserviceaccount.com` is in the **Service account** section; add it if not. A publisher can have only one service account.
 
    Don't use **Invite member** for it: an invitation only takes effect once it's accepted by email, which a service account can't do, so it stays "Pending" and the API answers `403`.
 
-3. Note the publisher ID, shown in the publisher's **Settings**. The extension's item ID is `mpckkbblhbfngaininanfjpdfjhbncjo` (from its store URL; the ID in the dashboard's address bar is a different one, which the API rejects with `403`). Then set the repository variables:
+3. Set the repository variables. The publisher ID is shown in the publisher's **Settings**. The extension's item ID is `mpckkbblhbfngaininanfjpdfjhbncjo` (from its store URL; the ID in the dashboard's address bar is a different one, which the API rejects with `403`).
 
    ```sh
-   gh variable set CWS_PUBLISHER_ID --body "<publisher id>"
-   gh variable set CWS_EXTENSION_ID --body "mpckkbblhbfngaininanfjpdfjhbncjo"
-   gh variable set GCP_SERVICE_ACCOUNT --body "$SERVICE_ACCOUNT"
-   gh variable set GCP_WORKLOAD_IDENTITY_PROVIDER \
-     --body "projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/github"
+   gh variable set CWS_PUBLISHER_ID -R $REPO --body "c6806d54-95d7-4251-9f55-f5b9c56af19f"
+   gh variable set CWS_EXTENSION_ID -R $REPO --body "mpckkbblhbfngaininanfjpdfjhbncjo"
+   gh variable set GCP_SERVICE_ACCOUNT -R $REPO --body "$SERVICE_ACCOUNT"
+   gh variable set GCP_WORKLOAD_IDENTITY_PROVIDER -R $REPO --body "$PROVIDER"
    ```
 
    These are variables, not secrets: none of them grants access on its own.
