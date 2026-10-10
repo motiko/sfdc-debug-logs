@@ -1,5 +1,3 @@
-var sid = document.cookie.match(/(^|;\s*)sid=(.+?);/)[2];
-
 addHeader();
 addCheckboxes();
 addButton();

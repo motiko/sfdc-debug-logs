@@ -1,5 +1,11 @@
-const sidCookie = document.cookie.match(/(^|;\s*)sid=(.+?);/)
-let sid = sidCookie && sidCookie.length >= 3 ? sidCookie[2] : null;
+// Returns a cookie's value, or null. Matches the last cookie too, which has
+// no trailing ';'.
+function readCookie(name) {
+  const match = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+  return match ? match[1] : null;
+}
+
+let sid = readCookie('sid');
 
 async function getToken() {
   if(sid){
@@ -17,12 +23,13 @@ async function getToken() {
 }
 
 function parseDiscoCookie() {
-  const disco = document.cookie.match(/(^|;\s*)disco=(.+?);/);
-  let discoMatch = disco && disco.length >= 3 ? disco[2] : null;
-  let ids = discoMatch.split(":");
-  let orgId = ids[1];
-  let userId = ids[2];
-  return { orgId, userId };
+  const disco = readCookie('disco');
+  if (!disco) {
+    console.log('Apex Debugger:', 'disco cookie not found; cannot tell the org and user ids');
+    return { orgId: undefined, userId: undefined };
+  }
+  const ids = disco.split(":");
+  return { orgId: ids[1], userId: ids[2] };
 }
 
 function getUserId() {
