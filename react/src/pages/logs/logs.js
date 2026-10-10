@@ -109,7 +109,7 @@ class LogsPage extends React.Component {
                   <Grid item>
                     <Tooltip title="Home">
                       <Link to="/" style={{ color: 'inherit' }}>
-                        <IconButton color="inherit">
+                        <IconButton color="inherit" aria-label="Home">
                           <HomeIcon />
                         </IconButton>
                       </Link>
@@ -124,26 +124,36 @@ class LogsPage extends React.Component {
                   <Grid item>
                     <div>
                       <Tooltip title="Load logs">
-                        <IconButton color="inherit" onClick={props.refresh}>
+                        <IconButton
+                          color="inherit"
+                          aria-label="Load logs"
+                          onClick={props.refresh}
+                        >
                           <RefreshIcon />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Filter logs">
                         <IconButton
                           color="inherit"
+                          aria-label="Filter logs"
                           onClick={props.toggleFiltersDialog}
                         >
                           <FilterList />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Delete All">
-                        <IconButton color="inherit" onClick={props.deleteAll}>
+                        <IconButton
+                          color="inherit"
+                          aria-label="Delete all logs"
+                          onClick={props.deleteAll}
+                        >
                           <DeleteIcon />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Style settings">
                         <IconButton
                           color="inherit"
+                          aria-label="Style settings"
                           onClick={props.toggleStyleDialog}
                         >
                           <StyleIcon />

@@ -32,7 +32,20 @@ npm test               # runs `standard` (lint only; there are no unit tests)
 
 - **Auto-login:** if `.env.local` exists (gitignored; keys in `.env.example`: `SF_USER`, `SF_PASS`, `SF_TOKEN`, optional `SF_LOGIN_URL`) and no URL argument is given, Chrome starts blank and `scripts/sf-login.mjs` logs in via SOAP `login()` + `frontdoor.jsp`, landing on the Debug Logs page. The session id goes over CDP, not the command line. Rerun it on its own against a running browser with `node scripts/sf-login.mjs [retURL]`.
 - After changing content or background scripts, reload the extension on `chrome://extensions`. React changes only need a page reload after `watch:chrome` rebuilds.
-- Without an org, the React app still renders if you open `chrome-extension://<id>/html/app.html?oid=..&uid=..&sid=..&host=..` with dummy values (API calls fail). The extension id is shown on `chrome://extensions`. Formatting follows `react/.prettierrc` (no semicolons, single quotes). The root `.eslintrc` is a legacy config for the plain extension scripts.
+- Without an org, the React app still renders if you open `chrome-extension://<id>/html/app.html?oid=..&uid=..&sid=..&host=..` with dummy values (API calls fail). The extension id is shown on `chrome://extensions`.
+- The `sid` cookie is HttpOnly on current Salesforce, so content scripts can't read it (`utils.js`). They fall back to the token saved on the options page (`browser.storage.local.token`), and the e2e flow seeds that token.
+
+## End-to-end flow (`e2e/`)
+
+`cd e2e && npm install && npm test` builds the Chrome bundle, then runs `apex-logs.test.mjs` (`node --test` + `puppeteer-core`, headless Chrome for Testing 138, throwaway profile; `HEADFUL=1` to watch). It logs in with `.env.local` (or `SF_ACCESS_TOKEN` + `SF_INSTANCE_URL`), makes sure the user has a trace flag (`ApexDbgrExtension` debug level, like the app), runs anonymous Apex with a unique marker, and finds the resulting ApexLog. It then checks both views:
+- **Classic** (`/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=…`, `sfdc.debug.js`): marker visible and findable, every theme in `debug.css` applied to every event class, font size.
+- **React app** (opened with Shift+W): log listed, search filters to the marker's log, log body visible, every theme in `constants.js` colors every line by its category, custom color, font size, text wrap.
+
+Expected styles are read from `debug.css` and `constants.js`, so new themes are covered automatically. Shared login code lives in `scripts/lib/sf-auth.mjs`.
+
+## Code style
+
+Formatting follows `react/.prettierrc` (no semicolons, single quotes). The root `.eslintrc` is a legacy config for the plain extension scripts.
 
 ## Architecture
 
