@@ -1,0 +1,127 @@
+name: Publish to Chrome Web Store
+
+# Uploads the zip of a GitHub release to the Chrome Web Store and submits it for review; the
+# version goes live as soon as the review passes. Called by release.yml after the GitHub release
+# is created. Run it manually to retry, e.g. when the upload was rejected because the previous
+# version was still in review: gh workflow run publish-chrome-web-store.yml -f tag=vX.Y.Z
+# To test the setup without uploading: gh workflow run publish-chrome-web-store.yml -f check_only=true
+# Authentication is keyless (GitHub OIDC -> Workload Identity Federation -> service account), see
+# "Releasing" in README.md for the one-time setup and the repository variables.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, e.g. v1.2.0 (not needed with check_only)
+        type: string
+        required: false
+      check_only:
+        description: Only check the setup (authenticate and read the item status), upload nothing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag }}
+      ITEM_URL: https://chromewebstore.googleapis.com/v2/publishers/${{ vars.CWS_PUBLISHER_ID }}/items/${{ vars.CWS_EXTENSION_ID }}
+      UPLOAD_URL: https://chromewebstore.googleapis.com/upload/v2/publishers/${{ vars.CWS_PUBLISHER_ID }}/items/${{ vars.CWS_EXTENSION_ID }}
+    steps:
+      - name: Check configuration
+        id: config
+        run: |
+          missing=""
+          for name in CWS_PUBLISHER_ID CWS_EXTENSION_ID GCP_WORKLOAD_IDENTITY_PROVIDER GCP_SERVICE_ACCOUNT; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ "$CHECK_ONLY" != "true" ] && [ -z "$TAG" ]; then
+            echo "::error::Pass the release tag to publish (-f tag=vX.Y.Z), or check_only=true"
+            exit 1
+          fi
+          if [ -n "$missing" ]; then
+            echo "::warning::Chrome Web Store publishing is not configured (missing repository variables:$missing). Upload the zip from the GitHub release manually."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          CHECK_ONLY: ${{ inputs.check_only }}
+
+      - name: Download the release zip
+        if: steps.config.outputs.configured == 'true' && !inputs.check_only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "apex-debugger-$TAG.zip" --output extension.zip
+
+      - name: Authenticate to Google Cloud
+        if: steps.config.outputs.configured == 'true'
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          create_credentials_file: false
+
+      - name: Check the setup
+        if: steps.config.outputs.configured == 'true' && inputs.check_only
+        env:
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          response=$(curl -sS -H "Authorization: Bearer $TOKEN" "$ITEM_URL:fetchStatus")
+          echo "$response"
+          if [ -z "$(jq -r '.itemId // empty' <<< "$response")" ]; then
+            echo "::error::Could not read the item status: check that the service account is added in the Chrome Web Store dashboard and that CWS_PUBLISHER_ID and CWS_EXTENSION_ID are right"
+            exit 1
+          fi
+          jq -r '"published: \(.publishedItemRevisionStatus.state // "-") \(.publishedItemRevisionStatus.distributionChannels[0].crxVersion // ""), submitted: \(.submittedItemRevisionStatus.state // "-") \(.submittedItemRevisionStatus.distributionChannels[0].crxVersion // "")"' <<< "$response" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload
+        if: steps.config.outputs.configured == 'true' && !inputs.check_only
+        env:
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          response=$(curl -sS -X POST -H "Authorization: Bearer $TOKEN" -T extension.zip "$UPLOAD_URL:upload")
+          echo "$response"
+          state=$(jq -r '.uploadState // empty' <<< "$response")
+          # large uploads are processed asynchronously
+          for _ in $(seq 1 30); do
+            [ "$state" = "IN_PROGRESS" ] || break
+            sleep 10
+            state=$(curl -sS -H "Authorization: Bearer $TOKEN" "$ITEM_URL:fetchStatus" | jq -r '.lastAsyncUploadState // empty')
+            echo "upload state: $state"
+          done
+          if [ "$state" != "SUCCEEDED" ]; then
+            echo "::error::Upload of $TAG failed (state: ${state:-none}). If the previous version is still in review, rerun this workflow after the review: gh workflow run publish-chrome-web-store.yml -f tag=$TAG"
+            exit 1
+          fi
+
+      - name: Submit for review
+        if: steps.config.outputs.configured == 'true' && !inputs.check_only
+        env:
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          response=$(curl -sS -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+            -d '{"publishType": "DEFAULT_PUBLISH"}' "$ITEM_URL:publish")
+          echo "$response"
+          state=$(jq -r '.state // empty' <<< "$response")
+          if [ -z "$state" ]; then
+            echo "::error::Submitting $TAG for review failed"
+            exit 1
+          fi
+          jq -r '.warningInfo // empty' <<< "$response"
+          echo "Chrome Web Store: $TAG uploaded and submitted, state $state" >> "$GITHUB_STEP_SUMMARY"
