@@ -8,7 +8,6 @@ import {
 } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import {
-  Badge,
   Box,
   Button,
   Checkbox,
@@ -425,18 +424,16 @@ const LogViewer = forwardRef(function LogViewer(
             </Button>
           </span>
         </Tooltip>
-        <Badge color="primary" variant="dot" invisible={!hidden.length}>
-          <Button
-            variant="text"
-            color="inherit"
-            startIcon={<TuneIcon />}
-            aria-haspopup="dialog"
-            aria-expanded={Boolean(eventsAnchor)}
-            onClick={e => setEventsAnchor(e.currentTarget)}
-          >
-            {hiddenCount ? `Events · ${hiddenCount} hidden` : 'Events'}
-          </Button>
-        </Badge>
+        <Button
+          variant="text"
+          color="inherit"
+          startIcon={<TuneIcon />}
+          aria-haspopup="dialog"
+          aria-expanded={Boolean(eventsAnchor)}
+          onClick={e => setEventsAnchor(e.currentTarget)}
+        >
+          {hiddenCount ? `Events · ${hiddenCount} hidden` : 'Events'}
+        </Button>
         <Button
           variant="text"
           color="inherit"

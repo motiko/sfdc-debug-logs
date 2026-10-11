@@ -12,10 +12,25 @@ import {
   type ColorMode
 } from './tokens'
 
-const cache: Partial<Record<ColorMode, Theme>> = {}
+const cache: Record<string, Theme> = {}
 
-export function createAppTheme(mode: ColorMode): Theme {
-  if (cache[mode]) return cache[mode]
+// No animated transitions (dialogs, menus, drawers) for users who ask the OS
+// for reduced motion.
+const NO_MOTION = {
+  duration: {
+    shortest: 0,
+    shorter: 0,
+    short: 0,
+    standard: 0,
+    complex: 0,
+    enteringScreen: 0,
+    leavingScreen: 0
+  }
+}
+
+export function createAppTheme(mode: ColorMode, reducedMotion = false): Theme {
+  const key = `${mode}${reducedMotion ? '-still' : ''}`
+  if (cache[key]) return cache[key]
   const c = colors[mode]
   const ring = {
     outline: `${focusRing.width}px solid ${c.focus}`,
@@ -45,6 +60,7 @@ export function createAppTheme(mode: ColorMode): Theme {
       }
     },
     shape: { borderRadius: radius.md },
+    ...(reducedMotion ? { transitions: NO_MOTION } : {}),
     spacing: 8,
     typography: {
       fontFamily: fontFamily.ui,
@@ -105,7 +121,13 @@ export function createAppTheme(mode: ColorMode): Theme {
       },
       MuiButton: {
         defaultProps: { disableElevation: true, size: 'small' },
-        styleOverrides: { root: { borderRadius: radius.md, minHeight: 32 } }
+        styleOverrides: {
+          root: { borderRadius: radius.md, minHeight: 32 },
+          // MUI puts a zero-width space before icons, which Chrome adds to
+          // the button's accessible name ("​ Filters").
+          startIcon: { '&::before': { content: 'none' } },
+          endIcon: { '&::before': { content: 'none' } }
+        }
       },
       MuiIconButton: {
         defaultProps: { size: 'small' },
@@ -175,6 +197,12 @@ export function createAppTheme(mode: ColorMode): Theme {
           deleteIcon: { color: c.textMuted, '&:hover': { color: c.text } }
         }
       },
+      // Menus and popovers size their animation to their height ('auto');
+      // none at all with reduced motion.
+      MuiPopover: {
+        defaultProps: reducedMotion ? { transitionDuration: 0 } : {}
+      },
+      MuiMenu: { defaultProps: reducedMotion ? { transitionDuration: 0 } : {} },
       MuiMenuItem: {
         styleOverrides: { root: { fontSize: fontSize.sm, minHeight: 32 } }
       },
@@ -220,6 +248,6 @@ export function createAppTheme(mode: ColorMode): Theme {
       MuiRadio: { styleOverrides: { root: { color: c.border } } }
     }
   })
-  cache[mode] = theme
+  cache[key] = theme
   return theme
 }

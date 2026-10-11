@@ -1,7 +1,6 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import {
-  Badge,
   Box,
   Button,
   Chip,
@@ -133,23 +132,17 @@ const FilterBar = forwardRef(function FilterBar({ shownCount }, searchRef) {
             }}
           />
         </Box>
-        <Badge
-          badgeContent={chips.length}
-          color="primary"
-          overlap="rectangular"
+        <Button
+          variant="outlined"
+          color="inherit"
+          startIcon={<FilterIcon />}
+          aria-haspopup="dialog"
+          aria-expanded={Boolean(filtersAnchor)}
+          onClick={e => setFiltersAnchor(e.currentTarget)}
+          sx={{ borderColor: 'var(--ad-border)' }}
         >
-          <Button
-            variant="outlined"
-            color="inherit"
-            startIcon={<FilterIcon />}
-            aria-haspopup="dialog"
-            aria-expanded={Boolean(filtersAnchor)}
-            onClick={e => setFiltersAnchor(e.currentTarget)}
-            sx={{ borderColor: 'var(--ad-border)' }}
-          >
-            Filters
-          </Button>
-        </Badge>
+          {chips.length ? `Filters (${chips.length})` : 'Filters'}
+        </Button>
         <Box
           component="ul"
           aria-label="Active filters"

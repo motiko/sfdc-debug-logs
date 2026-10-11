@@ -30,3 +30,17 @@ export function useResolvedColorMode(preference) {
   }, [mode])
   return mode
 }
+
+const motionQuery = () => window.matchMedia('(prefers-reduced-motion: reduce)')
+
+// Whether the OS asks for reduced motion (followed live).
+export function useReducedMotion() {
+  return useSyncExternalStore(
+    onChange => {
+      const media = motionQuery()
+      media.addEventListener('change', onChange)
+      return () => media.removeEventListener('change', onChange)
+    },
+    () => motionQuery().matches
+  )
+}

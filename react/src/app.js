@@ -7,7 +7,7 @@ import { ThemeProvider } from '@mui/material/styles'
 import LogsPage from './pages/logs/logs'
 import { createStore } from './store'
 import { createAppTheme } from './ui/theme'
-import { useResolvedColorMode } from './ui/color-mode'
+import { useReducedMotion, useResolvedColorMode } from './ui/color-mode'
 import { tokenCssVariables } from './ui/tokens'
 import './app.css'
 
@@ -18,7 +18,7 @@ const store = createStore()
 function Themed({ children }) {
   const preference = useSelector(state => state.logsPage.colorMode)
   const mode = useResolvedColorMode(preference)
-  const theme = createAppTheme(mode)
+  const theme = createAppTheme(mode, useReducedMotion())
   const variables = useMemo(
     () => ({ ':root': tokenCssVariables(mode) }),
     [mode]

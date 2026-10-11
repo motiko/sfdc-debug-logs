@@ -34,10 +34,8 @@ const categoryRules = Object.fromEntries(
     `& .cat-${c}`,
     {
       color: `var(--log-${c}-color)`,
-      '& .ev, & .msg': {
-        fontWeight: `var(--log-${c}-weight)`,
-        fontStyle: `var(--log-${c}-style)`
-      }
+      fontWeight: `var(--log-${c}-weight)`,
+      fontStyle: `var(--log-${c}-style)`
     }
   ])
 )
@@ -136,6 +134,8 @@ const ParsedLog = forwardRef(function ParsedLog(
         alignItems: 'flex-start',
         justifyContent: 'space-between',
         whiteSpace: 'nowrap',
+        fontWeight: 400,
+        fontStyle: 'normal',
         pr: '1ch',
         mr: '1ch',
         color: 'var(--log-muted)',
@@ -161,7 +161,6 @@ const ParsedLog = forwardRef(function ParsedLog(
         fontWeight: 400,
         fontStyle: 'normal'
       },
-      '& .ev': { fontWeight: 600 },
       '& a': {
         color: 'inherit',
         textDecorationThickness: '1px',
