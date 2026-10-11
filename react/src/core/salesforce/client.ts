@@ -89,6 +89,10 @@ export interface DeleteProgress {
   total: number | null
 }
 
+// Which logs a count or delete covers. Always explicit: a missing or invalid
+// user id must never widen "one user's logs" to every user's (fail closed).
+export type LogScope = { scope: 'all' } | { scope: 'user'; userId: string }
+
 export interface ClientOptions {
   now?: () => Date
   sleep?: (ms: number) => Promise<void>
@@ -348,15 +352,22 @@ export function createSalesforceClient(
     return traceStatus(userId)
   }
 
-  // The SOQL condition for a delete or count scope: one user's logs, or all.
-  const logScope = (userId?: string) =>
-    userId ? ` WHERE LogUserId = ${soqlId(userId)}` : ''
+  // The SOQL condition for a scope. A user scope needs a valid user id
+  // (soqlId throws otherwise), so it can't turn into all users' logs; any
+  // other value is refused too.
+  function logScopeCondition(scope: LogScope): string {
+    if (scope && scope.scope === 'user')
+      return ` WHERE LogUserId = ${soqlId(scope.userId)}`
+    if (scope && scope.scope === 'all') return ''
+    throw new Error('Choose which logs: one user’s or all users’')
+  }
 
   // How many logs there are, for one user or the whole org.
-  async function countLogs({ userId }: { userId?: string } = {}) {
+  async function countLogs(scope: LogScope) {
+    const condition = logScopeCondition(scope)
     const { totalSize } = await request(
       `${TOOLING}/query?q=${encodeURIComponent(
-        `SELECT COUNT() FROM ApexLog${logScope(userId)}`
+        `SELECT COUNT() FROM ApexLog${condition}`
       )}`
     )
     return Number(totalSize) || 0
@@ -365,16 +376,17 @@ export function createSalesforceClient(
   // Deletes every debug log of the org, or only one user's, with one Bulk
   // API 2.0 job, and resolves with the number of logs once the job
   // completes. onProgress hears each step, with the number of logs.
-  async function deleteLogs({
-    userId,
-    onProgress = () => {}
-  }: {
-    userId?: string
-    onProgress?: (progress: DeleteProgress) => void
-  } = {}): Promise<number> {
+  async function deleteLogs(
+    scope: LogScope,
+    {
+      onProgress = () => {}
+    }: { onProgress?: (progress: DeleteProgress) => void } = {}
+  ): Promise<number> {
+    // Checked before any request.
+    const condition = logScopeCondition(scope)
     onProgress({ step: 'finding', total: null })
     const logs = await toolingQuery<{ Id: string }>(
-      `SELECT Id FROM ApexLog${logScope(userId)}`
+      `SELECT Id FROM ApexLog${condition}`
     )
     const total = logs.length
     if (total === 0) return 0
@@ -419,7 +431,7 @@ export function createSalesforceClient(
 
   // Deletes every debug log of the org (the classic list's "Delete all").
   function deleteAllLogs(): Promise<number> {
-    return deleteLogs()
+    return deleteLogs({ scope: 'all' })
   }
 
   // The ids of the user the session belongs to. Used when the page's disco

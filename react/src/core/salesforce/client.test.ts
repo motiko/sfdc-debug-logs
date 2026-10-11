@@ -361,10 +361,10 @@ describe('deleteLogs', () => {
     )
     const progress = []
     expect(
-      await client.deleteLogs({
-        userId: USER,
-        onProgress: p => progress.push(p)
-      })
+      await client.deleteLogs(
+        { scope: 'user', userId: USER },
+        { onProgress: p => progress.push(p) }
+      )
     ).toBe(1)
     expect(soqlOf(calls[0])).toBe(
       `SELECT Id FROM ApexLog WHERE LogUserId = '${USER}'`
@@ -377,19 +377,48 @@ describe('deleteLogs', () => {
     ])
   })
 
-  it('deletes every log of the org without a user', async () => {
+  it('deletes every log of the org only for the all scope', async () => {
     const { client, calls } = fakeSalesforce(
       bulkRoutes(/^SELECT Id FROM ApexLog$/)
     )
-    expect(await client.deleteLogs()).toBe(1)
+    expect(await client.deleteLogs({ scope: 'all' })).toBe(1)
     expect(soqlOf(calls[0])).toBe('SELECT Id FROM ApexLog')
+    expect(soqlOf(calls[0])).not.toContain('LogUserId')
   })
 
-  it('refuses a user id that is not an id', async () => {
+  // Fail closed: "only my logs" without a usable user id must never become
+  // every user's logs, and must not send any request.
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['empty', ''],
+    ['an injection', "x' OR Id != '"],
+    ['too short', '005abc']
+  ])('refuses a user scope with a user id that is %s', async (_, userId) => {
     const { client, calls } = fakeSalesforce([])
     await expect(
-      client.deleteLogs({ userId: "x' OR Id != '" })
+      client.deleteLogs({ scope: 'user', userId } as never)
     ).rejects.toThrow(/Not a Salesforce id/)
+    await expect(
+      client.countLogs({ scope: 'user', userId } as never)
+    ).rejects.toThrow(/Not a Salesforce id/)
+    expect(calls).toHaveLength(0)
+  })
+
+  it('refuses a missing or unknown scope', async () => {
+    const { client, calls } = fakeSalesforce([])
+    await expect(client.deleteLogs(undefined as never)).rejects.toThrow(
+      /Choose which logs/
+    )
+    await expect(client.deleteLogs({} as never)).rejects.toThrow(
+      /Choose which logs/
+    )
+    await expect(client.deleteLogs({ userId: USER } as never)).rejects.toThrow(
+      /Choose which logs/
+    )
+    await expect(client.countLogs(undefined as never)).rejects.toThrow(
+      /Choose which logs/
+    )
     expect(calls).toHaveLength(0)
   })
 })
@@ -402,8 +431,9 @@ describe('countLogs', () => {
         call => ({ totalSize: soqlOf(call).includes('LogUserId') ? 3 : 40 })
       ]
     ])
-    expect(await client.countLogs()).toBe(40)
-    expect(await client.countLogs({ userId: USER })).toBe(3)
+    expect(await client.countLogs({ scope: 'all' })).toBe(40)
+    expect(soqlOf(calls[0])).toBe('SELECT COUNT() FROM ApexLog')
+    expect(await client.countLogs({ scope: 'user', userId: USER })).toBe(3)
     expect(soqlOf(calls[1])).toBe(
       `SELECT COUNT() FROM ApexLog WHERE LogUserId = '${USER}'`
     )

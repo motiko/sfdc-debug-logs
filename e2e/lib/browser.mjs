@@ -18,7 +18,10 @@ async function chromeForTesting() {
   return computeExecutablePath({ browser: Browser.CHROME, buildId, cacheDir: CACHE_DIR })
 }
 
-export async function launchWithExtension() {
+// mock: a mock org from e2e/mock/server.mjs. Chrome then resolves only the
+// mock org's hosts (to the local server) and accepts its self-signed
+// certificate; every other host fails, so nothing reaches a real org.
+export async function launchWithExtension({ mock = null } = {}) {
   const userDataDir = mkdtempSync(join(tmpdir(), 'apex-dbg-e2e-'))
   const browser = await puppeteer.launch({
     executablePath: await chromeForTesting(),
@@ -30,7 +33,8 @@ export async function launchWithExtension() {
       `--load-extension=${EXTENSION}`,
       `--disable-extensions-except=${EXTENSION}`,
       // GitHub's Ubuntu runners block the user namespaces Chrome's sandbox needs.
-      ...(process.env.CI ? ['--no-sandbox'] : [])
+      ...(process.env.CI ? ['--no-sandbox'] : []),
+      ...(mock ? [`--host-resolver-rules=${mock.resolverRules}`, '--ignore-certificate-errors'] : [])
     ]
   })
   // Chrome for Testing also runs built-in extensions' workers; match ours.

@@ -14,7 +14,8 @@
     "service_worker": "js/build/background.js"
   },
   "options_ui": {
-    "page": "html/options.html"
+    "page": "html/options.html",
+    "open_in_tab": true
   },
   "action": {
     "default_icon": {
@@ -26,6 +27,7 @@
   },
   "content_scripts": [{
       "css": [
+        "css/classic.css",
         "css/debug.css"
       ],
       "matches": [
@@ -45,6 +47,7 @@
         "https://*.salesforce-setup.com/setup/ui/listApexTraces.apexp*"
       ],
       "css": [
+        "css/classic.css",
         "css/debug.logs.css"
       ],
       "js": [
@@ -71,6 +74,9 @@
         "https://*.salesforce-setup.com/01p*",
         "https://*.salesforce.com/setup/build/allTriggers.apexp*",
         "https://*.salesforce-setup.com/setup/build/allTriggers.apexp*"
+      ],
+      "css": [
+        "css/classic.css"
       ],
       "js": [
         "js/build/class-page.js"

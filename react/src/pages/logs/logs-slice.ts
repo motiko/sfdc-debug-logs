@@ -286,6 +286,11 @@ const logsSlice = createSlice({
     },
     showAllCategories(state) {
       state.hiddenCategories = []
+    },
+
+    // Settings another page (the options page, another app tab) saved.
+    settingsLoaded(state, action: PayloadAction<Partial<LogsPageState>>) {
+      Object.assign(state, action.payload)
     }
   }
 })
@@ -318,7 +323,8 @@ export const {
   setFontSize,
   setTextWrap,
   toggleCategory,
-  showAllCategories
+  showAllCategories,
+  settingsLoaded
 } = logsSlice.actions
 
 export default logsSlice.reducer

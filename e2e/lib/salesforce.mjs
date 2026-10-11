@@ -7,11 +7,31 @@ import { API_VERSION } from '../../scripts/lib/sf-auth.mjs'
 const DEBUG_LEVEL_NAME = 'ApexDbgrExtension'
 
 export class Salesforce {
-  constructor({ instance, sessionId, userId, orgId }) {
+  // relogin: resolves a new session, used once when Salesforce says the
+  // session is invalid (a reused session that expired).
+  constructor(session, { relogin = null } = {}) {
+    this.useSession(session)
+    this.relogin = relogin
+  }
+
+  useSession(session) {
+    this.session = session
+    const { instance, sessionId, userId, orgId } = session
     Object.assign(this, { instance, sessionId, userId, orgId })
   }
 
-  async request(path, { method = 'GET', body } = {}) {
+  async request(path, options = {}) {
+    try {
+      return await this.send(path, options)
+    } catch (e) {
+      if (!this.relogin || !/-> 401:/.test(e.message)) throw e
+      this.useSession(await this.relogin())
+      this.relogin = null
+      return this.send(path, options)
+    }
+  }
+
+  async send(path, { method = 'GET', body } = {}) {
     const res = await fetch(`${this.instance}/services/data/v${API_VERSION}${path}`, {
       method,
       headers: {
@@ -100,9 +120,17 @@ export class Salesforce {
   }
 
   // Polls the current user's newest logs until one contains `marker`.
-  async findLog(marker, { since, timeoutMs = 60000 } = {}) {
+  async findLog(marker, options) {
+    return (await this.findLogs([marker], options))[marker]
+  }
+
+  // Polls the current user's newest logs until each marker is found in one.
+  // Downloads each log's body once, for all markers (finding the markers one
+  // by one downloaded the same bodies again for each).
+  async findLogs(markers, { since, timeoutMs = 60000 } = {}) {
     const deadline = Date.now() + timeoutMs
     const checked = new Set()
+    const found = {}
     while (Date.now() < deadline) {
       const logs = await this.query(
         `SELECT Id, Operation, LogLength, StartTime FROM ApexLog ` +
@@ -112,10 +140,14 @@ export class Salesforce {
       for (const log of logs.filter(l => !checked.has(l.Id))) {
         checked.add(log.Id)
         const body = await this.logBody(log.Id)
-        if (body.includes(marker)) return { ...log, body }
+        for (const marker of markers) {
+          if (!found[marker] && body.includes(marker)) found[marker] = { ...log, body }
+        }
       }
+      if (markers.every(m => found[m])) return found
       await new Promise(r => setTimeout(r, 2000))
     }
-    throw new Error(`No ApexLog containing ${marker} within ${timeoutMs}ms`)
+    const missing = markers.filter(m => !found[m])
+    throw new Error(`No ApexLog containing ${missing.join(', ')} within ${timeoutMs}ms`)
   }
 }

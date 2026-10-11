@@ -33,7 +33,7 @@ export const entries = {
   'debug-log-list': 'src/extension/debug-log-list.ts',
   'class-page': 'src/extension/class-page.ts',
   // Options page (html/options.html).
-  options: 'src/extension/options.ts'
+  options: 'src/extension/options.js'
 }
 
 export function entryConfig(name) {

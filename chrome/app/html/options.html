@@ -1,68 +1,13 @@
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Apex Debugger Options</title>
-  <link rel="stylesheet" href="../css/normalize.css">
-  <link rel="stylesheet" href="../css/skeleton.css">
-  <link rel="stylesheet" href="../css/options.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apex Debugger settings</title>
   <link rel="icon" type="image/png" href="../img/16.png">
 </head>
 <body>
-<div class="section">
-  <div class="container">
-      <form id="shortcutsForm">
-        <table class="u-full-width">
-          <thead>
-           <tr>
-             <th width="19%">Name</th>
-             <th width="11%">Key</th>
-             <th>Value</th>
-             <th width="5%">Remove</th>
-           </tr>
-          </thead>
-          <tbody id="shortcutsTable">
-          </tbody>
-        </table>
-        <table class="u-full-width">
-          <thead>
-           <tr>
-             <th width="100%">Session ID (For orgs with HttpOnly cookie, stored unencrypted in chrome local storage make sure you understand the risks) <a href="https://dev.to/bowmanjd/3-ways-to-obtain-salesforce-session-id-visualforce-anonymous-apex-and-cookie-retrieval-h0m">How to get it</a></th>
-           </tr>
-           <tr>
-            <td>
-              <input class="u-full-width token_val" type="text" title="Token" label="Token" placeholder="" >
-            </td>
-           </tr>
-          </thead>
-          <tbody id="shortcutsTable">
-          </tbody>
-        </table>
-
-        <div class="row container center-content" >
-          <a id="new_btn" class="button-primary button" href="#templateKeyOption"> Add New </a>
-          <a id="save_btn" class="button-primary button" href="./options.html"> Save </a>
-          <a id="restore_defaults_btn" class="button-primary button" href="./options.html">Restore Defaults</a>
-
-        </div>
-      </form>
-  </div>
-</div>
-<table hidden>
-  <tr id="templateKeyOption">
-    <td>
-      <input class="u-full-width val_name" type="text" title="Name (optional)" label="Name" placeholder="Accounts">
-    </td>
-    <td>
-      <input class="u-full-width val_key" type="text"  title="Keyboard character" label="Key" placeholder="a" maxlength="1" required>
-    </td>
-    <td>
-      <input class="u-full-width val_path" type="text" title="Path to open" label="Path" placeholder="/001" pattern="[^'\x22]*" required>
-    </td>
-    <td>
-      <a class="button-primary button remove_btn button-icon">✖</a>
-    </td>
-  </tr>
-</table>
-<script type="text/javascript" src="../js/build/options.js"></script>
+  <div id="container"></div>
+  <script src="../js/build/options.js"></script>
 </body>
 </html>
