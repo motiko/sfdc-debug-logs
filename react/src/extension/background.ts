@@ -78,7 +78,12 @@ function openTab(url: string, name: string) {
 // Saves the page shortcuts in this version's format once, migrated from the
 // list 0.8.x saved (which stays, for a downgrade). Until then (or if this
 // fails), loadPageShortcuts migrates on every read, with the same result.
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+  // First install only (not updates): a welcome on the options page, which
+  // explains how to open the log viewer and where the settings are.
+  if (reason === 'install') {
+    openTab(chrome.runtime.getURL('html/options.html#welcome'), 'options_tab')
+  }
   const { [SHORTCUTS_STORAGE_KEY]: saved } = await chrome.storage.sync.get(
     SHORTCUTS_STORAGE_KEY
   )
