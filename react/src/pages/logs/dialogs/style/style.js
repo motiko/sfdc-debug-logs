@@ -1,123 +1,82 @@
-import React from 'react'
-import Button from 'material-ui/Button'
-import TextField from 'material-ui/TextField'
-import MenuItem from 'material-ui/Menu/MenuItem'
-import Dialog, {
+import { useDispatch, useSelector } from 'react-redux'
+import {
+  Box,
+  Button,
+  Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle
-} from 'material-ui/Dialog'
-import { connect } from 'react-redux'
-import {
-  updateFontSize,
-  updateTheme,
-  toggleTextWrap,
-  toggleStyleDialog
-} from './actions'
+  DialogTitle,
+  FormControlLabel,
+  MenuItem,
+  Switch,
+  TextField
+} from '@mui/material'
+import { toggleTextWrap, updateFontSize, updateTheme } from '../../logs-slice'
 import { appTheme, logThemes } from '../../../../core/log/themes'
-import { withStyles } from 'material-ui/styles'
-import { FormControlLabel } from 'material-ui/Form'
-import Grid from 'material-ui/Grid'
-import Switch from 'material-ui/Switch'
 import ColorPickers from './color-pickers'
 
-const styles = theme => ({
-  textField: {
-    marginLeft: 2 * theme.spacing.unit,
-    marginRight: 2 * theme.spacing.unit,
-    width: 200
-  },
-  dialog: {
-    height: '100%'
-  },
-  toggleContainer: { marginTop: 'auto', marginBottom: theme.spacing.unit }
-})
-
-class StyleDialog extends React.Component {
-  render() {
-    const { onClose, open, fontSize, theme, classes, textWrap } = this.props
-    const { toggleTextWrap } = this.props
-    return (
-      <Dialog
-        open={open}
-        onClose={onClose}
-        fullWidth
-        aria-labelledby="form-dialog-title"
-        maxWidth="md"
-        classes={{
-          paper: classes.dialog
-        }}
-      >
-        <DialogTitle id="form-dialog-title">Log View Style</DialogTitle>
-        <DialogContent>
-          <form>
-            <Grid container direction="column">
-              <Grid container direction="row">
-                <Grid item>
-                  <TextField
-                    id="number"
-                    label="Font Size"
-                    value={fontSize}
-                    onChange={e => this.props.updateFontSize(e.target.value)}
-                    className={classes.textField}
-                    type="number"
-                    margin="normal"
-                  />
-                </Grid>
-                <Grid item className={classes.toggleContainer}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={textWrap}
-                        onChange={e => toggleTextWrap(e.target.value)}
-                      />
-                    }
-                    label="Text Wrap"
-                  />
-                </Grid>
-              </Grid>
-              <Grid item>
-                <TextField
-                  fullWidth
-                  select
-                  label="Log Color Theme"
-                  className={classes.textField}
-                  value={theme.themeName}
-                  onChange={e =>
-                    this.props.updateTheme(appTheme(e.target.value))
-                  }
-                  helperText="Please select log color theme"
-                  margin="normal"
-                >
-                  {Object.values(logThemes).map(option => (
-                    <MenuItem key={option.name} value={option.name}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-            </Grid>
-            <ColorPickers theme={theme} />
-          </form>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} color="primary">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
-    )
-  }
+// Log body style: font size, wrapping, color theme and single colors.
+export default function StyleDialog({ open, onClose }) {
+  const dispatch = useDispatch()
+  const { fontSize, theme, textWrap } = useSelector(
+    state => state.logsPage.styleConfig
+  )
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="md"
+      aria-labelledby="style-dialog-title"
+      slotProps={{ paper: { sx: { height: '100%' } } }}
+    >
+      <DialogTitle id="style-dialog-title">Log View Style</DialogTitle>
+      <DialogContent>
+        <form>
+          <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
+            <TextField
+              id="font-size"
+              variant="standard"
+              label="Font Size"
+              value={fontSize}
+              onChange={e => dispatch(updateFontSize(e.target.value))}
+              sx={{ mx: 2, width: 200 }}
+              type="number"
+              margin="normal"
+            />
+            <FormControlLabel
+              sx={{ mb: 1 }}
+              control={
+                <Switch
+                  checked={textWrap}
+                  onChange={() => dispatch(toggleTextWrap())}
+                />
+              }
+              label="Text Wrap"
+            />
+          </Box>
+          <TextField
+            select
+            variant="standard"
+            label="Log Color Theme"
+            sx={{ mx: 2, width: 200 }}
+            value={theme.themeName}
+            onChange={e => dispatch(updateTheme(appTheme(e.target.value)))}
+            helperText="Please select log color theme"
+            margin="normal"
+          >
+            {Object.values(logThemes).map(option => (
+              <MenuItem key={option.name} value={option.name}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <ColorPickers theme={theme} />
+        </form>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  )
 }
-
-export default withStyles(styles)(
-  connect(
-    state => state.logsPage.styleConfig,
-    dispatch => ({
-      toggleStyleDialog: () => dispatch(toggleStyleDialog()),
-      toggleTextWrap: () => dispatch(toggleTextWrap()),
-      updateFontSize: newSize => dispatch(updateFontSize(newSize)),
-      updateTheme: newTheme => dispatch(updateTheme(newTheme))
-    })
-  )(StyleDialog)
-)

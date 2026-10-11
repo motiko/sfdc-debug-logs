@@ -1,125 +1,101 @@
-import React from 'react'
-import Button from 'material-ui/Button'
-import TextField from 'material-ui/TextField'
-import Dialog, {
+import { useDispatch, useSelector } from 'react-redux'
+import {
+  Box,
+  Button,
+  Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle
-} from 'material-ui/Dialog'
-import { connect } from 'react-redux'
-import MenuItem from 'material-ui/Menu/MenuItem'
-import { withStyles } from 'material-ui/styles'
-import { toggleFiltersDialog, updateFilter, clearFilters } from './actions'
-import Slider from 'rc-slider'
-import 'rc-slider/assets/index.css'
-import 'rc-tooltip/assets/bootstrap.css'
+  DialogTitle,
+  MenuItem,
+  Slider,
+  TextField
+} from '@mui/material'
+import {
+  clearFilters,
+  defaultFilters,
+  toggleFiltersDialog,
+  updateFilter
+} from '../../logs-slice'
 
-const createSliderWithTooltip = Slider.createSliderWithTooltip
-const Range = createSliderWithTooltip(Slider.Range)
+const lengthFormatter = value => `${(value / 1000).toFixed(2)} k`
+const durationFormatter = value => `${value} ms`
 
-const maxRangeValues = {
-  length: { min: 0, max: 2.5 * Math.pow(10, 6) },
-  duration: { min: 0, max: 2 * 6 * Math.pow(10, 3) }
-}
+// Filters for the log list, applied when the logs are next loaded and to the
+// loaded ones. possibleFieldValues: the values of the loaded logs.
+export default function FilterDialog({ open, possibleFieldValues }) {
+  const dispatch = useDispatch()
+  const filters = useSelector(state => state.logsPage.filters)
+  const close = () => dispatch(toggleFiltersDialog())
+  const update = (filterName, newValue) =>
+    dispatch(updateFilter({ filterName, newValue }))
 
-const mapStateToProps = state => {
-  return state.logsPage.filters
-}
-
-const mapDispatchToProps = dispatch => ({
-  toggleFiltersDialog: () => dispatch(toggleFiltersDialog()),
-  updateTextFilter: fieldName => event =>
-    dispatch(updateFilter(fieldName, event.target.value)),
-  updateNumericFilter: fieldName => value =>
-    dispatch(updateFilter(fieldName, value)),
-  clearFilters: () => dispatch(clearFilters())
-})
-
-const styles = theme => ({
-  textField: {
-    marginLeft: theme.spacing.unit,
-    marginRight: theme.spacing.unit,
-    width: 200
-  }
-})
-
-class FilterDialog extends React.Component {
-  render() {
-    let props = this.props
-    const filterByText = (fieldName, fieldLabel) => (
-      <TextField
-        select
-        label={fieldLabel}
-        value={props[fieldName].value}
-        onChange={props.updateTextFilter(fieldName)}
-        className={props.classes.textField}
-        SelectProps={{
-          MenuProps: {}
-        }}
-        helperText={`Only show logs when ${fieldLabel} is:`}
-        margin="normal"
-      >
-        <MenuItem key="" value="">
-          All
+  const filterByText = (fieldName, fieldLabel) => (
+    <TextField
+      select
+      variant="standard"
+      label={fieldLabel}
+      value={filters[fieldName].value}
+      onChange={e => update(fieldName, e.target.value)}
+      sx={{ mx: 1, width: 200 }}
+      helperText={`Only show logs when ${fieldLabel} is:`}
+      margin="normal"
+    >
+      <MenuItem value="">All</MenuItem>
+      {possibleFieldValues[fieldName].map(value => (
+        <MenuItem key={value} value={value}>
+          {value}
         </MenuItem>
-        {props.possibleFieldValues[fieldName].map(value => (
-          <MenuItem key={value} value={value}>
-            {value}
-          </MenuItem>
-        ))}
-      </TextField>
-    )
-    const filterByNumber = (fieldName, fieldFormatter) => (
-      <div style={{ width: 400, margin: 50 }}>
-        <p>
-          Show logs where {fieldName} is in{' '}
-          {fieldFormatter(props[fieldName].value[0])}
-          {` - `}
-          {fieldFormatter(props[fieldName].value[1])}
-        </p>
-        <Range
-          min={maxRangeValues[fieldName].min}
-          max={maxRangeValues[fieldName].max}
-          value={props[fieldName].value}
-          tipFormatter={fieldFormatter}
-          onChange={props.updateNumericFilter(fieldName)}
-        />
-      </div>
-    )
-    const lengthFormatter = value => `${(value / 1000).toFixed(2)} k`
-    const durationFormatter = value => `${value} ms`
+      ))}
+    </TextField>
+  )
+
+  const filterByNumber = (fieldName, fieldFormatter) => {
+    const [min, max] = filters[fieldName].value
+    const label = `Show logs where ${fieldName} is in`
     return (
-      <Dialog
-        open={props.open}
-        onClose={props.toggleFiltersDialog}
-        fullWidth
-        aria-labelledby="form-dialog-title"
-      >
-        <DialogTitle id="form-dialog-title">Filters</DialogTitle>
-        <DialogContent>
-          <DialogContentText>Pick Fields to filter by:</DialogContentText>
-          <form>
-            {filterByText('user', 'User')}
-            {filterByText('operation', 'Operation')}
-            {filterByText('status', 'Status')}
-            {filterByNumber('length', lengthFormatter)}
-            {filterByNumber('duration', durationFormatter)}
-          </form>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={props.clearFilters} color="primary">
-            Clear filters
-          </Button>
-          <Button onClick={props.toggleFiltersDialog} color="primary">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <Box sx={{ width: 400, m: '50px' }}>
+        <p>
+          {label} {fieldFormatter(min)} - {fieldFormatter(max)}
+        </p>
+        <Slider
+          getAriaLabel={index =>
+            `${index === 0 ? 'Minimum' : 'Maximum'} ${fieldName}`
+          }
+          min={defaultFilters[fieldName].value[0]}
+          max={defaultFilters[fieldName].value[1]}
+          value={filters[fieldName].value}
+          valueLabelDisplay="auto"
+          valueLabelFormat={fieldFormatter}
+          getAriaValueText={fieldFormatter}
+          onChange={(e, value) => update(fieldName, value)}
+        />
+      </Box>
     )
   }
-}
 
-export default withStyles(styles)(
-  connect(mapStateToProps, mapDispatchToProps)(FilterDialog)
-)
+  return (
+    <Dialog
+      open={open}
+      onClose={close}
+      fullWidth
+      aria-labelledby="filters-dialog-title"
+    >
+      <DialogTitle id="filters-dialog-title">Filters</DialogTitle>
+      <DialogContent>
+        <DialogContentText>Pick Fields to filter by:</DialogContentText>
+        <form>
+          {filterByText('user', 'User')}
+          {filterByText('operation', 'Operation')}
+          {filterByText('status', 'Status')}
+          {filterByNumber('length', lengthFormatter)}
+          {filterByNumber('duration', durationFormatter)}
+        </form>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => dispatch(clearFilters())}>Clear filters</Button>
+        <Button onClick={close}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  )
+}

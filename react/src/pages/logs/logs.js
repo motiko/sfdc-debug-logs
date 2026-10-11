@@ -1,232 +1,163 @@
-import React from 'react'
-import Snackbar from 'material-ui/Snackbar'
-import HomeIcon from 'material-ui-icons/Home'
-// Unused here, but material-ui orders its style sheets by module load order:
-// loading Button at this point keeps the CSS precedence unchanged.
-import 'material-ui/Button'
-import { Link, Route, Switch } from 'react-router-dom'
-import Toolbar from 'material-ui/Toolbar'
-import AppBar from 'material-ui/AppBar'
-import Grid from 'material-ui/Grid'
-import RefreshIcon from 'material-ui-icons/Autorenew'
-import DeleteIcon from 'material-ui-icons/DeleteForever'
-import FilterList from 'material-ui-icons/FilterList'
-import StyleIcon from 'material-ui-icons/Style'
-import TextField from 'material-ui/TextField'
-import { CircularProgress } from 'material-ui/Progress'
-import IconButton from 'material-ui/IconButton'
-import { connect } from 'react-redux'
-import Tooltip from 'material-ui/Tooltip'
+import { useEffect, useMemo } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import {
+  AppBar,
+  Box,
+  CircularProgress,
+  IconButton,
+  Snackbar,
+  TextField,
+  Toolbar,
+  Tooltip
+} from '@mui/material'
+import { ThemeProvider } from '@mui/material/styles'
+import HomeIcon from '@mui/icons-material/Home'
+import RefreshIcon from '@mui/icons-material/Autorenew'
+import DeleteIcon from '@mui/icons-material/DeleteForever'
+import FilterList from '@mui/icons-material/FilterList'
+import StyleIcon from '@mui/icons-material/Style'
 import LogView from './components/log-view'
 import TrackingLogs from './components/tracking-logs'
 import Search from './components/search'
 import LogsTable from './components/logs-table'
 import FilterDialog from './dialogs/filter/filter-dialog'
 import StyleDialog from './dialogs/style/style'
+import { loadLogs, deleteAll, search } from './actions'
 import {
-  loadLogs,
   setMessage,
-  deleteAll,
-  search,
-  updateMaxLogs,
   toggleFiltersDialog,
-  toggleStyleDialog
-} from './actions'
+  toggleStyleDialog,
+  updateMaxLogs
+} from './logs-slice'
 import { filterLogs } from './utils'
-import { MuiThemeProvider, createMuiTheme } from 'material-ui/styles'
-import teal from 'material-ui/colors/teal'
-import indigo from 'material-ui/colors/indigo'
+import { logHash, useOpenLogId } from '../../hash-route'
+import { toolbarTheme } from '../../theme'
 
-const toolbarTheme = createMuiTheme({
-  palette: { primary: teal, secondary: indigo, type: 'dark' }
-})
-
-class LogsPage extends React.Component {
-  componentDidCatch(error, info) {
-    setMessage(`Error: ${error}`)
-  }
-
-  componentDidMount() {
-    const props = this.props
-    props.refresh()
-    document.body.addEventListener('keyup', e => {
-      if (e.target.nodeName === 'INPUT' || e.target.nodeName === 'TEXTAREA') {
-        return
-      }
-
-      const key = e.key
-      const funMap = {
-        r: props.refresh,
-        a: props.deleteAll
-      }
-      if (funMap[key]) {
-        funMap[key]()
-      }
-    })
-  }
-
-  possibleFieldValues() {
-    const unique = (value, index, array) => {
-      return array.indexOf(value) === index
-    }
-    const logs = this.props.logs
-    const allValues = Object.values(logs).reduce(
-      (acc, cur) => ({
-        operation: [...acc.operation, cur.Operation],
-        status: [...acc.status, cur.Status],
-        user: [...acc.user, cur.LogUser.Name]
-      }),
-      {
-        operation: [],
-        status: [],
-        user: []
-      }
-    )
-    return {
-      operation: allValues.operation.filter(unique),
-      status: allValues.status.filter(unique),
-      user: allValues.user.filter(unique)
-    }
-  }
-
-  render() {
-    const props = this.props
-    return (
-      <Grid
-        container
-        direction="column"
-        style={{ paddingTop: '64px', overflow: 'hidden' }}
-      >
-        <AppBar position="fixed" style={{ height: '64px' }}>
-          {/* White text and inputs on the teal bar; the rest of the app is light. */}
-          <MuiThemeProvider theme={toolbarTheme}>
-            <Toolbar>
-              <Grid container direction="row" justify="space-between">
-                <Grid item xs={12} sm={6}>
-                  <Grid container direction="row" justify="flex-start">
-                    <Grid item>
-                      <Tooltip title="Home">
-                        <Link to="/" style={{ color: 'inherit' }}>
-                          <IconButton color="inherit" aria-label="Home">
-                            <HomeIcon />
-                          </IconButton>
-                        </Link>
-                      </Tooltip>
-                    </Grid>
-                    <Grid item>
-                      <Search
-                        color="inherit"
-                        handleSearch={searchTerm => props.search(searchTerm)}
-                      />
-                    </Grid>
-                    <Grid item>
-                      <div>
-                        <Tooltip title="Load logs">
-                          <IconButton
-                            color="inherit"
-                            aria-label="Load logs"
-                            onClick={props.refresh}
-                          >
-                            <RefreshIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Filter logs">
-                          <IconButton
-                            color="inherit"
-                            aria-label="Filter logs"
-                            onClick={props.toggleFiltersDialog}
-                          >
-                            <FilterList />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete All">
-                          <IconButton
-                            color="inherit"
-                            aria-label="Delete all logs"
-                            onClick={props.deleteAll}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Style settings">
-                          <IconButton
-                            color="inherit"
-                            aria-label="Style settings"
-                            onClick={props.toggleStyleDialog}
-                          >
-                            <StyleIcon />
-                          </IconButton>
-                        </Tooltip>
-                        {props.loading ? (
-                          <CircularProgress style={{ color: 'white' }} />
-                        ) : null}
-                      </div>
-                    </Grid>
-                  </Grid>
-                </Grid>
-                <Grid item>
-                  <TextField
-                    value={props.maxLogs}
-                    type="number"
-                    onChange={e => props.updateMaxLogs(e.target.value)}
-                    label="Max Logs"
-                    placeholder="1"
-                    style={{ width: '6em', marginBottom: 2 }}
-                    onBlur={props.refresh}
-                  />
-                  <TrackingLogs sf={props.sf} />
-                </Grid>
-              </Grid>
-            </Toolbar>
-          </MuiThemeProvider>
-          <Snackbar
-            open={props.message !== ''}
-            autoHideDuration={1000}
-            onClose={() => props.setMessage('')}
-            message={props.message}
-          />
-        </AppBar>
-        <FilterDialog
-          open={props.filtersDialogOpen}
-          possibleFieldValues={this.possibleFieldValues()}
-        />
-        <StyleDialog
-          open={props.styleDialogOpen}
-          onClose={props.toggleStyleDialog}
-        />
-        <Switch>
-          <Route
-            path="/logs/:id"
-            render={ownProps => <LogView {...ownProps} />}
-          />
-          <Route
-            render={ownProps => (
-              <LogsTable
-                logs={filterLogs(
-                  props.logs,
-                  props.filters,
-                  props.notMatchingSearchLogs
-                )}
-                refreshLogs={props.refresh}
-                {...ownProps}
-              />
-            )}
-          />
-        </Switch>
-      </Grid>
-    )
+// The distinct operations, statuses and users of the loaded logs, for the
+// filter dialog's selects.
+function possibleFieldValues(logs) {
+  const unique = values => [...new Set(values)]
+  const all = Object.values(logs)
+  return {
+    operation: unique(all.map(log => log.Operation)),
+    status: unique(all.map(log => log.Status)),
+    user: unique(all.map(log => log.LogUser.Name))
   }
 }
 
-export default connect(
-  state => state.logsPage,
-  dispatch => ({
-    refresh: () => dispatch(loadLogs()),
-    setMessage: msg => dispatch(setMessage(msg)),
-    deleteAll: () => dispatch(deleteAll()),
-    search: searchTerm => dispatch(search(searchTerm)),
-    updateMaxLogs: newMaxLogs => dispatch(updateMaxLogs(newMaxLogs)),
-    toggleFiltersDialog: () => dispatch(toggleFiltersDialog()),
-    toggleStyleDialog: () => dispatch(toggleStyleDialog())
-  })
-)(LogsPage)
+export default function LogsPage() {
+  const dispatch = useDispatch()
+  const logId = useOpenLogId()
+  const logs = useSelector(state => state.logsPage.logs)
+  const filters = useSelector(state => state.logsPage.filters)
+  const notMatchingSearchLogs = useSelector(
+    state => state.logsPage.notMatchingSearchLogs
+  )
+  const loading = useSelector(state => state.logsPage.loading)
+  const message = useSelector(state => state.logsPage.message)
+  const maxLogs = useSelector(state => state.logsPage.maxLogs)
+  const filtersDialogOpen = useSelector(
+    state => state.logsPage.filtersDialogOpen
+  )
+  const styleDialogOpen = useSelector(state => state.logsPage.styleDialogOpen)
+
+  const refresh = () => dispatch(loadLogs())
+
+  // Load the logs on start; "r" reloads them and "a" deletes all logs
+  // (outside text fields).
+  useEffect(() => {
+    dispatch(loadLogs())
+    const onKeyUp = e => {
+      if (e.target.nodeName === 'INPUT' || e.target.nodeName === 'TEXTAREA') {
+        return
+      }
+      if (e.key === 'r') dispatch(loadLogs())
+      if (e.key === 'a') dispatch(deleteAll())
+    }
+    document.body.addEventListener('keyup', onKeyUp)
+    return () => document.body.removeEventListener('keyup', onKeyUp)
+  }, [dispatch])
+
+  const fieldValues = useMemo(() => possibleFieldValues(logs), [logs])
+  const shownLogs = useMemo(
+    () => filterLogs(logs, filters, notMatchingSearchLogs),
+    [logs, filters, notMatchingSearchLogs]
+  )
+
+  const toolbarButton = (title, label, Icon, onClick) => (
+    <Tooltip title={title}>
+      <IconButton color="inherit" aria-label={label} onClick={onClick}>
+        <Icon />
+      </IconButton>
+    </Tooltip>
+  )
+
+  return (
+    <Box sx={{ pt: '64px', overflow: 'hidden' }}>
+      <AppBar position="fixed" sx={{ height: 64 }}>
+        {/* White text and inputs on the teal bar; the rest of the app is light. */}
+        <ThemeProvider theme={toolbarTheme}>
+          <Toolbar sx={{ justifyContent: 'space-between', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Tooltip title="Home">
+                <IconButton
+                  color="inherit"
+                  aria-label="Home"
+                  href={logHash(null)}
+                >
+                  <HomeIcon />
+                </IconButton>
+              </Tooltip>
+              <Search handleSearch={term => dispatch(search(term))} />
+              {toolbarButton('Load logs', 'Load logs', RefreshIcon, refresh)}
+              {toolbarButton('Filter logs', 'Filter logs', FilterList, () =>
+                dispatch(toggleFiltersDialog())
+              )}
+              {toolbarButton('Delete All', 'Delete all logs', DeleteIcon, () =>
+                dispatch(deleteAll())
+              )}
+              {toolbarButton(
+                'Style settings',
+                'Style settings',
+                StyleIcon,
+                () => dispatch(toggleStyleDialog())
+              )}
+              {loading ? (
+                <CircularProgress size={32} sx={{ color: 'white', ml: 1 }} />
+              ) : null}
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
+              <TextField
+                variant="standard"
+                value={maxLogs}
+                type="number"
+                onChange={e => dispatch(updateMaxLogs(e.target.value))}
+                label="Max Logs"
+                placeholder="1"
+                sx={{ width: '6em', mb: '2px' }}
+                onBlur={refresh}
+              />
+              <TrackingLogs />
+            </Box>
+          </Toolbar>
+        </ThemeProvider>
+      </AppBar>
+      <Snackbar
+        open={message !== ''}
+        autoHideDuration={1000}
+        disableWindowBlurListener
+        onClose={() => dispatch(setMessage(''))}
+        message={message}
+      />
+      <FilterDialog
+        open={filtersDialogOpen}
+        possibleFieldValues={fieldValues}
+      />
+      <StyleDialog
+        open={styleDialogOpen}
+        onClose={() => dispatch(toggleStyleDialog())}
+      />
+      {logId ? <LogView logId={logId} /> : <LogsTable logs={shownLogs} />}
+    </Box>
+  )
+}

@@ -6,22 +6,20 @@ updates:
     directory: /
     schedule:
       interval: monthly
-  # npm updates, grouped to one PR per directory.
-  # react/ stays on old libraries (material-ui beta, React 16) until the UI
-  # migration moves them deliberately, so only patch versions and security
-  # fixes are proposed there.
+  # npm updates, grouped to one PR per directory. Major versions of react/
+  # dependencies come in their own group, since they can need code changes.
   - package-ecosystem: npm
     directory: /react
     schedule:
       interval: monthly
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      # Pinned prerelease: each 1.0.0-beta.N changed APIs.
-      - dependency-name: "material-ui"
     groups:
-      react-patches:
+      react-deps:
         applies-to: version-updates
+        update-types: ["minor", "patch"]
+        patterns: ["*"]
+      react-majors:
+        applies-to: version-updates
+        update-types: ["major"]
         patterns: ["*"]
       react-security:
         applies-to: security-updates

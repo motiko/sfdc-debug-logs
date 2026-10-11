@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { filterLogs, filtersToWhereClause, type ApexLog } from './utils'
-import { defaultFiltersState } from './dialogs/filter/reducer'
+import { defaultFilters as defaultFiltersState } from './logs-slice'
 
 // Tooling API ApexLog records, as returned by sf.requestLogs().
 function apexLog(fields: Partial<ApexLog> & { Id: string }): ApexLog {

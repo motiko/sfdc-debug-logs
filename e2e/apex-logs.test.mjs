@@ -32,18 +32,28 @@ System.debug(marker + ' users ' + users);
 System.debug('${XSS} ' + UserInfo.getUserId() + ' xss ' + marker);
 try { Integer x = 1 / 0; } catch (Exception e) { System.debug('caught ' + e.getMessage()); }
 `
+// A log long enough that the app renders only the lines in view
+// (RENDER_ALL_UP_TO in react/src/pages/logs/components/parsed-log.js). Its
+// marker doesn't contain MARKER, so searches for MARKER don't match it.
+const LONG_MARKER = `E2E_LONG_${Date.now()}`
+const LONG_APEX = `
+for (Integer i = 0; i < 2500; i++) { System.debug('${LONG_MARKER} line ' + i); }
+System.debug('${LONG_MARKER} end');
+`
 
 const ARTIFACTS = join(dirname(fileURLToPath(import.meta.url)), 'artifacts')
 
-let session, sf, log, ext
+let session, sf, log, longLog, ext
 
 before(async () => {
   session = await login()
   sf = new Salesforce(session)
   await sf.ensureLogging()
   const since = new Date(Date.now() - 60000)
+  await sf.executeAnonymous(LONG_APEX)
   await sf.executeAnonymous(APEX)
   log = await sf.findLog(MARKER, { since })
+  longLog = await sf.findLog(LONG_MARKER, { since })
   // No token is saved on the options page: the extension has to find the
   // session itself, from the HttpOnly sid cookie that frontdoor.jsp sets.
   ext = await launchWithExtension()
@@ -388,6 +398,14 @@ test('React log viewer', async t => {
   await app.setViewport({ width: 1400, height: 1000 })
 
   const rows = () => app.$$eval('tbody tr', trs => trs.map(tr => tr.innerText))
+  // A select: MUI renders a combobox labelled by its label and its current
+  // value, so match the label part only.
+  const combobox = label =>
+    `::-p-xpath(//*[@role="combobox"][starts-with(@aria-labelledby, //label[normalize-space()="${label}"]/@id)])`
+  // A button of the open dialog, by its text (its accessible name is
+  // upper-cased by the button's text-transform).
+  const dialogButton = text => `::-p-xpath(//*[@role="dialog"]//button[normalize-space()="${text}"])`
+  const closeButton = dialogButton('Close')
   const search = async term => {
     // Select the previous term so typing replaces it (a triple click doesn't
     // always select the whole field).
@@ -459,12 +477,9 @@ test('React log viewer', async t => {
   })
 
   await t.test('operation filter reloads only matching logs', async () => {
-    const dialog = '#form-dialog-title'
+    const dialog = '::-p-aria([name="Filters"][role="dialog"])'
     const closeDialog = async () => {
-      await app.evaluate(dialog => {
-        const paper = document.querySelector(dialog).parentElement
-        ;[...paper.querySelectorAll('button')].find(b => /close/i.test(b.innerText)).click()
-      }, dialog)
+      await app.click(closeButton)
       await app.waitForSelector(dialog, { hidden: true })
     }
     const reload = async () => {
@@ -478,9 +493,7 @@ test('React log viewer', async t => {
     }
     await app.click('button[aria-label="Filter logs"]')
     await app.waitForSelector(dialog, { visible: true })
-    // The three text filters (user, operation, status) are selects, in that order.
-    const selects = await app.$$('[aria-haspopup="true"]')
-    await selects[1].click()
+    await app.click(combobox('Operation'))
     const option = `::-p-xpath(//li[@role="option" and normalize-space()="${log.Operation}"])`
     await app.waitForSelector(option, { visible: true })
     await app.click(option)
@@ -495,10 +508,7 @@ test('React log viewer', async t => {
 
     await app.click('button[aria-label="Filter logs"]')
     await app.waitForSelector(dialog, { visible: true })
-    await app.evaluate(dialog => {
-      const paper = document.querySelector(dialog).parentElement
-      ;[...paper.querySelectorAll('button')].find(b => /clear filters/i.test(b.innerText)).click()
-    }, dialog)
+    await app.click(dialogButton('Clear filters'))
     await closeDialog()
     await reload()
   })
@@ -555,7 +565,7 @@ test('React log viewer', async t => {
       const div = [...document.querySelectorAll('pre > div')].find(
         d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker)
       )
-      div.querySelector('button[aria-label="Add"]').click()
+      div.querySelector('button[aria-label="Expand"]').click()
     }, MARKER)
     await app.waitForFunction(
       marker => {
@@ -570,29 +580,24 @@ test('React log viewer', async t => {
     assert.match(await line(), /\n\s+Id:[^\n]*\n\s+Name:/, 'expanded: one field per indented line')
   })
 
-  // material-ui 1.0 beta dialogs have no role="dialog"; use the title id.
-  const DIALOG = '#form-dialog-title'
+  const DIALOG = '::-p-aria([name="Log View Style"][role="dialog"])'
   const openStyleDialog = async () => {
     await app.click('button[aria-label="Style settings"]')
     await app.waitForSelector(DIALOG, { visible: true })
   }
   const closeStyleDialog = async () => {
-    await app.evaluate(dialog => {
-      const paper = document.querySelector(dialog).parentElement
-      ;[...paper.querySelectorAll('button')].find(b => /close/i.test(b.innerText)).click()
-    }, DIALOG)
+    await app.click(closeButton)
     await app.waitForSelector(DIALOG, { hidden: true })
   }
   // Sets a React-controlled input's value the way a user edit would.
-  const setInput = (selectorOrHandle, value) =>
+  const setInput = async (selector, value) =>
     app.evaluate(
-      (target, value) => {
-        const el = typeof target === 'string' ? document.querySelector(target) : target
+      (el, value) => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
         setter.call(el, value)
         el.dispatchEvent(new Event('input', { bubbles: true }))
       },
-      selectorOrHandle,
+      await app.waitForSelector(selector),
       value
     )
   const renderedStyles = () =>
@@ -613,7 +618,7 @@ test('React log viewer', async t => {
   // Category the app assigns to a log line (eventCategory, as in parsed-log.js).
   const categoryOf = text => eventCategory((text.match(/\|([A-Z_]+)/) || [])[1] || '')
 
-  const THEME_SELECT = '[aria-haspopup="true"]'
+  const THEME_SELECT = combobox('Log Color Theme')
   const themeOptions = () => app.$$('li[role="option"]')
 
   await t.test('theme menu opens on click', async () => {
@@ -621,7 +626,11 @@ test('React log viewer', async t => {
     await app.click(THEME_SELECT)
     await new Promise(r => setTimeout(r, 500))
     const opened = (await themeOptions()).length > 0
-    if (opened) await app.keyboard.press('Escape')
+    if (opened) {
+      await app.keyboard.press('Escape')
+      // The menu fades out over the dialog; wait so Close isn't clicked on it.
+      await app.waitForSelector('[role="listbox"]', { hidden: true })
+    }
     await closeStyleDialog()
     assert.ok(opened, 'clicking the Log Color Theme select shows the theme list')
   })
@@ -659,12 +668,7 @@ test('React log viewer', async t => {
 
   await t.test('custom color applies', async () => {
     await openStyleDialog()
-    const input = await app.evaluateHandle(() =>
-      [...document.querySelectorAll('input[name="color"]')].find(i =>
-        i.parentElement.parentElement.innerText.startsWith('Debug')
-      )
-    )
-    await setInput(input, '#123456')
+    await setInput('::-p-aria([name="Debug"][role="textbox"])', '#123456')
     await closeStyleDialog()
     const { elements } = await renderedStyles()
     const debugLine = elements.find(e => e.text.includes('|USER_DEBUG|'))
@@ -673,7 +677,7 @@ test('React log viewer', async t => {
 
   await t.test('font size applies', async () => {
     await openStyleDialog()
-    await setInput('input#number', '13')
+    await setInput('::-p-aria([name="Font Size"][role="spinbutton"])', '13')
     await closeStyleDialog()
     assert.equal((await renderedStyles()).fontSize, '13px')
   })
@@ -681,10 +685,45 @@ test('React log viewer', async t => {
   await t.test('text wrap toggle applies', async () => {
     const before = (await renderedStyles()).whiteSpace
     await openStyleDialog()
-    await app.click('input[type="checkbox"]')
+    await app.click('::-p-aria(Text Wrap)')
     await closeStyleDialog()
     const afterToggle = (await renderedStyles()).whiteSpace
     assert.notEqual(afterToggle, before, `white-space stays "${before}" after toggling Text Wrap`)
+  })
+
+  await t.test('a long log renders the lines in view, and every line when scrolled through', async () => {
+    const entries = longLog.body.match(/^\d\d:\d\d:\d\d\.\d+ \(\d+\)\|[^\n]*/gm).map(e => e.trim())
+    assert.ok(entries.length > 2000, `the long log has ${entries.length} entries`)
+    await app.evaluate(id => (location.hash = `#/logs/${id}`), longLog.Id)
+    await app.waitForFunction(
+      marker => [...document.querySelectorAll('pre > div')].some(d => d.innerText.includes(marker)),
+      { timeout: 30000 },
+      LONG_MARKER
+    )
+    const rendered = await app.evaluate(() => document.querySelectorAll('pre > div').length)
+    assert.ok(rendered < 200, `only the lines in view are in the page (${rendered} of ${entries.length + 1})`)
+    // Scroll through the log a screen at a time; each line is in the page
+    // when it is in view. Lines carry their index (0 is the header).
+    const seen = await app.evaluate(async () => {
+      const pre = document.querySelector('pre')
+      const scroller = pre.parentElement
+      const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const seen = {}
+      scroller.scrollTop = 0
+      await frame()
+      for (let step = 0; step < 5000; step++) {
+        for (const div of pre.children) seen[div.dataset.index] = div.innerText.split('\n')[0].trim()
+        if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1) break
+        scroller.scrollTop += scroller.clientHeight
+        await frame()
+      }
+      return seen
+    })
+    assert.equal(Object.keys(seen).length, entries.length + 1, 'every line was rendered')
+    const wrong = entries.flatMap((entry, i) => (seen[i + 1] === entry ? [] : [`${i + 1}: ${seen[i + 1]}`]))
+    assert.deepEqual(wrong.slice(0, 5), [], 'each line shows its entry, in order')
+    const lastRendered = await app.evaluate(() => [...document.querySelectorAll('pre > div')].pop().innerText.trim())
+    assert.equal(lastRendered, longLog.body.trimEnd().split('\n').pop().trim(), 'the last line is shown at the end')
   })
 
   await t.test("Shift+W again focuses the org's open app instead of opening another", async () => {

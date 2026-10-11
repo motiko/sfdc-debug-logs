@@ -1,102 +1,21 @@
-// import 'react-devtools'
-import persistState, { mergePersistedState } from 'redux-localstorage'
-import adapter from 'redux-localstorage/lib/adapters/sessionStorage'
-import filter from 'redux-localstorage-filter'
-import React from 'react'
-import ReactDOM from 'react-dom'
-import { MuiThemeProvider, createMuiTheme } from 'material-ui/styles'
-import indigo from 'material-ui/colors/indigo'
-import teal from 'material-ui/colors/teal'
-import { HashRouter as Router, Route, Switch } from 'react-router-dom'
+// The full-page log viewer (html/app.html?oid=&uid=&sid=&host=).
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
-import thunk from 'redux-thunk'
-import { compose, createStore, applyMiddleware } from 'redux'
-import appReducer from './reducers'
-// import { loadMessages } from './pages/feedback/actions'
-// import FeedbackPage from './pages/feedback/feedback'
+import { ThemeProvider } from '@mui/material/styles'
 import LogsPage from './pages/logs/logs'
-import globalSf from './global-sf'
-import { migrateAppTheme } from './core/log/themes'
+import { createStore } from './store'
+import { appTheme } from './theme'
 import './app.css'
 
-class App extends React.Component {
-  componentDidMount() {
-    // this.props.store.dispatch(loadMessages())
-  }
+const store = createStore()
 
-  render() {
-    return (
-      <Router>
-        <Switch>
-          <Route path="/logs" render={ownProps => <LogsPage {...ownProps} />} />
-          <Route render={ownProps => <LogsPage {...ownProps} />} />
-        </Switch>
-      </Router>
-    )
-  }
-}
-
-const theme = createMuiTheme({
-  palette: {
-    primary: teal,
-    secondary: indigo,
-    background: {
-      default: '#fff',
-      paper: '#fff'
-    }
-  }
-})
-
-const storage = compose(
-  filter([
-    'logsPage.maxLogs',
-    'logsPage.sideLogsOpen',
-    'logsPage.styleConfig',
-    'logsPage.visibleEvents'
-  ])
-)(adapter(window.sessionStorage))
-
-// A theme saved by an earlier version keeps its colors under its current
-// name (e.g. "dark" -> "monokai").
-function withCurrentThemeName(logsPage) {
-  if (!logsPage || !logsPage.styleConfig) return logsPage
-  return {
-    ...logsPage,
-    styleConfig: {
-      ...logsPage.styleConfig,
-      theme: migrateAppTheme(logsPage.styleConfig.theme)
-    }
-  }
-}
-
-const reducer = compose(
-  mergePersistedState((initialState, persistedState) => ({
-    ...initialState,
-    logsPage: {
-      ...initialState.logsPage,
-      ...withCurrentThemeName(persistedState.logsPage)
-    }
-  }))
-)(appReducer)
-
-const store = createStore(
-  reducer,
-  compose(
-    applyMiddleware(thunk.withExtraArgument(globalSf)),
-    persistState(storage)
-  )
+createRoot(document.getElementById('container')).render(
+  <StrictMode>
+    <ThemeProvider theme={appTheme}>
+      <Provider store={store}>
+        <LogsPage />
+      </Provider>
+    </ThemeProvider>
+  </StrictMode>
 )
-
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// window._store = store //
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-
-const ProvidedApp = () => (
-  <MuiThemeProvider theme={theme}>
-    <Provider store={store}>
-      <App store={store} />
-    </Provider>
-  </MuiThemeProvider>
-)
-
-ReactDOM.render(<ProvidedApp />, document.getElementById('container'))
