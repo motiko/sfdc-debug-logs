@@ -88,7 +88,7 @@ pre.ad-log .wrap {
 
 #debugText a.idLink { text-decoration: underline }
 
-/* The expand button of a USER_DEBUG value. */
+/* The expand button of a USER_DEBUG value or a callout. */
 #debugText .expandUserDebugBtn {
   box-sizing: border-box;
   min-width: 1.4em;
@@ -105,3 +105,4 @@ pre.ad-log .wrap {
   border: 1px solid currentColor;
   border-radius: var(--ad-radius-sm);
 }
+#debugText .callout .expandUserDebugBtn { color: var(--log-callout-color) }

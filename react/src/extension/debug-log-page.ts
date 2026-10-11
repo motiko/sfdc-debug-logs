@@ -3,7 +3,8 @@
 // applied through css/debug.css), and adds a sticky toolbar: palette, font
 // size, wrapping, which entries to show, timestamps, expand all, open in Apex
 // Debugger and the page's keyboard shortcuts. Record ids become links, and
-// USER_DEBUG values (HTML, JSON, Apex objects) can be expanded.
+// USER_DEBUG values (HTML, JSON, Apex objects) and callout requests and
+// responses (core/log/callouts.ts) can be expanded.
 //
 // The toolbar and the log use the design tokens (classic-ui.ts) and follow the
 // user's color mode, like the app (docs/ux/baseline-review.md M10, M14, B6).
@@ -15,12 +16,13 @@ import {
   parseDiscoCookie
 } from '../core/page-session'
 import { logToBlocks, type LogBlock } from '../core/log/classic-blocks'
+import { splitIds } from '../core/log/parsing'
 import {
-  beautifyUserDebug,
-  canBeautify,
-  splitIds,
-  splitUserDebug
-} from '../core/log/parsing'
+  canExpandValue,
+  expandValue,
+  splitValue,
+  type ValueKind
+} from '../core/log/values'
 import {
   AUTO_THEME,
   logThemes,
@@ -316,13 +318,13 @@ function renderLog() {
   debugText.replaceChildren(...nodes)
   state.expanded = false
   updateExpandAllButton()
-  const userDebugDivs = [...debugText.getElementsByClassName('debug')]
+  const valueDivs = [...debugText.querySelectorAll('.debug, .callout')]
   // In slices, so a long log shows before every value is checked.
   const step = (start: number) => {
-    userDebugDivs
+    valueDivs
       .slice(start, start + 500)
       .forEach(div => addExpandButton(div as HTMLElement))
-    if (start + 500 < userDebugDivs.length) setTimeout(() => step(start + 500))
+    if (start + 500 < valueDivs.length) setTimeout(() => step(start + 500))
   }
   setTimeout(() => step(0))
 }
@@ -413,15 +415,19 @@ function span(className: string, text: string) {
   return element
 }
 
-function addExpandButton(userDebugDiv: HTMLElement) {
-  const userDebug = splitUserDebug(userDebugDiv.textContent)
-  if (!userDebug) return
-  userDebugDiv.replaceChildren(
-    span('debugHeader searchable', userDebug.header),
+// A USER_DEBUG or callout entry: header and value in spans, and an expand
+// button if expanding changes how the value reads.
+function addExpandButton(entryDiv: HTMLElement) {
+  const value = splitValue(entryDiv.textContent)
+  if (!value) return
+  const content = span('debugContent searchable', value.message)
+  content.dataset.kind = value.kind
+  entryDiv.replaceChildren(
+    span('debugHeader searchable', value.header),
     ' ',
-    span('debugContent searchable', userDebug.message)
+    content
   )
-  if (canBeautify(userDebug.message)) {
+  if (canExpandValue(value.kind, value.message)) {
     const button = h('button', {
       type: 'button',
       className: 'expandUserDebugBtn collapsed',
@@ -429,7 +435,7 @@ function addExpandButton(userDebugDiv: HTMLElement) {
       attrs: { 'aria-expanded': 'false', 'aria-label': 'Expand value' }
     })
     button.addEventListener('click', () => toggleValue(button))
-    userDebugDiv.insertBefore(button, userDebugDiv.firstChild)
+    entryDiv.insertBefore(button, entryDiv.firstChild)
   }
 }
 
@@ -437,12 +443,14 @@ function addExpandButton(userDebugDiv: HTMLElement) {
 const collapsedContent = new WeakMap<Element, Node[]>()
 
 function toggleValue(button: HTMLButtonElement) {
-  const content = button.parentElement.querySelector('.debugContent')
+  const content =
+    button.parentElement.querySelector<HTMLElement>('.debugContent')
   if (!content) return
+  const kind = content.dataset.kind as ValueKind
   if (button.classList.contains('collapsed')) {
     collapsedContent.set(content, [...content.childNodes])
     content.replaceChildren(
-      ...withIdLinks(beautifyUserDebug(content.textContent), true)
+      ...withIdLinks(expandValue(kind, content.textContent), true)
     )
     button.classList.replace('collapsed', 'expanded')
     button.textContent = '−'

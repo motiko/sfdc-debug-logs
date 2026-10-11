@@ -12,11 +12,7 @@ import { Box } from '@mui/material'
 import ErrorIcon from '@mui/icons-material/Error'
 import ExpandIcon from '@mui/icons-material/ChevronRight'
 import globalSf from '../../../global-sf'
-import {
-  canBeautify,
-  indentUserDebug,
-  splitUserDebug
-} from '../../../core/log/parsing'
+import { expandEntry, isExpandable } from '../../../core/log/values'
 import { segments } from '../../../core/log/log-lines'
 import { LOG_CATEGORIES } from '../../../core/log/categories'
 import { fontFamily } from '../../../ui/tokens'
@@ -43,7 +39,8 @@ const categoryRules = Object.fromEntries(
 // The log body: the header, then one line per entry, each with a gutter
 // (line number, error marker), a muted time, the event type and the message
 // in its category's color. Salesforce ids are links; find matches are
-// marked. `lines` are the visible lines (core/log/log-lines.ts).
+// marked. USER_DEBUG values and callouts (core/log/values.ts) have a toggle
+// that pretty-prints them. `lines` are the visible lines (core/log/log-lines.ts).
 // The ref offers scrollToRow(row) (centered).
 const ParsedLog = forwardRef(function ParsedLog(
   {
@@ -290,10 +287,9 @@ const LogLine = memo(function LogLine({
   currentNth,
   active
 }) {
-  const isDebug = line.eventType === 'USER_DEBUG'
-  const parsed = isDebug ? splitUserDebug(line.text) : null
-  const expandable = Boolean(parsed && canBeautify(parsed.message))
-  const shown = expandable && expanded ? indentUserDebug(line.text) : line.text
+  // USER_DEBUG values and callout requests and responses can be expanded.
+  const expandable = useMemo(() => isExpandable(line.text), [line.text])
+  const shown = expandable && expanded ? expandEntry(line.text) : line.text
   const isError = line.category === 'error'
   const className = `cat-${line.category}${active ? ' is-active' : ''}`
   return (
