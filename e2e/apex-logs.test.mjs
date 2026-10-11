@@ -47,6 +47,7 @@ before(async () => {
   // No token is saved on the options page: the extension has to find the
   // session itself, from the HttpOnly sid cookie that frontdoor.jsp sets.
   ext = await launchWithExtension()
+  await recordWorkerMessages()
 })
 
 after(() => ext && ext.close())
@@ -65,26 +66,130 @@ function collectPageErrors(page) {
   return errors
 }
 
-// Presses Shift+W on a Salesforce page until the extension opens its app tab;
-// returns the app page. Saves artifacts as <name>.png/.log on failure.
-async function openAppWithShiftW(sfPage, consoleLog, name) {
-  const appTarget = ext.browser.waitForTarget(t => t.url().includes('/html/app.html'), {
-    timeout: 30000
+// Records every message the content scripts send to the service worker
+// (command, sender host/path, frame, time), so the test can tell when a page's
+// shortcuts are bound and whether a key press reached the extension. Only
+// observes: the listener returns nothing, so the worker's own router answers.
+// Installed right after launch, before any Salesforce page loads.
+async function recordWorkerMessages() {
+  await ext.background.evaluate(() => {
+    if (globalThis.__e2eMessages) return
+    globalThis.__e2eMessages = []
+    chrome.runtime.onMessage.addListener((request, sender) => {
+      const url = sender.tab ? new URL(sender.tab.url) : null
+      globalThis.__e2eMessages.push({
+        command: request.command,
+        host: url && url.host,
+        path: url && url.pathname,
+        frameId: sender.frameId,
+        time: Date.now()
+      })
+    })
   })
-  // The shortcut is bound only after an async message to the service
-  // worker, so retry the key press until the app tab opens.
+}
+
+const workerMessages = () => ext.background.evaluate(() => globalThis.__e2eMessages || [])
+
+const redact = text =>
+  text
+    .replace(/sid=[^&\s"]+/g, 'sid=<redacted>')
+    .split(session.sessionId)
+    .join('<redacted>')
+
+const delay = ms => new Promise(r => setTimeout(r, ms))
+
+// Where keyboard input on the page would go, for retries and failure reports.
+const keyboardState = page =>
+  page.evaluate(() => {
+    const el = document.activeElement
+    return {
+      url: location.host + location.pathname,
+      readyState: document.readyState,
+      visibility: document.visibilityState,
+      hasFocus: document.hasFocus(),
+      activeElement: el ? `${el.tagName}${el.id ? '#' + el.id : ''}` : 'none',
+      keydowns: (window.__e2eKeydowns || []).slice(-4)
+    }
+  })
+
+// Opens the app with the real Shift+W shortcut on a Salesforce page and
+// returns the app page. Saves artifacts as <name>.png/.log on failure.
+//
+// Shift+W is bound by shortcuts.js (Mousetrap) only once the content script's
+// getShortcuts message to the service worker is answered, and Mousetrap only
+// sees keys that reach the top document while no input, select or iframe has
+// focus (content scripts don't run in frames); other key presses are silently
+// lost. So: wait until this document has asked the worker for its shortcuts,
+// then before each press bring the tab to the front and move focus to the top
+// document, and count the shortcut as fired once openApp's focusAppTab message
+// reaches the worker (getToken isn't specific: the log list page sends it too).
+async function openAppWithShiftW(sfPage, consoleLog, name) {
+  const steps = []
+  const step = (msg, data) => steps.push(`${new Date().toISOString()} ${msg}${data ? ' ' + JSON.stringify(data) : ''}`)
+  const appTarget = ext.browser.waitForTarget(t => t.url().includes('/html/app.html'), { timeout: 90000 })
   let opened = false
   appTarget.then(() => (opened = true), () => {})
-  for (let i = 0; i < 20 && !opened; i++) {
-    await sfPage.keyboard.down('Shift')
-    await sfPage.keyboard.press('KeyW')
-    await sfPage.keyboard.up('Shift')
-    await new Promise(r => setTimeout(r, 1000))
+  const fromThisPage = async (command, since) => {
+    // The page may be mid-navigation (e.g. a Lightning redirect).
+    const host = await sfPage.evaluate(() => location.host).catch(() => null)
+    return (await workerMessages()).find(
+      m => m.command === command && m.host === host && m.frameId === 0 && m.time >= since
+    )
   }
   try {
+    const loadedAt = await sfPage.evaluate(() => Math.floor(performance.timeOrigin))
+    const boundBy = Date.now() + 30000
+    while (!(await fromThisPage('getShortcuts', loadedAt))) {
+      if (Date.now() > boundBy) throw new Error('the content script never asked the service worker for shortcuts')
+      await delay(250)
+    }
+    // The answer is a storage read; Mousetrap binds as soon as it arrives.
+    await delay(500)
+    step('shortcuts requested by this page')
+
+    for (let attempt = 1; !opened; attempt++) {
+      if (attempt > 6) throw new Error('no key press reached the shortcut handler')
+      await sfPage.bringToFront()
+      await sfPage.evaluate(() => {
+        if (!window.__e2eKeydowns) {
+          window.__e2eKeydowns = []
+          document.addEventListener(
+            'keydown',
+            e => window.__e2eKeydowns.push(`${e.key}@${e.target.tagName}`),
+            true
+          )
+        }
+        const el = document.activeElement
+        if (el && el !== document.body) el.blur()
+        window.focus()
+      })
+      step(`press ${attempt}`, await keyboardState(sfPage))
+      const pressedAt = Date.now()
+      await sfPage.keyboard.down('Shift')
+      await sfPage.keyboard.press('KeyW')
+      await sfPage.keyboard.up('Shift')
+      const firedBy = Date.now() + 5000
+      while (!opened && Date.now() < firedBy && !(await fromThisPage('focusAppTab', pressedAt))) await delay(200)
+      if (opened || (await fromThisPage('focusAppTab', pressedAt))) {
+        step('shortcut fired')
+        break
+      }
+      step(`press ${attempt} not handled`, await keyboardState(sfPage))
+    }
     return await (await appTarget).page()
   } catch (e) {
-    await saveArtifacts(sfPage, name, consoleLog)
+    step(`failed: ${e.message}`)
+    const state = await keyboardState(sfPage).catch(err => ({ error: err.message }))
+    const messages = await workerMessages().catch(() => [])
+    await saveArtifacts(sfPage, name, [
+      `keyboard: ${JSON.stringify(state)}`,
+      '--- steps',
+      ...steps,
+      '--- messages to the service worker',
+      ...messages.map(m => `${new Date(m.time).toISOString()} ${m.command} from ${m.host}${m.path} frame ${m.frameId}`),
+      '--- console',
+      ...consoleLog
+    ].map(redact))
     throw new Error(`Shift+W did not open the app (${e.message}); see e2e/artifacts/${name}.*`)
   }
 }
