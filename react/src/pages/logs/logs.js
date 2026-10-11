@@ -85,12 +85,20 @@ export default function LogsPage() {
     setDeleteIds(ids)
     setDialog('delete-selected')
   }
+  const focusList = () =>
+    setTimeout(() => listRef.current && listRef.current.focusRow(), 0)
   // A deleted open log closes; the list gets the focus back.
   const afterDelete = deleted => {
     if (logId && deleted.includes(logId)) {
       openLog(null)
-      setTimeout(() => listRef.current && listRef.current.focusRow(), 0)
+      focusList()
     }
+  }
+  // When the dialog's trigger is gone (the selection bar after deleting every
+  // selected log), the focus goes back to the list instead of the page.
+  const afterDeleteDialog = () => {
+    const active = document.activeElement
+    if (!active || active === document.body) focusList()
   }
   const openRecord = logs.find(log => log.Id === logId)
   const showUser = useMemo(
@@ -261,10 +269,19 @@ export default function LogsPage() {
       {!logId && selection.ids.length > 0 ? (
         <SelectionBar
           count={selection.ids.length}
-          onClear={() => dispatch(clearSelection())}
+          onClear={() => {
+            dispatch(clearSelection())
+            focusList() // the bar, and its button, go away
+          }}
           onDelete={() => confirmDelete(selection.ids)}
         />
       ) : null}
+      {/* Always present, so the first check is announced too. */}
+      <Box role="status" sx={visuallyHidden}>
+        {!logId && selection.ids.length > 0
+          ? selectedText(selection.ids.length)
+          : ''}
+      </Box>
       <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>{listContent}</Box>
       {logs.length > 0 ? (
         <Box
@@ -379,6 +396,7 @@ export default function LogsPage() {
         logs={logs}
         onClose={() => setDialog(null)}
         onDeleted={afterDelete}
+        onExited={afterDeleteDialog}
         host={host}
       />
       <ShortcutsDialog
@@ -388,6 +406,22 @@ export default function LogsPage() {
       <Toast toast={toast} onClose={() => dispatch(hideToast())} />
     </Box>
   )
+}
+
+const selectedText = count =>
+  count === 1 ? '1 log selected' : `${count.toLocaleString()} logs selected`
+
+// Read by screen readers only.
+const visuallyHidden = {
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  p: 0,
+  m: '-1px',
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0
 }
 
 // Above the table while logs are checked: how many, Clear selection and
@@ -412,11 +446,10 @@ function SelectionBar({ count, onClear, onDelete }) {
     >
       <Box
         component="span"
-        aria-live="polite"
         data-testid="selected-count"
         sx={{ fontWeight: 600 }}
       >
-        {count === 1 ? '1 log selected' : `${count} logs selected`}
+        {selectedText(count)}
       </Box>
       <Button size="small" onClick={onClear}>
         Clear selection

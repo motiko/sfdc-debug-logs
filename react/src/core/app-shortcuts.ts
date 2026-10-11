@@ -75,7 +75,7 @@ export const APP_SHORTCUTS: Shortcut[] = [
   {
     id: 'selectRow',
     keys: [' ', 'x'],
-    description: 'Check or uncheck the focused log',
+    description: 'Check or uncheck the focused log (in the full list)',
     group: 'Log list'
   },
   {

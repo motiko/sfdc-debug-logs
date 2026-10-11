@@ -41,6 +41,8 @@ export interface ColorTokens {
   // Keyboard focus ring (>= 3:1 on bg and surface).
   focus: string
   danger: string
+  // Hovered danger buttons (MUI's error.dark), still readable with onDanger.
+  dangerHover: string
   onDanger: string
   success: string
   warning: string
@@ -65,6 +67,7 @@ export const colors: Record<ColorMode, ColorTokens> = {
     onAccent: '#ffffff',
     focus: '#0969da',
     danger: '#b42318',
+    dangerHover: '#912018',
     onDanger: '#ffffff',
     success: '#1a7f37',
     warning: '#8a5a00',
@@ -85,6 +88,7 @@ export const colors: Record<ColorMode, ColorTokens> = {
     onAccent: '#08201d',
     focus: '#58a6ff',
     danger: '#ff8a80',
+    dangerHover: '#ffb3ab',
     onDanger: '#2a0705',
     success: '#56d364',
     warning: '#e3b341',
