@@ -35,7 +35,7 @@ UI changes: `npm run ux-audit -- --mock --out <dir>` captures every view with ax
 
 Then confirm against the real org (each run costs roughly 50 API requests of the org's daily limit, printed at the end; if Salesforce answers `REQUEST_LIMIT_EXCEEDED`, stop and don't retry in a loop, even login fails until the limit resets).
 
-Needs `.env.local` (SF_USER, SF_PASS, SF_TOKEN, optional SF_LOGIN_URL). Never print its values or session ids.
+Needs `.env.local` (SF_USER, SF_PASS, SF_TOKEN, optional SF_LOGIN_URL; an optional second org as SF_USER_2 etc. takes over when the first is near its daily API limit). Never print its values or session ids.
 
 ```sh
 cd e2e && npm install && npm test
