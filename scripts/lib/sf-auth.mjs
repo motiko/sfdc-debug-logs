@@ -7,7 +7,7 @@
 // Alternatively SF_ACCESS_TOKEN + SF_INSTANCE_URL use an existing session
 // (e.g. from `sf org display`) and skip the SOAP login.
 
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -80,6 +80,43 @@ async function sessionFromToken({ SF_ACCESS_TOKEN, SF_INSTANCE_URL }) {
 // Returns { sessionId, instance, userId, orgId }.
 export function login(env = loadEnv()) {
   return env.SF_ACCESS_TOKEN && env.SF_INSTANCE_URL ? sessionFromToken(env) : soapLogin(env)
+}
+
+// Sessions from SOAP login, kept between local runs so back-to-back runs of
+// the e2e flow, the UX audit and sf-login.mjs don't log in each time (each
+// login is a SOAP call, and once the org's API limit is reached even login
+// fails). In .chrome-test/ (gitignored, next to the test browser's profile,
+// which holds the same session as a cookie), readable only by the user. Not
+// used in CI or with SF_SESSION_CACHE=0.
+const SESSION_CACHE = join(ROOT, '.chrome-test', 'sf-session.json')
+// Salesforce's default session timeout is 2 hours; stop reusing well before.
+const SESSION_MAX_AGE_MS = 90 * 60 * 1000
+
+function cacheKey(env) {
+  return `${env.SF_USER || ''}@${(env.SF_LOGIN_URL || 'https://login.salesforce.com').replace(/\/$/, '')}`
+}
+
+// Like login(), but returns a session saved by an earlier run of this script
+// for the same user if it's recent. fresh: always log in (and save). Callers
+// should log in again with { fresh: true } when Salesforce answers 401.
+export async function loginReusingSession({ fresh = false, env = loadEnv() } = {}) {
+  const cache = !process.env.CI && env.SF_SESSION_CACHE !== '0' && !env.SF_ACCESS_TOKEN
+  if (cache && !fresh && existsSync(SESSION_CACHE)) {
+    try {
+      const saved = JSON.parse(readFileSync(SESSION_CACHE, 'utf8'))
+      if (saved.key === cacheKey(env) && Date.now() - saved.at < SESSION_MAX_AGE_MS) {
+        return { ...saved.session, reused: true }
+      }
+    } catch {
+      // Log in below.
+    }
+  }
+  const session = await login(env)
+  if (cache) {
+    mkdirSync(dirname(SESSION_CACHE), { recursive: true })
+    writeFileSync(SESSION_CACHE, JSON.stringify({ key: cacheKey(env), at: Date.now(), session }), { mode: 0o600 })
+  }
+  return session
 }
 
 export function frontdoorUrl({ instance, sessionId }, retURL) {
