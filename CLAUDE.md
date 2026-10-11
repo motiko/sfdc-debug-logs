@@ -58,6 +58,8 @@ The toolchain is Vite (`react/vite.config.mjs`) plus TypeScript for type checkin
 
 Expected styles come from `react/src/core/log/themes.ts` and `categories.ts`, which `e2e/lib/styles.mjs` imports directly (Node strips the types; keep those two files free of runtime imports), so new themes are covered in both views automatically. `openAppWithShiftW()` records the messages content scripts send to the service worker: it presses Shift+W only after the page's `getShortcuts` request (when Mousetrap binds), with the tab in front and focus moved to the top document, and counts the press as handled when `focusAppTab` arrives. On failure it saves `e2e/artifacts/<name>.png/.log` (sid redacted) with the focus state, each press and the worker messages. Shared login code lives in `scripts/lib/sf-auth.mjs`. Page errors are reported as test diagnostics, not failures.
 
+UX audit: `cd e2e && npm run ux-audit -- [--out <dir>] [--compare <previous dir>]` (`e2e/ux-audit.mjs`, used by the `ux-ui-review` agent) captures every view at 1440×900 and 1024×768 with axe-core, contrast, control-name, keyboard and clipping checks into `e2e/ux-artifacts/` (gitignored). The baseline findings are in `docs/ux/baseline-review.md`.
+
 CI: `.github/workflows/e2e.yml` runs the flow on pushes to `main`, same-repo pull requests and manual dispatch, using repository secrets `SF_USER`, `SF_PASS`, `SF_TOKEN` and optional `SF_LOGIN_URL`. Runs are serialized because they share one org. In CI (`CI` set) Chrome starts with `--no-sandbox`.
 
 ## Architecture

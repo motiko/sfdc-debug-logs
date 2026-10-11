@@ -5,3 +5,4 @@ chrome/app/js/build/
 .claude/worktrees/
 e2e/artifacts/
 react/mocks/
+e2e/ux-artifacts/
