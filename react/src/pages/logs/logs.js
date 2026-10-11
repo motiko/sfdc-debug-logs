@@ -269,15 +269,20 @@ export default function LogsPage() {
               ? `All ${logs.length} logs loaded`
               : `Newest ${logs.length} logs loaded`}
             {loadedAt ? ` · updated ${formatRelative(loadedAt)}` : ''}
+            {autoRefresh.state !== 'off' ? ' ·' : ''}
           </span>
           {autoRefresh.state !== 'off' ? (
-            <span data-testid="auto-refresh-status">
+            <Box
+              component="span"
+              data-testid="auto-refresh-status"
+              sx={autoRefresh.failing ? { color: 'warning.main' } : null}
+            >
               {describeAutoRefresh(
                 autoRefresh.state,
                 autoRefresh.interval,
                 autoRefresh.failing
               )}
-            </span>
+            </Box>
           ) : null}
           {logs.length >= maxLogs ? (
             <Button

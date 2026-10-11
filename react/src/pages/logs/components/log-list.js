@@ -169,7 +169,7 @@ const LogList = forwardRef(function LogList(
           ml: 1,
           px: 0.5,
           borderRadius: 1,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 600,
           bgcolor: 'primary.main',
           color: 'primary.contrastText'
