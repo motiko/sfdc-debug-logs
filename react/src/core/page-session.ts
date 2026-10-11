@@ -1,9 +1,7 @@
 // Session, org and user of the Salesforce page a content script runs on, and
-// API calls made with that session.
-import { API, ASYNC_API } from '../api/version'
-
-export const API_PATH = API
-export const ASYNC_API_PATH = ASYNC_API
+// the Salesforce client that calls the API with that session.
+import { createSalesforceClient } from './salesforce/client'
+import { createRequest } from './salesforce/request'
 
 export interface Session {
   token: string | undefined
@@ -63,30 +61,12 @@ export function getUserId(): string | undefined {
   return parseDiscoCookie().userId
 }
 
-// Calls the Salesforce API on the current page's origin with the page's
-// session. An `X-SFDC-Session` header (any truthy value) gets the session
-// instead of Authorization, as the Bulk API expects.
-export async function sfRequest(
-  path: string,
-  method = 'GET',
-  headers: Record<string, any> = {},
-  body?: BodyInit
-): Promise<Response> {
-  const token = await getToken()
-  if (headers['X-SFDC-Session']) {
-    headers['X-SFDC-Session'] = token
-  } else {
-    headers['Authorization'] = 'Bearer ' + token
-  }
-  const result = await fetch(location.origin + path, { method, body, headers })
-  if (!result.ok) {
-    console.log(
-      'Apex Debugger:',
-      'Make sure Session ID is valid and not expired'
-    )
-    throw Error(`${result.status} : ${result.statusText}`)
-  }
-  return result
+// The Salesforce client for content scripts: calls the API on the page's own
+// origin (same-origin, so no CORS) with the session from getSession().
+export function pageSalesforce() {
+  return createSalesforceClient(
+    createRequest({ origin: location.origin, getToken })
+  )
 }
 
 // The service worker message that opens the full-page log viewer

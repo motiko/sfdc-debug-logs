@@ -3,7 +3,7 @@
 import { API_VERSION } from '../../scripts/lib/sf-auth.mjs'
 
 // Same debug level the extension creates from "Start Logging"
-// (react/src/api/tooling.js), so the flow mirrors what users get.
+// (react/src/core/salesforce/client.ts), so the flow mirrors what users get.
 const DEBUG_LEVEL_NAME = 'ApexDbgrExtension'
 
 export class Salesforce {

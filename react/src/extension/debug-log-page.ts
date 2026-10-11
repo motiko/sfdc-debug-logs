@@ -2,7 +2,7 @@
 // colors and indents the log, with themes (css/debug.css), font size, id links,
 // filters and expandable USER_DEBUG values (HTML, JSON, Apex objects).
 import jsBeautify from 'js-beautify'
-import { API_PATH, sfRequest } from '../core/page-session'
+import { pageSalesforce } from '../core/page-session'
 import {
   logToBlocks,
   splitIds,
@@ -277,14 +277,10 @@ function haltEvent(event: Event) {
 }
 
 function removeIllegalIdLinks() {
-  sfRequest(API_PATH + '/sobjects')
-    .then(r => r.json())
-    .then(function (response) {
-      const sobjects: any[] = response.sobjects
-      keyPrefixes = sobjects
-        .filter(sobj => sobj.keyPrefix !== undefined)
-        .map(sobjectDescribe => sobjectDescribe.keyPrefix)
-      keyPrefixes.push('03d') // validation rule
+  pageSalesforce()
+    .keyPrefixes()
+    .then(function (prefixes) {
+      keyPrefixes = [...prefixes, '03d'] // 03d: validation rule
       const idLinks = document.getElementsByClassName('idLink')
       toArray(idLinks).forEach(link => {
         if (!isLegalId(link.textContent)) {

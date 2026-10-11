@@ -3,11 +3,10 @@
 import Mousetrap from 'mousetrap'
 import { defaultShortcuts, type Shortcut } from '../core/default-shortcuts'
 import {
-  API_PATH,
   getSession,
   openAppMessage,
-  parseDiscoCookie,
-  sfRequest
+  pageSalesforce,
+  parseDiscoCookie
 } from '../core/page-session'
 
 function initShortcuts({
@@ -108,24 +107,17 @@ function saveObject() {
 }
 
 function openLastLog(inNewTab?: boolean) {
-  sfRequest(
-    API_PATH +
-      '/tooling/query/?q=' +
-      encodeURIComponent(
-        'SELECT Id,LastModifiedDate,StartTime,Status,SystemModstamp FROM ApexLog ORDER BY LastModifiedDate DESC Limit 1'
-      )
-  )
-    .then(result => result.json())
-    .then(responseObj => {
-      if (responseObj.records && responseObj.records.length > 0) {
-        const url =
-          '/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=' +
-          responseObj.records[0].Id
-        if (inNewTab) {
-          openInNewTab(url)
-        } else {
-          document.location.assign(url)
-        }
+  pageSalesforce()
+    .newestLog()
+    .then(log => {
+      if (!log) return
+      const url =
+        '/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=' +
+        encodeURIComponent(log.Id)
+      if (inNewTab) {
+        openInNewTab(url)
+      } else {
+        document.location.assign(url)
       }
     })
 }
