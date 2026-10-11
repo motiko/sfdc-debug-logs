@@ -66,7 +66,7 @@ export function filtersToWhereClause(filters) {
   const fullQuery = activeFilters.reduce(
     (query, [filterName, { value: filterValue }]) => {
       if (textFilterToSql[filterName]) {
-        return `${query} ${filterNameToSql[filterName]} = '${escapeSingleQuotes(
+        return `${query} ${textFilterToSql[filterName]} = '${escapeSingleQuotes(
           filterValue
         )}' AND`
       }

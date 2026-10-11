@@ -221,6 +221,48 @@ test('React log viewer', async t => {
     await app.waitForFunction(() => document.querySelectorAll('tbody tr').length > 0)
   })
 
+  await t.test('operation filter reloads only matching logs', async () => {
+    const dialog = '#form-dialog-title'
+    const closeDialog = async () => {
+      await app.evaluate(dialog => {
+        const paper = document.querySelector(dialog).parentElement
+        ;[...paper.querySelectorAll('button')].find(b => /close/i.test(b.innerText)).click()
+      }, dialog)
+      await app.waitForSelector(dialog, { hidden: true })
+    }
+    const reload = async () => {
+      const errorsBefore = errors.length
+      await app.click('button[aria-label="Load logs"]')
+      await app.waitForFunction(
+        () => !document.querySelector('[role="progressbar"]') && document.querySelectorAll('tbody tr').length > 0,
+        { timeout: 30000 }
+      )
+      assert.deepEqual(errors.slice(errorsBefore), [], 'no page errors while loading logs')
+    }
+    await app.click('button[aria-label="Filter logs"]')
+    await app.waitForSelector(dialog, { visible: true })
+    // The three text filters (user, operation, status) are selects, in that order.
+    const selects = await app.$$('[aria-haspopup="true"]')
+    await selects[1].click()
+    const option = `::-p-xpath(//li[@role="option" and normalize-space()="${log.Operation}"])`
+    await app.waitForSelector(option, { visible: true })
+    await app.click(option)
+    await app.waitForSelector(option, { hidden: true })
+    await closeDialog()
+    await reload()
+    const listed = await rows()
+    assert.ok(listed.every(r => r.includes(log.Operation)), `every row is a ${log.Operation} log`)
+
+    await app.click('button[aria-label="Filter logs"]')
+    await app.waitForSelector(dialog, { visible: true })
+    await app.evaluate(dialog => {
+      const paper = document.querySelector(dialog).parentElement
+      ;[...paper.querySelectorAll('button')].find(b => /clear filters/i.test(b.innerText)).click()
+    }, dialog)
+    await closeDialog()
+    await reload()
+  })
+
   await app.evaluate(id => (location.hash = `#/logs/${id}`), log.Id)
   await app.waitForFunction(
     marker => document.querySelector('pre') && document.querySelector('pre').innerText.includes(marker),
