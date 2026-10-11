@@ -16,6 +16,7 @@ Key Features
   * Improved view of logs, with the same color palettes in the log viewer and on Salesforce's log page: Light, Dark, Monokai and High contrast, following your light or dark mode.
   * Click any Id to go to Object (Class, Trigger, Validation Rule e.t.c).
   * Indent User Debug (sObject, List, XML or JSON)
+  * Call tree and timeline of a log: code units, methods, SOQL, DML, callouts and flows nested as they ran, with total and own time and SOQL/DML counts; choose one to go to its line.
   * Delete logs: only yours, or all users', always confirmed with the count.
   * Start, extend or stop logging (a 24-hour trace flag for the current user).
   * Customizable keyboard shortcuts for Salesforce

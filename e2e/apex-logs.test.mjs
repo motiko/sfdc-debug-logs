@@ -682,6 +682,97 @@ test('React log viewer', async t => {
     assert.equal(markers, errorLines, 'each error line has an error marker')
   })
 
+  // The call tree and the timeline (core/log/execution-tree.ts).
+  const treeItems = () =>
+    app.$$eval('[role="treeitem"]', els =>
+      els.map(el => ({
+        label: el.getAttribute('aria-label'),
+        level: Number(el.getAttribute('aria-level')),
+        line: Number(el.dataset.line)
+      }))
+    )
+  const activeLogLine = line =>
+    app.waitForFunction(
+      line => {
+        const row = document.querySelector('pre > div.is-active')
+        return row && row.dataset.line === String(line) && row.getBoundingClientRect().height > 0
+      },
+      { timeout: 5000 },
+      line
+    )
+  // The anonymous code unit's line, from the call tree.
+  let unitLine = -1
+
+  await t.test('call tree nests the code unit, counts its SOQL, and Enter goes to its line', async () => {
+    await app.click('::-p-aria([name="Call tree"][role="tab"])')
+    await app.waitForSelector('::-p-aria([name="Call tree"][role="tree"])', { visible: true, timeout: 10000 })
+    const all = await treeItems()
+    const unit = all.find(i => i.label.startsWith('Code unit execute_anonymous_apex'))
+    assert.ok(unit, `the anonymous code unit is listed (${all.map(i => i.label).join(' | ')})`)
+    unitLine = unit.line
+    assert.equal(unit.level, 2, 'inside the execution')
+    const soql = (log.body.match(/\|SOQL_EXECUTE_BEGIN\|/g) || []).length
+    assert.match(unit.label, new RegExp(`, ${soql} SOQL,`), 'counts the queries it ran')
+    assert.match(unit.label, /total [\d.]+ (ns|µs|ms|s), self [\d.]+ (ns|µs|ms|s)/)
+    if (MOCK) {
+      // Real-org logs list methods only at the Fine Apex Code level.
+      const method = all.find(i => i.label.startsWith('Method MockSetup.run()'))
+      assert.ok(method, 'the method the code unit called is listed')
+      assert.equal(method.level, 3, 'nested in the code unit')
+    }
+    const shownLines = await app.$$eval(
+      'pre > div',
+      els => els.filter(el => el.getBoundingClientRect().height > 0).length
+    )
+    assert.equal(shownLines, 0, 'the log body is hidden while the tree is shown')
+
+    // Keyboard: Home, Down to the code unit, Left closes it, Right opens it,
+    // Enter goes to its line in the log.
+    await app.focus('[role="tree"]')
+    await app.keyboard.press('Home')
+    await app.keyboard.press('ArrowDown')
+    const active = () =>
+      app.$eval('[role="tree"]', tree => {
+        const el = document.getElementById(tree.getAttribute('aria-activedescendant'))
+        return { label: el.getAttribute('aria-label'), expanded: el.getAttribute('aria-expanded') }
+      })
+    assert.match((await active()).label, /^Code unit execute_anonymous_apex/)
+    await app.keyboard.press('ArrowLeft')
+    assert.equal((await active()).expanded, 'false', 'Left closes the unit')
+    await app.keyboard.press('ArrowRight')
+    assert.equal((await active()).expanded, 'true', 'Right opens it again')
+    await app.keyboard.press('Enter')
+    await activeLogLine(unit.line)
+    await app.waitForFunction(() => document.activeElement.getAttribute('aria-label') === 'Log body', {
+      timeout: 2000
+    })
+    assert.equal(await app.$eval('::-p-aria([name="Log"][role="tab"])', el => el.getAttribute('aria-selected')), 'true')
+  })
+
+  await t.test('timeline draws the units, zooms, and a click on a bar goes to its line', async () => {
+    assert.ok(unitLine > 0, 'the call tree check found the code unit')
+    await app.click('::-p-aria([name="Timeline"][role="tab"])')
+    const GROUP = '::-p-aria([name="Timeline"][role="group"])'
+    await app.waitForSelector(GROUP, { visible: true, timeout: 10000 })
+    await app.waitForFunction(() => {
+      const canvas = document.querySelector('[data-testid="timeline-canvas"]')
+      return canvas && canvas.width > 0 && canvas.height > 0
+    })
+    const windowText = () => app.$eval('[data-testid="timeline-window"]', el => el.textContent)
+    assert.match(await windowText(), /^Whole run: /)
+    await app.click('::-p-aria([name="Zoom in"][role="button"])')
+    await app.waitForFunction(() => / of /.test(document.querySelector('[data-testid="timeline-window"]').textContent))
+    await app.click('::-p-aria([name="Show the whole run"][role="button"])')
+    await app.waitForFunction(() =>
+      /^Whole run/.test(document.querySelector('[data-testid="timeline-window"]').textContent)
+    )
+    // Level 2 (below the 22 px axis, 20 px per level) is the code unit,
+    // which spans nearly the whole run.
+    const box = await (await app.$(GROUP)).boundingBox()
+    await app.mouse.click(box.x + box.width / 2, box.y + 22 + 20 + 10)
+    await activeLogLine(unitLine)
+  })
+
   await t.test('indent toggle beautifies a debugged SObject', async () => {
     // "<marker> users (User:{Id=…, Name=…})" is pretty-printed with js-beautify.
     const line = () =>
