@@ -16,6 +16,8 @@ import {
   InputAdornment,
   Popover,
   Skeleton,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography
@@ -33,6 +35,8 @@ import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore'
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess'
 import ReportIcon from '@mui/icons-material/ReportProblemOutlined'
 import ParsedLog from './parsed-log'
+import ExecutionTreeView from './execution-tree-view'
+import ExecutionTimeline from './execution-timeline'
 import globalSf from '../../../global-sf'
 import { StatusLabel } from './log-list'
 import IconAction from '../../../ui/components/icon-action'
@@ -50,6 +54,10 @@ import {
   visibleLines
 } from '../../../core/log/log-lines'
 import { CATEGORY_LABELS } from '../../../core/log/categories'
+import {
+  buildExecutionTree,
+  rowForLine
+} from '../../../core/log/execution-tree'
 import {
   paletteFor,
   themeCssVariables,
@@ -69,7 +77,9 @@ const FIND_DELAY_MS = 200
 // The opened log (#/logs/<id>): its metadata and actions, a toolbar (find
 // with a match counter, next error / next debug line, event-type toggles
 // with counts, expand all values), and the log body. A failed run opens at
-// its first error, any other log at the top. The ref offers the page's
+// its first error, any other log at the top. Tabs switch the body to the
+// call tree or the timeline (built only when first shown); choosing a unit
+// there goes back to the log at its line. The ref offers the page's
 // shortcuts: focusFind(), nextError(), nextDebug().
 const LogViewer = forwardRef(function LogViewer(
   { logId, log, colorMode, initialFind },
@@ -94,6 +104,12 @@ const LogViewer = forwardRef(function LogViewer(
   const [activeRow, setActiveRow] = useState(-1)
   const [expandAll, setExpandAll] = useState(false)
   const [eventsAnchor, setEventsAnchor] = useState(null)
+  // 'log', 'tree' or 'timeline'.
+  const [chosenView, setView] = useState('log')
+  // The views shown so far (the tree is built when one is first shown).
+  const [shown, setShown] = useState({ log: true })
+  const treeWanted = Boolean(shown.tree || shown.timeline)
+  const pendingRow = useRef(null)
 
   useEffect(() => {
     dispatch(fetchLogBody(logId))
@@ -105,6 +121,12 @@ const LogViewer = forwardRef(function LogViewer(
     [allLines, hidden]
   )
   const counts = useMemo(() => categoryCounts(allLines), [allLines])
+  const tree = useMemo(
+    () => (treeWanted && body ? buildExecutionTree(allLines) : null),
+    [treeWanted, body, allLines]
+  )
+  // The log until the tree can be built (its body is loading).
+  const view = tree ? chosenView : 'log'
   const hiddenCount = hidden.reduce((n, c) => n + (counts[c] || 0), 0)
   const matches = useMemo(() => findMatches(lines, term), [lines, term])
   const matchRows = useMemo(() => new Set(matches.map(m => m.row)), [matches])
@@ -178,6 +200,37 @@ const LogViewer = forwardRef(function LogViewer(
     )
     return firstVisible ? Number(firstVisible.dataset.index) - 1 : -1
   }
+  const showView = next => {
+    setShown(prev => (prev[next] ? prev : { ...prev, [next]: true }))
+    setView(next)
+  }
+  // From the call tree or the timeline: the log, at the unit's line (or the
+  // next line shown, if its event type is hidden).
+  const goToLine = number => {
+    const row = rowForLine(lines, number)
+    if (row < 0) return
+    setActiveRow(row)
+    pendingRow.current = row
+    setView('log')
+  }
+  useEffect(() => {
+    if (view !== 'log' || pendingRow.current === null) return
+    const row = pendingRow.current
+    pendingRow.current = null
+    requestAnimationFrame(() => {
+      parsedRef.current && parsedRef.current.scrollToRow(row)
+      scrollElement && scrollElement.focus({ preventScroll: true })
+    })
+  }, [view, scrollElement])
+  // Shortcuts for the log body bring it back first.
+  const inLog = action => () => {
+    if (view === 'log') action()
+    else {
+      setView('log')
+      requestAnimationFrame(() => requestAnimationFrame(action))
+    }
+  }
+
   const jump = (test, dir = 1) => {
     const row = nextRow(lines, Math.max(-1, startRow()), dir, test)
     if (row < 0) return
@@ -186,15 +239,15 @@ const LogViewer = forwardRef(function LogViewer(
   }
 
   useImperativeHandle(ref, () => ({
-    focusFind: () => {
+    focusFind: inLog(() => {
       if (findRef.current) {
         findRef.current.focus()
         findRef.current.select()
       }
-    },
+    }),
     isFindFocused: () => document.activeElement === findRef.current,
-    nextError: () => jump(isErrorLine),
-    nextDebug: () => jump(isDebugLine)
+    nextError: inLog(() => jump(isErrorLine)),
+    nextDebug: inLog(() => jump(isDebugLine))
   }))
 
   const onFindKeyDown = e => {
@@ -328,12 +381,37 @@ const LogViewer = forwardRef(function LogViewer(
         </Box>
       </Box>
 
+      {/* The log, its call tree or its timeline. */}
+      <Tabs
+        value={view}
+        onChange={(_, next) => showView(next)}
+        aria-label="Log views"
+        sx={{
+          minHeight: 36,
+          px: 1,
+          borderBottom: 1,
+          borderColor: 'divider',
+          '& .MuiTab-root': { minHeight: 36, py: 0.5, textTransform: 'none' }
+        }}
+      >
+        {LOG_VIEWS.map(([value, label]) => (
+          <Tab
+            key={value}
+            value={value}
+            label={label}
+            id={`log-view-${value}`}
+            aria-controls={`log-view-panel-${value}`}
+            disabled={value !== 'log' && !body}
+          />
+        ))}
+      </Tabs>
+
       {/* Find, navigation and event types. */}
       <Box
         role="toolbar"
         aria-label="Log tools"
         sx={{
-          display: 'flex',
+          display: view === 'log' ? 'flex' : 'none',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 1,
@@ -456,8 +534,10 @@ const LogViewer = forwardRef(function LogViewer(
         ref={setScrollElement}
         role="region"
         aria-label="Log body"
+        id="log-view-panel-log"
         tabIndex={0}
         sx={{
+          display: view === 'log' ? 'block' : 'none',
           flex: 1,
           minHeight: 0,
           overflow: 'auto',
@@ -520,11 +600,51 @@ const LogViewer = forwardRef(function LogViewer(
           />
         )}
       </Box>
+      {/* Kept once shown, so going to a line and back keeps their state. */}
+      {tree
+        ? LOG_VIEWS.filter(([value]) => value !== 'log' && shown[value]).map(
+            ([value]) => (
+              <Box
+                key={value}
+                role="tabpanel"
+                id={`log-view-panel-${value}`}
+                aria-labelledby={`log-view-${value}`}
+                sx={{
+                  flex: 1,
+                  minHeight: 0,
+                  display: view === value ? 'flex' : 'none',
+                  flexDirection: 'column'
+                }}
+              >
+                {value === 'tree' ? (
+                  <ExecutionTreeView
+                    key={logId}
+                    tree={tree}
+                    onJump={goToLine}
+                  />
+                ) : (
+                  <ExecutionTimeline
+                    key={logId}
+                    tree={tree}
+                    theme={theme}
+                    onJump={goToLine}
+                  />
+                )}
+              </Box>
+            )
+          )
+        : null}
     </Box>
   )
 })
 
 export default LogViewer
+
+const LOG_VIEWS = [
+  ['log', 'Log'],
+  ['tree', 'Call tree'],
+  ['timeline', 'Timeline']
+]
 
 // Which event categories the log body shows, with the number of lines of
 // each (docs/ux/baseline-review.md M6).
