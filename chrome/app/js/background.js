@@ -107,24 +107,34 @@ function apiHostFor(host) {
     .replace(/\.my\.salesforce-setup\.com$/, '.my.salesforce.com')
 }
 
+// Org (My Domain, Lightning, Setup and classic instance) hosts. The content
+// scripts also run on *.force.com, which includes public Salesforce Sites that
+// anyone can host, so sessions are only handed out for org hosts.
+function isOrgHost(host) {
+  return /\.(my\.salesforce\.com|lightning\.force\.com|my\.salesforce-setup\.com)$/.test(host) ||
+    /^[a-z]{2,4}\d+\.salesforce\.com$/.test(host)
+}
+
 // Returns { token, host } for a Salesforce page URL. The sid cookie is
 // HttpOnly, so content scripts can't read it, but chrome.cookies can. Falls
 // back to the token saved on the options page.
 async function getSession(url) {
-  if (url) {
-    const host = new URL(url).hostname
-    for (const candidate of new Set([apiHostFor(host), host])) {
-      const cookie = await chrome.cookies.get({ url: `https://${candidate}/`, name: 'sid' })
-      if (cookie && cookie.value) return { token: cookie.value, host: candidate }
-    }
+  let host
+  try {
+    host = new URL(url).hostname
+  } catch (e) {
+    return { token: undefined, host: undefined }
+  }
+  if (!isOrgHost(host)) return { token: undefined, host: undefined }
+  for (const candidate of new Set([apiHostFor(host), host])) {
+    const cookie = await chrome.cookies.get({ url: `https://${candidate}/`, name: 'sid' })
+    if (cookie && cookie.value) return { token: cookie.value, host: candidate }
   }
   const { token } = await chrome.storage.local.get('token')
   return { token, host: undefined }
 }
 
 chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
-  console.log('request', request)
-  console.log('sender', sender)
   switch (request.command) {
     case "getToken":
       // request.url: the Salesforce page the token is for (the React app

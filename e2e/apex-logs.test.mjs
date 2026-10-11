@@ -426,3 +426,20 @@ test('React log viewer', async t => {
   const unexpected = errors.filter(e => !/Failed to fetch/.test(e))
   if (unexpected.length) t.diagnostic(`page errors: ${unexpected.join(' | ')}`)
 })
+
+test('sessions are only handed out for org hosts', async () => {
+  // Content scripts also run on public Salesforce Sites (*.force.com,
+  // *.my.site.com). They must not get the saved token or an org cookie.
+  await ext.background.evaluate(() => chrome.storage.local.set({ token: 'saved-token' }))
+  try {
+    const lookup = url => ext.background.evaluate(url => getSession(url), url)
+    for (const url of ['https://someone.force.com/s/', 'https://someone.my.site.com/', 'https://evil.example.com/']) {
+      assert.equal((await lookup(url)).token, undefined, url)
+    }
+    const org = await lookup(`${session.instance}/setup/ui/listApexTraces.apexp`)
+    assert.ok(org.token && org.token !== 'saved-token', 'org host gets its sid cookie')
+    assert.equal(org.host, new URL(session.instance).hostname)
+  } finally {
+    await ext.background.evaluate(() => chrome.storage.local.remove('token'))
+  }
+})
