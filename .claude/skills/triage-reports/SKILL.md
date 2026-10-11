@@ -18,7 +18,7 @@ description: Triage Apex Debugger bug reports from GitHub issues and Chrome Web 
 ## 2. Check each report against `main`
 
 For each report:
-- Find the code path: `chrome/app/js/*` for classic pages, shortcuts and the service worker; `react/src/**` for the Shift+W app; `manifest.json` for domains and permissions.
+- Find the code path: `react/src/extension/*` (shared code in `react/src/core/`) for classic pages, shortcuts, the options page and the service worker; `react/src/**` for the Shift+W app; `manifest.json` for domains and permissions.
 - Decide: **still a bug** (with a file:line cause), **fixed** (name the commit or PR), **needs info**, or **not a bug / feature request**.
 - If you can, reproduce it with the e2e setup (`scripts/chrome-dev.sh` with `.env.local`, or a focused check in `e2e/`). Don't print credentials or session ids.
 

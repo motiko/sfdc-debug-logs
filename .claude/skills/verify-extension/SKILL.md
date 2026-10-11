@@ -1,6 +1,6 @@
 ---
 name: verify-extension
-description: Verify a change to the Apex Debugger extension before committing or opening a PR. Builds the React bundle, runs lint, format check, typecheck, unit tests and the end-to-end flow against the real Salesforce org, and explains how to debug failures. Use after any change to chrome/app, react/, e2e/ or scripts/.
+description: Verify a change to the Apex Debugger extension before committing or opening a PR. Builds the extension scripts, runs lint, format check, typecheck, unit tests and the end-to-end flow against the real Salesforce org, and explains how to debug failures. Use after any change to chrome/app, react/, e2e/ or scripts/.
 ---
 
 # Verify an Apex Debugger change
@@ -21,7 +21,7 @@ The output in `chrome/app/js/build/` is gitignored; don't commit it (see CLAUDE.
 cd react && npm run lint && npm run format:check && npm run typecheck && npm test
 ```
 
-The same checks run in CI (`.github/workflows/ci.yml`). If `format:check` fails, run `npm run format` and review the diff. ESLint covers `react/src`, `e2e/`, `scripts/` and `chrome/app/js`; `.ts` files are only type-checked. Unit tests (Vitest) live next to the code as `*.test.ts`; add or update them when changing log parsing, filters or search.
+The same checks run in CI (`.github/workflows/ci.yml`). If `format:check` fails, run `npm run format` and review the diff. ESLint covers the `.js`/`.mjs` files in `react/`, `e2e/` and `scripts/`; `.ts` files (including every extension script in `react/src/extension` and `react/src/core`) are only type-checked. Unit tests (Vitest) live next to the code as `*.test.ts`; add or update them when changing log parsing, filters or search.
 
 ## 3. End-to-end flow
 

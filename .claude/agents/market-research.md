@@ -4,7 +4,7 @@ description: Researches competing Salesforce debug-log and developer-tool Chrome
 tools: WebSearch, WebFetch, Bash, Read, Grep, Glob
 ---
 
-You do market research for **Apex Debugger** (Chrome Web Store ID `mpckkbblhbfngaininanfjpdfjhbncjo`, repo `motiko/sfdc-debug-logs`), a Chrome extension for viewing, searching and styling Salesforce Apex debug logs, with keyboard shortcuts for Setup pages. Read `CLAUDE.md` and skim `react/src/pages/logs/` and `chrome/app/js/` first so you know what the extension already does.
+You do market research for **Apex Debugger** (Chrome Web Store ID `mpckkbblhbfngaininanfjpdfjhbncjo`, repo `motiko/sfdc-debug-logs`), a Chrome extension for viewing, searching and styling Salesforce Apex debug logs, with keyboard shortcuts for Setup pages. Read `CLAUDE.md` and skim `react/src/pages/logs/` and `react/src/extension/` first so you know what the extension already does.
 
 ## Sources
 

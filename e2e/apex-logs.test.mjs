@@ -1,7 +1,7 @@
 // End-to-end flow: run Apex in the org, then check the resulting debug log in
 // both of the extension's views:
 //   - classic view: the content script on Salesforce's log detail page
-//     (chrome/app/js/sfdc.debug.js, themes in chrome/app/css/debug.css)
+//     (react/src/extension/debug-log-page.ts, themes in chrome/app/css/debug.css)
 //   - React app: html/app.html opened with Shift+W (react/src/pages/logs)
 // For each view: the log is visible, it can be searched, and every theme
 // applies its color/font rules to every event type in the log.
@@ -19,12 +19,16 @@ import { launchWithExtension } from './lib/browser.mjs'
 import { classicThemes, defaultLogThemes, logEventToType, computedValue, toRgb } from './lib/styles.mjs'
 
 const MARKER = `E2E_MARKER_${Date.now()}`
+// Log text is untrusted (System.debug of a public Site's input): the views must
+// show it as text. The id gets linked; the markup must never become an <img>.
+const XSS = '<img src=x onerror="window.__xss=1">'
 const APEX = `
 String marker = '${MARKER}';
 System.debug(marker);
 System.debug(JSON.serialize(new Map<String, Object>{ 'marker' => marker, 'n' => 42 }));
 List<User> users = [SELECT Id, Name FROM User LIMIT 1];
 System.debug(marker + ' users ' + users);
+System.debug('${XSS} ' + UserInfo.getUserId() + ' xss ' + marker);
 try { Integer x = 1 / 0; } catch (Exception e) { System.debug('caught ' + e.getMessage()); }
 `
 
@@ -110,7 +114,7 @@ const keyboardState = page =>
 // Opens the app with the real Shift+W shortcut on a Salesforce page and
 // returns the app page. Saves artifacts as <name>.png/.log on failure.
 //
-// Shift+W is bound by shortcuts.js (Mousetrap) only once the content script's
+// Shift+W is bound by shortcuts.ts (Mousetrap) only once the content script's
 // getShortcuts message to the service worker is answered, and Mousetrap only
 // sees keys that reach the top document while no input, select or iframe has
 // focus (content scripts don't run in frames); other key presses are silently
@@ -261,6 +265,56 @@ test('classic log view', async t => {
       }
     })
   }
+
+  await t.test('log text is shown as text, never parsed as HTML', async () => {
+    const xssLine = () =>
+      page.evaluate(
+        (marker, userId) => {
+          const line = [...document.querySelectorAll('#debugText .debug')].find(d =>
+            d.textContent.includes(`xss ${marker}`)
+          )
+          if (!line) return null
+          return {
+            text: line.textContent,
+            expanded: Boolean(line.querySelector('.expandUserDebugBtn.expanded')),
+            idLinks: [...line.querySelectorAll('a')].filter(a => a.textContent === userId).length,
+            images: document.querySelectorAll('#debugText img').length,
+            // page.evaluate runs in the page's main world, where an injected
+            // onerror handler would run.
+            xss: window.__xss
+          }
+        },
+        MARKER,
+        session.userId
+      )
+    // The expand button is added after load; HTML-looking USER_DEBUGs get one.
+    await page.waitForSelector('#debugText .expandUserDebugBtn', { timeout: 10000 })
+    const collapsed = await xssLine()
+    assert.ok(collapsed, 'the USER_DEBUG line with the markup is rendered')
+    assert.ok(collapsed.text.includes(XSS), 'markup is shown literally')
+    assert.equal(collapsed.idLinks, 1, 'the user id is a link')
+    // Expanding beautifies the markup and links legal ids again.
+    await page.evaluate(marker => {
+      const line = [...document.querySelectorAll('#debugText .debug')].find(d =>
+        d.textContent.includes(`xss ${marker}`)
+      )
+      line.querySelector('.expandUserDebugBtn').click()
+    }, MARKER)
+    await page.waitForFunction(
+      marker =>
+        [...document.querySelectorAll('#debugText .debug')]
+          .find(d => d.textContent.includes(`xss ${marker}`))
+          .querySelector('.expandUserDebugBtn.expanded'),
+      { timeout: 5000 },
+      MARKER
+    )
+    await new Promise(resolve => setTimeout(resolve, 500))
+    const expanded = await xssLine()
+    assert.ok(expanded.text.includes('onerror="window.__xss=1"'), 'expanded markup is shown literally')
+    assert.equal(expanded.idLinks, 1, 'the user id is a link after expanding')
+    assert.equal(expanded.images, 0, 'no <img> element was created from log text')
+    assert.equal(expanded.xss, undefined, 'no handler from log text ran')
+  })
 
   await t.test('font size applies', async () => {
     await page.select('#fontSelection', '14')
@@ -456,6 +510,17 @@ test('React log viewer', async t => {
     assert.ok(visible)
   })
 
+  await t.test('log text is shown as text, never parsed as HTML', async () => {
+    const result = await app.evaluate(() => ({
+      text: document.querySelector('pre').innerText,
+      images: document.querySelectorAll('pre img').length,
+      xss: window.__xss
+    }))
+    assert.ok(result.text.includes(XSS), 'markup is shown literally')
+    assert.equal(result.images, 0, 'no <img> element was created from log text')
+    assert.equal(result.xss, undefined, 'no handler from log text ran')
+  })
+
   await t.test('every log entry is rendered, including the last one', async () => {
     const expected = log.body.match(/^\d\d:\d\d:\d\d\.\d+ \(\d+\)\|/gm).length
     const rendered = await app.evaluate(() => document.querySelectorAll('pre > div').length - 1)
@@ -620,7 +685,7 @@ test('sessions are only handed out for org hosts', async () => {
   // *.my.site.com). They must not get the saved token or an org cookie.
   await ext.background.evaluate(() => chrome.storage.local.set({ token: 'saved-token' }))
   try {
-    const lookup = url => ext.background.evaluate(url => getSession(url), url)
+    const lookup = url => ext.background.evaluate(url => getSessionForUrl(url), url)
     for (const url of ['https://someone.force.com/s/', 'https://someone.my.site.com/', 'https://evil.example.com/']) {
       assert.equal((await lookup(url)).token, undefined, url)
     }

@@ -50,7 +50,7 @@ GreaseMonkey scripts on [openuserjs](https://openuserjs.org/users/motiko/scripts
 Development
 -----------------------------
 
-The extension lives in `chrome/app`. The full-page log viewer is a React app in `react/`, built with Vite into `chrome/app/js/build/` (not committed). Build it before loading `chrome/app` as an unpacked extension:
+The extension lives in `chrome/app`. Its scripts (service worker, content scripts, options page and the React log viewer) are TypeScript and JavaScript sources in `react/src`, built with Vite into `chrome/app/js/build/` (not committed). Build them before loading `chrome/app` as an unpacked extension:
 
 ```bash
 ./build.sh           # installs dependencies if needed, then builds
@@ -79,7 +79,7 @@ git push --follow-tags
 Pushing the tag runs the [release workflow](.github/workflows/release.yml):
 
 1. It checks that the tag matches the version in `chrome/app/manifest.json`.
-2. It builds the React app, zips `chrome/app` and creates a GitHub release with generated notes and `apex-debugger-vX.Y.Z.zip` attached.
+2. It builds the extension scripts, zips `chrome/app` and creates a GitHub release with generated notes and `apex-debugger-vX.Y.Z.zip` attached.
 3. It uploads the zip to the Chrome Web Store and submits it for review ([`publish-chrome-web-store.yml`](.github/workflows/publish-chrome-web-store.yml)). The new version goes live automatically once the review passes.
 
 The Chrome Web Store accepts no new upload while the previous version is still in review, so step 3 fails in that case. The GitHub release is created anyway. After the review finishes, publish the existing release again:

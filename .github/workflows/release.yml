@@ -36,7 +36,7 @@ jobs:
       - run: npm ci --prefix react
       - run: npm run build --prefix react
       - name: Zip the extension
-        run: cd chrome/app && zip -r -X "$GITHUB_WORKSPACE/apex-debugger-$GITHUB_REF_NAME.zip" . -x '*.DS_Store' 'js/build/.gitignore'
+        run: cd chrome/app && zip -r -X "$GITHUB_WORKSPACE/apex-debugger-$GITHUB_REF_NAME.zip" . -x '*.DS_Store' '*.map' 'js/build/.gitignore'
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
