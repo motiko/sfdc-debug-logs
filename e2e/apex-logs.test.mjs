@@ -65,6 +65,30 @@ function collectPageErrors(page) {
   return errors
 }
 
+// Presses Shift+W on a Salesforce page until the extension opens its app tab;
+// returns the app page. Saves artifacts as <name>.png/.log on failure.
+async function openAppWithShiftW(sfPage, consoleLog, name) {
+  const appTarget = ext.browser.waitForTarget(t => t.url().includes('/html/app.html'), {
+    timeout: 30000
+  })
+  // The shortcut is bound only after an async message to the service
+  // worker, so retry the key press until the app tab opens.
+  let opened = false
+  appTarget.then(() => (opened = true), () => {})
+  for (let i = 0; i < 20 && !opened; i++) {
+    await sfPage.keyboard.down('Shift')
+    await sfPage.keyboard.press('KeyW')
+    await sfPage.keyboard.up('Shift')
+    await new Promise(r => setTimeout(r, 1000))
+  }
+  try {
+    return await (await appTarget).page()
+  } catch (e) {
+    await saveArtifacts(sfPage, name, consoleLog)
+    throw new Error(`Shift+W did not open the app (${e.message}); see e2e/artifacts/${name}.*`)
+  }
+}
+
 const classicUrl = id => `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${id}`
 
 test('classic log view', async t => {
@@ -161,26 +185,7 @@ test('React log viewer', async t => {
     () => location.pathname.includes('listApexTraces') && document.readyState === 'complete',
     { timeout: 30000 }
   )
-  const appTarget = ext.browser.waitForTarget(t => t.url().includes('/html/app.html'), {
-    timeout: 30000
-  })
-  // The shortcut is bound only after an async message to the service
-  // worker, so retry the key press until the app tab opens.
-  let opened = false
-  appTarget.then(() => (opened = true), () => {})
-  for (let i = 0; i < 20 && !opened; i++) {
-    await sfPage.keyboard.down('Shift')
-    await sfPage.keyboard.press('KeyW')
-    await sfPage.keyboard.up('Shift')
-    await new Promise(r => setTimeout(r, 1000))
-  }
-  let app
-  try {
-    app = await (await appTarget).page()
-  } catch (e) {
-    await saveArtifacts(sfPage, 'shift-w', consoleLog)
-    throw new Error(`Shift+W did not open the app (${e.message}); see e2e/artifacts/`)
-  }
+  const app = await openAppWithShiftW(sfPage, consoleLog, 'shift-w')
   // Network failures (e.g. unreachable optional services) are not page bugs.
   const errors = collectPageErrors(app)
   await app.setViewport({ width: 1400, height: 1000 })
@@ -441,5 +446,54 @@ test('sessions are only handed out for org hosts', async () => {
     assert.equal(org.host, new URL(session.instance).hostname)
   } finally {
     await ext.background.evaluate(() => chrome.storage.local.remove('token'))
+  }
+})
+
+test('Lightning Experience: Shift+W opens the app with the org session', async t => {
+  // Lightning runs on other domains than the API: Home on
+  // *.lightning.force.com, Setup on *.my.salesforce-setup.com. Their sid
+  // cookies aren't accepted by the API, so the extension must use the org's
+  // my.salesforce.com session. Switch the user to Lightning for this test only
+  // (Settings > Switch to Lightning Experience), then restore the preference.
+  const wasLightning = await sf.lightningPreferred()
+  await sf.setLightningPreferred(true)
+  const page = await ext.browser.newPage()
+  const consoleLog = []
+  page.on('console', m => consoleLog.push(`page ${m.type()}: ${m.text()}`))
+  page.on('pageerror', e => consoleLog.push(`page error: ${e.message}`))
+  try {
+    for (const [label, path, domain] of [
+      ['Home', '/lightning/page/home', '.lightning.force.com'],
+      ['Setup', '/lightning/setup/ApexDebugLogs/home', '.my.salesforce-setup.com']
+    ]) {
+      await t.test(`from Lightning ${label} (${domain})`, async () => {
+        // An open app tab would just be focused; close it so Shift+W opens one.
+        for (const p of await ext.browser.pages()) {
+          if (p.url().includes('/html/app.html')) await p.close()
+        }
+        await page.goto(frontdoorUrl(session, path), { waitUntil: 'networkidle2', timeout: 60000 })
+        await page.waitForFunction(
+          domain => location.hostname.endsWith(domain) && document.readyState === 'complete',
+          { timeout: 60000 },
+          domain
+        )
+        const app = await openAppWithShiftW(page, consoleLog, `lightning-${label.toLowerCase()}`)
+        const appUrl = new URL(app.url())
+        assert.equal(
+          appUrl.searchParams.get('host'),
+          new URL(session.instance).hostname,
+          'app talks to the my.salesforce.com host'
+        )
+        assert.ok(appUrl.searchParams.get('sid'), 'app gets a session id')
+        await app.waitForFunction(() => document.querySelectorAll('tbody tr').length > 0, {
+          timeout: 30000
+        })
+        const listed = await app.$$eval('tbody tr', trs => trs.map(tr => tr.innerText))
+        assert.ok(listed.some(r => r.includes(log.Operation)), "the app lists the org's logs")
+      })
+    }
+  } finally {
+    await page.close().catch(() => {})
+    await sf.setLightningPreferred(wasLightning)
   }
 })

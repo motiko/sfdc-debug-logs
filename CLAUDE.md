@@ -36,6 +36,7 @@ The toolchain is Babel 7 with browserify, on old libraries (material-ui `1.0.0-b
 `cd e2e && npm install && npm test` rebuilds the React bundle, then runs `apex-logs.test.mjs` (`node --test` + `puppeteer-core`, headless Chrome for Testing, throwaway profile; `HEADFUL=1` to watch). It logs in with `.env.local` (or `SF_ACCESS_TOKEN` + `SF_INSTANCE_URL`), makes sure the user has a trace flag (`ApexDbgrExtension` debug level, like the app), runs anonymous Apex with a unique marker, and finds the resulting ApexLog. It then checks both views:
 - **Classic** (`/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=…`, `sfdc.debug.js`): marker visible and findable, every theme in `debug.css` applied to every event class, font size.
 - **React app** (opened with Shift+W): log listed, search filters to the marker's log, the operation filter reloads only matching logs, log body visible, theme menu opens on click, every theme in `constants.js` colors every line by its category, custom color, font size, text wrap.
+- **Lightning:** switches the user to Lightning Experience for the test (`UserPreferencesLightningExperiencePreferred`, restored afterwards) and presses Shift+W on Lightning Home (`*.lightning.force.com`) and Lightning Setup (`*.my.salesforce-setup.com`); the app must get the `my.salesforce.com` session and list logs.
 
 Expected styles are read from `debug.css` and `constants.js`, so new themes are covered automatically. Shared login code lives in `scripts/lib/sf-auth.mjs`. Page errors are reported as test diagnostics, not failures.
 
