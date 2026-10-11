@@ -84,7 +84,8 @@
     }
   ],
   "permissions": [
-    "storage"
+    "storage",
+    "cookies"
   ],
   "host_permissions": [
     "https://*.force.com/*",

@@ -26,6 +26,19 @@ export class Salesforce {
     return type.startsWith('application/json') && text ? JSON.parse(text) : text
   }
 
+  // The user's "Switch to Lightning Experience" setting.
+  async lightningPreferred() {
+    const user = await this.request(`/sobjects/User/${this.userId}?fields=UserPreferencesLightningExperiencePreferred`)
+    return user.UserPreferencesLightningExperiencePreferred
+  }
+
+  async setLightningPreferred(value) {
+    await this.request(`/sobjects/User/${this.userId}`, {
+      method: 'PATCH',
+      body: { UserPreferencesLightningExperiencePreferred: value }
+    })
+  }
+
   async query(soql) {
     const { records } = await this.request(`/tooling/query?q=${encodeURIComponent(soql)}`)
     return records

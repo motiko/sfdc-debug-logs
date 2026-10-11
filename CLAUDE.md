@@ -29,13 +29,14 @@ The toolchain is Babel 7 with browserify, on old libraries (material-ui `1.0.0-b
 
 - **Auto-login:** if `.env.local` exists (gitignored; keys in `.env.example`: `SF_USER`, `SF_PASS`, `SF_TOKEN`, optional `SF_LOGIN_URL`) and no URL argument is given, Chrome starts blank and `scripts/sf-login.mjs` logs in via SOAP `login()` + `frontdoor.jsp`, landing on the Debug Logs page. The session id goes over CDP, not the command line. Rerun it against a running browser with `node scripts/sf-login.mjs [retURL]`.
 - After changing content scripts or the service worker, reload the extension on `chrome://extensions`. React changes need a rebuild and a page reload.
-- **Session token:** the `sid` cookie is HttpOnly on current Salesforce, so content scripts can't read it. `getToken()` in `utils.js` falls back to the token saved on the options page (`chrome.storage.local.token`, served by the service worker's `getToken` message). Without it, API calls from content scripts fail. The e2e flow seeds this token.
+- **Session token:** the `sid` cookie is HttpOnly on current Salesforce, so content scripts can't read it. `getSession()` in `utils.js` asks the service worker (`getToken` message), which reads `sid` with `chrome.cookies` for the org's `my.salesforce.com` host (`apiHostFor()` maps Lightning and `salesforce-setup.com` hosts) and returns `{ token, host }`. It answers only for org hosts (`isOrgHost()`): content scripts also run on public Salesforce Sites under `*.force.com`, which must never get a session. Only if there's no cookie does it fall back to the token saved on the options page (`chrome.storage.local.token`). The React app asks the same way after a 401. The e2e flow saves no token, so it exercises the cookie path.
 
 ## End-to-end flow (`e2e/`)
 
 `cd e2e && npm install && npm test` rebuilds the React bundle, then runs `apex-logs.test.mjs` (`node --test` + `puppeteer-core`, headless Chrome for Testing, throwaway profile; `HEADFUL=1` to watch). It logs in with `.env.local` (or `SF_ACCESS_TOKEN` + `SF_INSTANCE_URL`), makes sure the user has a trace flag (`ApexDbgrExtension` debug level, like the app), runs anonymous Apex with a unique marker, and finds the resulting ApexLog. It then checks both views:
 - **Classic** (`/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=…`, `sfdc.debug.js`): marker visible and findable, every theme in `debug.css` applied to every event class, font size.
 - **React app** (opened with Shift+W): log listed, search filters to the marker's log, the operation filter reloads only matching logs, log body visible, theme menu opens on click, every theme in `constants.js` colors every line by its category, custom color, font size, text wrap.
+- **Lightning:** switches the user to Lightning Experience for the test (`UserPreferencesLightningExperiencePreferred`, restored afterwards) and presses Shift+W on Lightning Home (`*.lightning.force.com`) and Lightning Setup (`*.my.salesforce-setup.com`); the app must get the `my.salesforce.com` session and list logs.
 
 Expected styles are read from `debug.css` and `constants.js`, so new themes are covered automatically. Shared login code lives in `scripts/lib/sf-auth.mjs`. Page errors are reported as test diagnostics, not failures.
 
@@ -49,7 +50,7 @@ CI: `.github/workflows/e2e.yml` runs the flow on pushes to `main`, same-repo pul
 - `sfdc.debug.btn.js`: adds buttons to the debug-log list page (`listApexTraces.apexp`).
 - `sfdc.classes.js`: helpers on class and trigger pages.
 
-**Service worker** (`background.js`): a message router keyed on `request.command` (`getToken`, `getShortcuts`, `openTab`, `openOrFocusTab`, `focusAppTab`, `updateVars`, `getVars`). Tab ids for the options and app tabs are kept in `chrome.storage.sync`, since the worker's memory doesn't persist.
+**Service worker** (`background.js`): a message router keyed on `request.command` (`getToken`, `getShortcuts`, `openTab`, `openOrFocusTab`, `focusAppTab`). Tab ids for the options and app tabs are kept in `chrome.storage.sync`, since the worker's memory doesn't persist.
 
 **React app** (`react/src/`, opened as `html/app.html?oid=&uid=&sid=&host=`):
 - `global-sf.js` builds one `SF` client from the URL query params. That client is injected into every thunk as the extra argument (`thunk.withExtraArgument(globalSf)`), so action creators get it as the third parameter: `(dispatch, getState, sf)`.

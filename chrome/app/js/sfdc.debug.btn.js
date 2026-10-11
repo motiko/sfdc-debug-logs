@@ -9,15 +9,14 @@ async function openApp() {
     return;
   }
   const { orgId, userId } = parseDiscoCookie();
-  const token = await getToken();
+  const { token, host } = await getSession();
 
-  console.log('location.hostname', document.location.hostname)
   chrome.runtime.sendMessage({
-    url: `${browser.extension.getURL("html/app.html")}?oid=${
+    url: `${chrome.runtime.getURL("html/app.html")}?oid=${
     orgId
     }&uid=${userId}&sid=${encodeURIComponent(
       token
-    )}&host=${encodeURIComponent(document.location.hostname)}`,
+    )}&host=${encodeURIComponent(host)}`,
     name: `app_${orgId}`,
     command: "openOrFocusTab",
   });

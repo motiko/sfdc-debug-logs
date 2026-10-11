@@ -41,7 +41,7 @@ async function openApp() {
   }
   logEvent("Shortcut", "openApp");
   const { orgId, userId } = parseDiscoCookie();
-  const sid = await getToken();
+  const { token: sid, host } = await getSession();
   chrome.runtime
     .sendMessage({
       command: "focusAppTab",
@@ -54,7 +54,7 @@ async function openApp() {
               "html/app.html"
             )}?oid=${orgId}&uid=${userId}&sid=${encodeURIComponent(
               sid
-            )}&host=${encodeURIComponent(location.hostname)}`,
+            )}&host=${encodeURIComponent(host)}`,
             name: `app_${orgId}`,
             command: "openOrFocusTab",
           });
