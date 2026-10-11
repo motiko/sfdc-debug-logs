@@ -99,18 +99,37 @@ function openTab(url, name) {
 chrome.action.onClicked.addListener(
   () => openOrFocusTab(chrome.runtime.getURL('html/options.html'), "options_tab"))
 
+// Lightning and Setup pages run on domains whose sid cookie isn't accepted by
+// the API; the org's my.salesforce.com domain has the API session.
+function apiHostFor(host) {
+  return host
+    .replace(/\.lightning\.force\.com$/, '.my.salesforce.com')
+    .replace(/\.my\.salesforce-setup\.com$/, '.my.salesforce.com')
+}
+
+// Returns { token, host } for a Salesforce page URL. The sid cookie is
+// HttpOnly, so content scripts can't read it, but chrome.cookies can. Falls
+// back to the token saved on the options page.
+async function getSession(url) {
+  if (url) {
+    const host = new URL(url).hostname
+    for (const candidate of new Set([apiHostFor(host), host])) {
+      const cookie = await chrome.cookies.get({ url: `https://${candidate}/`, name: 'sid' })
+      if (cookie && cookie.value) return { token: cookie.value, host: candidate }
+    }
+  }
+  const { token } = await chrome.storage.local.get('token')
+  return { token, host: undefined }
+}
+
 chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
   console.log('request', request)
   console.log('sender', sender)
   switch (request.command) {
     case "getToken":
-      chrome.storage.local.get('token').then(function({
-        token
-      }) {
-        sendResponse({
-          token
-        })
-      })
+      // request.url: the Salesforce page the token is for (the React app
+      // passes its host); otherwise the tab that sent the message.
+      getSession(request.url || (sender.tab && sender.tab.url)).then(sendResponse)
       break
     case "getShortcuts":
       chrome.storage.sync.get('shortcuts').then(function({
@@ -138,27 +157,6 @@ chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
       }
       return false
       break
-    case "updateVars":
-      const { vars, sid } = request;
-        console.log(request)
-      if (sid && vars) {
-        orgVars = {
-          ...orgVars,
-          [vars.oid]: {
-            sessionVars: vars,
-            sid
-          }
-        };
-        console.log(orgVars)
-        const tabId = appTabIds[ `app_${vars.oid}` ]
-        if(tabId){
-          chrome.tabs.sendMessage(tabId, request)
-        }
-      }
-      break;
-    case "getVars":
-      return orgVars[request.orgId]
-      break;
   }
   return true
 });

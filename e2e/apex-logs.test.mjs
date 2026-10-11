@@ -44,13 +44,9 @@ before(async () => {
   const since = new Date(Date.now() - 60000)
   await sf.executeAnonymous(APEX)
   log = await sf.findLog(MARKER, { since })
+  // No token is saved on the options page: the extension has to find the
+  // session itself, from the HttpOnly sid cookie that frontdoor.jsp sets.
   ext = await launchWithExtension()
-  // The sid cookie is HttpOnly, so content scripts can't read it; the
-  // extension falls back to the token saved on its options page.
-  await ext.background.evaluate(
-    token => chrome.storage.local.set({ token }),
-    session.sessionId
-  )
 })
 
 after(() => ext && ext.close())
@@ -199,6 +195,16 @@ test('React log viewer', async t => {
       { timeout: 30000 }
     )
   }
+
+  await t.test('session comes from the HttpOnly cookie, not a saved token', async () => {
+    const pageSeesSid = await sfPage.evaluate(() => /(^|;\s*)sid=/.test(document.cookie))
+    assert.equal(pageSeesSid, false, 'sid cookie is HttpOnly, so content scripts cannot read it')
+    const { token } = await ext.background.evaluate(() => chrome.storage.local.get('token'))
+    assert.equal(token, undefined, 'no token saved on the options page')
+    const appUrl = new URL(app.url())
+    assert.ok(appUrl.searchParams.get('sid'), 'Shift+W passes a session id to the app')
+    assert.equal(appUrl.searchParams.get('host'), new URL(session.instance).hostname)
+  })
 
   await t.test('log is listed', async () => {
     await app.waitForFunction(() => document.querySelectorAll('tbody tr').length > 0, {

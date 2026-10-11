@@ -2,14 +2,14 @@ export default function initRequest(host, sid, orgId) {
   let sessionId = sid
   let retries = 0
   const max_retries = 3
-  // getSessionId(orgId).then(s => (sessionId = s))
-  function getSessionId(orgId) {
+  // After a 401, ask the service worker for the current session cookie.
+  function getSessionId() {
     return chrome.runtime
       .sendMessage({
-        command: 'getVars',
-        orgId
+        command: 'getToken',
+        url: `https://${host}/`
       })
-      .then(vars => vars.sid)
+      .then(session => session && session.token)
   }
   return function call(
     path,
@@ -37,7 +37,7 @@ export default function initRequest(host, sid, orgId) {
           }
           return result
         } else if (result.status === 401 && retries <= max_retries) {
-          return getSessionId(orgId).then(s => {
+          return getSessionId().then(s => {
             retries++
             sessionId = s
             return call(path, method, headers, body, response)

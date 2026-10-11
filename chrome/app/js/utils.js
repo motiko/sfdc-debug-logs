@@ -5,21 +5,25 @@ function readCookie(name) {
   return match ? match[1] : null;
 }
 
-let sid = readCookie('sid');
+// Returns { token, host }: the API session id and the host it belongs to.
+// Salesforce's sid cookie is HttpOnly, so it usually can't be read here; the
+// service worker reads it with chrome.cookies (falling back to the token saved
+// on the options page).
+async function getSession() {
+  const sid = readCookie('sid');
+  if (sid) {
+    return { token: sid, host: location.hostname };
+  }
+  const session = await chrome.runtime.sendMessage({ command: "getToken" });
+  if (!session || !session.token) {
+    console.log('Apex Debugger:', 'no Salesforce session found. Log in again, or save a session id in the extension options.');
+    return { token: undefined, host: location.hostname };
+  }
+  return { token: session.token, host: session.host || location.hostname };
+}
 
 async function getToken() {
-  if(sid){
-    return sid
-  }
-  console.log('Apex Debugger: ','Session ID not found in cookie if httpOnly is enabled, you need to manually set it in the extension options')
-  const result = await chrome.runtime.sendMessage({
-    command: "getToken"
-  })
-  if(!result.token){
-   console.log('Apex Debugger:', 'Token is not set in the extension options see here how to get it', 'https://www.decodeforce.com/blogs/get-session-id-in-apex')
-   console.log('After getting it set it in the extension options (last field) and try again')
-  }
-  return result.token
+  return (await getSession()).token;
 }
 
 function parseDiscoCookie() {
