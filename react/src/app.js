@@ -47,10 +47,9 @@ const theme = createMuiTheme({
   palette: {
     primary: teal,
     secondary: indigo,
-    type: 'dark',
     background: {
-      default: '#d6c2c2',
-      paper: '#d6c2c2'
+      default: '#fff',
+      paper: '#fff'
     }
   }
 })
