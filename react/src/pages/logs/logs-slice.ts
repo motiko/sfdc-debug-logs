@@ -75,6 +75,8 @@ export interface LogsPageState {
   search: SearchState
   filters: ListFilters
   logging: LoggingState
+  // Logs checked in the list for "Delete selected" (ids of loaded logs).
+  selectedIds: Record<string, true>
   // A confirmation ("Deleted 36 logs"); key changes for each new one.
   toast: { key: number; message: string } | null
   // Persisted (see persisted-settings.ts):
@@ -103,6 +105,7 @@ export const initialLogsPageState: LogsPageState = {
     busy: false,
     error: null
   },
+  selectedIds: {},
   toast: null,
   maxLogs: PAGE_SIZE,
   sideLogsOpen: true,
@@ -130,6 +133,10 @@ const logsSlice = createSlice({
               logs.filter(log => !before.has(log.Id)).map(log => [log.Id, true])
             )
       state.logs = logs
+      // A selection only covers logs that are still listed.
+      const listed = new Set(logs.map(log => log.Id))
+      for (const id of Object.keys(state.selectedIds))
+        if (!listed.has(id)) delete state.selectedIds[id]
       state.listStatus = 'ready'
       state.loadedAt = at
     },
@@ -139,6 +146,42 @@ const logsSlice = createSlice({
     },
     setMaxLogs(state, action: PayloadAction<number>) {
       state.maxLogs = Math.max(1, Math.floor(action.payload) || PAGE_SIZE)
+    },
+
+    // Selection (for "Delete selected").
+    toggleLogSelected(state, action: PayloadAction<string>) {
+      if (state.selectedIds[action.payload])
+        delete state.selectedIds[action.payload]
+      else if (state.logs.some(log => log.Id === action.payload))
+        state.selectedIds[action.payload] = true
+    },
+    // Checks (or unchecks) these logs, e.g. every shown log.
+    setLogsSelected(
+      state,
+      action: PayloadAction<{ ids: string[]; selected: boolean }>
+    ) {
+      const listed = new Set(state.logs.map(log => log.Id))
+      for (const id of action.payload.ids) {
+        if (!action.payload.selected) delete state.selectedIds[id]
+        else if (listed.has(id)) state.selectedIds[id] = true
+      }
+    },
+    clearSelection(state) {
+      state.selectedIds = {}
+    },
+    // Logs deleted in Salesforce: gone from the list, the selection, the
+    // cached bodies and the search results.
+    logsDeleted(state, action: PayloadAction<string[]>) {
+      const gone = new Set(action.payload)
+      state.logs = state.logs.filter(log => !gone.has(log.Id))
+      for (const id of gone) {
+        delete state.selectedIds[id]
+        delete state.newIds[id]
+        delete state.logBodies[id]
+        delete state.bodyLoading[id]
+        delete state.bodyErrors[id]
+        if (state.search.matches) delete state.search.matches[id]
+      }
     },
 
     // Log bodies.
@@ -300,6 +343,10 @@ export const {
   logsLoaded,
   logsFailed,
   setMaxLogs,
+  toggleLogSelected,
+  setLogsSelected,
+  clearSelection,
+  logsDeleted,
   bodyRequested,
   bodyLoaded,
   bodyFailed,

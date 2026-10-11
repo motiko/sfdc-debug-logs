@@ -3,7 +3,11 @@
 import type { AppSalesforce } from '../../global-sf'
 import type { AppDispatch, RootState } from '../../store'
 import { explainError } from '../../core/salesforce/errors'
-import type { DeleteProgress } from '../../core/salesforce/client'
+import type {
+  DeleteByIdProgress,
+  DeleteByIdResult,
+  DeleteProgress
+} from '../../core/salesforce/client'
 import {
   bodyFailed,
   bodyLoaded,
@@ -11,6 +15,7 @@ import {
   loggingBusy,
   loggingFailed,
   loggingStatus,
+  logsDeleted,
   logsFailed,
   logsLoaded,
   logsRequested,
@@ -256,14 +261,29 @@ export function deleteLogs(
         : { scope: 'user', userId: await sf.getUserId() },
       { onProgress }
     )
-    dispatch(
-      showToast(
-        deleted === 1
-          ? 'Deleted 1 log'
-          : `Deleted ${deleted.toLocaleString()} logs`
-      )
-    )
+    dispatch(showToast(deletedMessage(deleted)))
     await dispatch(loadLogs())
     return deleted
+  }
+}
+
+export const deletedMessage = (count: number) =>
+  count === 1 ? 'Deleted 1 log' : `Deleted ${count.toLocaleString()} logs`
+
+// Deletes exactly these logs (the list's selection, or the open log), takes
+// them out of the list, the selection and the cached bodies, and confirms.
+// Resolves with what was deleted and what Salesforce refused, for the dialog
+// to report; rejects when no request got through.
+export function deleteLogsById(
+  ids: string[],
+  onProgress: (progress: DeleteByIdProgress) => void = () => {}
+): Thunk<Promise<DeleteByIdResult>> {
+  return async (dispatch, getState, sf) => {
+    const result = await sf.deleteLogsById(ids, { onProgress })
+    if (result.deleted.length) {
+      dispatch(logsDeleted(result.deleted))
+      dispatch(showToast(deletedMessage(result.deleted.length)))
+    }
+    return result
   }
 }
