@@ -1047,11 +1047,14 @@ async function gotoSalesforce(ctx, page, path) {
 }
 
 // The app's URL as the extension builds it (core/page-session.ts).
+// `host` other than the org's: the real session id is never sent there; a
+// placeholder is used instead, so an unknown host can't receive the session.
 function appUrl(ctx, { host } = {}) {
   const { session, ext } = ctx
+  const sid = host ? 'ux-audit-placeholder-session' : session.sessionId
   return (
     `chrome-extension://${ext.extensionId}/html/app.html?oid=${session.orgId}&uid=${session.userId}` +
-    `&sid=${encodeURIComponent(session.sessionId)}&host=${encodeURIComponent(host || new URL(session.instance).hostname)}`
+    `&sid=${encodeURIComponent(sid)}&host=${encodeURIComponent(host || new URL(session.instance).hostname)}`
   )
 }
 
@@ -1119,10 +1122,11 @@ async function appView(ctx) {
     await page.close()
   }
 
-  // Error state: an org host that doesn't resolve.
+  // Error state: a host that can never resolve (.invalid, RFC 2606), with a
+  // placeholder session id.
   {
     const page = await newPage(ctx)
-    await page.goto(appUrl(ctx, { host: 'ux-audit-unreachable.my.salesforce.com' }), { waitUntil: 'domcontentloaded' })
+    await page.goto(appUrl(ctx, { host: 'ux-audit.invalid' }), { waitUntil: 'domcontentloaded' })
     await page.waitForFunction(() => /error|fail/i.test(document.body.innerText), { timeout: 20000 }).catch(() => {})
     await delay(300)
     await capture(ctx, page, V, 'error-unreachable-org')
