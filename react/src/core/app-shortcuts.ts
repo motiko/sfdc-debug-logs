@@ -11,6 +11,7 @@ export type ShortcutId =
   | 'nextRow'
   | 'previousRow'
   | 'openRow'
+  | 'selectRow'
   | 'nextLog'
   | 'previousLog'
   | 'nextError'
@@ -68,7 +69,13 @@ export const APP_SHORTCUTS: Shortcut[] = [
   {
     id: 'openRow',
     keys: ['Enter'],
-    description: 'Open the selected log',
+    description: 'Open the focused log',
+    group: 'Log list'
+  },
+  {
+    id: 'selectRow',
+    keys: [' ', 'x'],
+    description: 'Check or uncheck the focused log',
     group: 'Log list'
   },
   {
@@ -127,6 +134,7 @@ export function keyLabel(key: string, mac = isMac()): string[] {
     Escape: 'Esc',
     ArrowDown: '↓',
     ArrowUp: '↑',
+    ' ': 'Space',
     Enter: 'Enter'
   }
   return key

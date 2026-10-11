@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Alert, Box, Button, LinearProgress, Link } from '@mui/material'
 import ListIcon from '@mui/icons-material/ViewList'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import InboxIcon from '@mui/icons-material/Inbox'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import CloudOffIcon from '@mui/icons-material/CloudOff'
@@ -12,18 +13,26 @@ import LogList, { LogListSkeleton } from './components/log-list'
 import LogViewer from './components/log-viewer'
 import AppearancePanel from './dialogs/appearance-panel'
 import DeleteLogsDialog from './dialogs/delete-logs-dialog'
+import DeleteSelectedDialog from './dialogs/delete-selected-dialog'
 import ShortcutsDialog from './dialogs/shortcuts-dialog'
 import IconAction from '../../ui/components/icon-action'
 import StatePanel from '../../ui/components/state-panel'
 import Toast from '../../ui/components/toast'
 import { useResolvedColorMode } from '../../ui/color-mode'
 import { clearFilters, clearSearch, loadLogs, startLogging } from './actions'
-import { hideToast, toggleSideLogs } from './logs-slice'
+import {
+  clearSelection,
+  hideToast,
+  setLogsSelected,
+  toggleLogSelected,
+  toggleSideLogs
+} from './logs-slice'
 import {
   filterLogs,
   formatClock,
   formatRelative,
   shortOperation,
+  shownSelection,
   sortLogs
 } from './utils'
 import { openLog, useOpenLogId } from '../../hash-route'
@@ -47,11 +56,14 @@ export default function LogsPage() {
     sideLogsOpen,
     newIds,
     toast,
-    loadedAt
+    loadedAt,
+    selectedIds
   } = page
   const colorMode = useResolvedColorMode(page.colorMode)
   const [sort, setSort] = useState({ key: 'time', direction: 'desc' })
   const [dialog, setDialog] = useState(null)
+  // The logs "Delete selected…" or "Delete log…" asks to delete.
+  const [deleteIds, setDeleteIds] = useState([])
   const searchRef = useRef(null)
   const listRef = useRef(null)
   const viewerRef = useRef(null)
@@ -65,6 +77,21 @@ export default function LogsPage() {
     () => sortLogs(filterLogs(logs, filters, search.matches), sort),
     [logs, filters, search.matches, sort]
   )
+  const selection = useMemo(
+    () => shownSelection(shownLogs, selectedIds),
+    [shownLogs, selectedIds]
+  )
+  const confirmDelete = ids => {
+    setDeleteIds(ids)
+    setDialog('delete-selected')
+  }
+  // A deleted open log closes; the list gets the focus back.
+  const afterDelete = deleted => {
+    if (logId && deleted.includes(logId)) {
+      openLog(null)
+      setTimeout(() => listRef.current && listRef.current.focusRow(), 0)
+    }
+  }
   const openRecord = logs.find(log => log.Id === logId)
   const showUser = useMemo(
     () => new Set(logs.map(l => l.LogUser && l.LogUser.Name)).size > 1,
@@ -167,6 +194,12 @@ export default function LogsPage() {
         matches={search.matches}
         showUser={showUser}
         loading={loading}
+        selectedIds={selectedIds}
+        selection={selection}
+        onToggleSelected={id => dispatch(toggleLogSelected(id))}
+        onSelectAll={selected =>
+          dispatch(setLogsSelected({ ids: shownLogs.map(l => l.Id), selected }))
+        }
       />
     )
   }
@@ -224,6 +257,13 @@ export default function LogsPage() {
         >
           Refresh failed. {listError.title}
         </Alert>
+      ) : null}
+      {!logId && selection.ids.length > 0 ? (
+        <SelectionBar
+          count={selection.ids.length}
+          onClear={() => dispatch(clearSelection())}
+          onDelete={() => confirmDelete(selection.ids)}
+        />
       ) : null}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>{listContent}</Box>
       {logs.length > 0 ? (
@@ -319,6 +359,7 @@ export default function LogsPage() {
             log={openRecord}
             colorMode={colorMode}
             initialFind={search.matches !== null ? search.term : ''}
+            onDelete={() => confirmDelete([logId])}
           />
         ) : null}
       </Box>
@@ -332,11 +373,64 @@ export default function LogsPage() {
         onClose={() => setDialog(null)}
         host={host}
       />
+      <DeleteSelectedDialog
+        open={dialog === 'delete-selected'}
+        ids={deleteIds}
+        logs={logs}
+        onClose={() => setDialog(null)}
+        onDeleted={afterDelete}
+        host={host}
+      />
       <ShortcutsDialog
         open={dialog === 'help'}
         onClose={() => setDialog(null)}
       />
       <Toast toast={toast} onClose={() => dispatch(hideToast())} />
+    </Box>
+  )
+}
+
+// Above the table while logs are checked: how many, Clear selection and
+// "Delete selected…", which asks before deleting anything.
+function SelectionBar({ count, onClear, onDelete }) {
+  return (
+    <Box
+      role="toolbar"
+      aria-label="Selected logs"
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 1,
+        px: 1.5,
+        py: 0.5,
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: 'action.selected',
+        fontSize: 13
+      }}
+    >
+      <Box
+        component="span"
+        aria-live="polite"
+        data-testid="selected-count"
+        sx={{ fontWeight: 600 }}
+      >
+        {count === 1 ? '1 log selected' : `${count} logs selected`}
+      </Box>
+      <Button size="small" onClick={onClear}>
+        Clear selection
+      </Button>
+      <Box sx={{ flex: 1 }} />
+      <Button
+        size="small"
+        variant="outlined"
+        color="error"
+        startIcon={<DeleteIcon />}
+        onClick={onDelete}
+      >
+        Delete selected…
+      </Button>
     </Box>
   )
 }

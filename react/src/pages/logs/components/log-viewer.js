@@ -29,6 +29,7 @@ import TuneIcon from '@mui/icons-material/Tune'
 import DownloadIcon from '@mui/icons-material/Download'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import CloseIcon from '@mui/icons-material/Close'
+import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore'
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess'
 import ReportIcon from '@mui/icons-material/ReportProblemOutlined'
@@ -72,7 +73,7 @@ const FIND_DELAY_MS = 200
 // its first error, any other log at the top. The ref offers the page's
 // shortcuts: focusFind(), nextError(), nextDebug().
 const LogViewer = forwardRef(function LogViewer(
-  { logId, log, colorMode, initialFind },
+  { logId, log, colorMode, initialFind, onDelete },
   ref
 ) {
   const dispatch = useDispatch()
@@ -319,6 +320,13 @@ const LogViewer = forwardRef(function LogViewer(
             target="_blank"
             rel="noreferrer"
           />
+          {onDelete ? (
+            <IconAction
+              label="Delete log…"
+              icon={<DeleteIcon />}
+              onClick={onDelete}
+            />
+          ) : null}
           <IconAction
             label="Close log"
             shortcut="Esc"
