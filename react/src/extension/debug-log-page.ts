@@ -3,29 +3,17 @@
 // filters and expandable USER_DEBUG values (HTML, JSON, Apex objects).
 import jsBeautify from 'js-beautify'
 import { API_PATH, sfRequest } from '../core/page-session'
+import {
+  logToBlocks,
+  splitIds,
+  splitUserDebug,
+  type LogBlock
+} from './classic-log'
+
+// Log text is untrusted (System.debug of a public Site's input, record data):
+// it only ever reaches the page as text nodes, never as HTML.
 
 let keyPrefixes: string[] = []
-const idRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g
-const logEntryToDivTagClass = [
-  { logEntry: '|USER_DEBUG', divClass: 'debug' },
-  { logEntry: '|SYSTEM_', divClass: 'system systemMethodLog searchable' },
-  { logEntry: '|SOQL_EXECUTE_', divClass: 'soql searchable wrap' },
-  { logEntry: '|SOQL_EXECUTE_END', divClass: 'soql searchable wrap' },
-  { logEntry: '|METHOD_', divClass: 'method methodLog searchable' },
-  { logEntry: '|CONSTRUCTOR_', divClass: 'method methodLog searchable' },
-  { logEntry: '|EXCEPTION_', divClass: 'err searchable' },
-  { logEntry: '|FATAL_ERROR', divClass: 'err searchable' },
-  { logEntry: '|CODE_UNIT', divClass: 'method searchable' },
-  { logEntry: '|CALLOUT', divClass: 'callout searchable' },
-  { logEntry: '|VALIDATION_', divClass: 'method searchable' },
-  { logEntry: '|EXECUTION_', divClass: 'rest searchable' },
-  { logEntry: '|DML_BEGIN', divClass: 'rest searchable' },
-  { logEntry: '|DML_END', divClass: 'rest searchable' },
-  {
-    logEntry: '|ENTERING_MANAGED_PKG',
-    divClass: 'system systemMethodLog searchable'
-  }
-]
 
 function setSetting(key: string, value: any) {
   localStorage.setItem(key, value)
@@ -37,14 +25,15 @@ function getSetting(key: string): string | null {
 
 function init() {
   document.body.addEventListener('keyup', keyUpListener)
-  const codeElement = document.querySelector('pre')
-  const debugText = escapeHtml(codeElement.textContent)
-  const res = debugText
-    .split('\n')
-    .map(addTagsToKnownLines)
-    .reduce(toMultilineDivs)
   const codeBlock = document.querySelector('pre')
-  codeBlock.innerHTML = '<div class="monokai" id="debugText">' + res + '</div>'
+  const debugText = document.createElement('div')
+  debugText.className = 'monokai'
+  debugText.id = 'debugText'
+  const showTimestamps = JSON.parse(getSetting('showTimeStamp'))
+  for (const block of logToBlocks(codeBlock.textContent, showTimestamps)) {
+    debugText.append(...renderBlock(block))
+  }
+  codeBlock.replaceChildren(debugText)
   document.querySelector<HTMLElement>('.oLeft').style.display = 'none'
   const oRight = document.querySelector('.oRight')
   oRight.insertBefore(codeBlock, oRight.firstChild)
@@ -226,19 +215,49 @@ function clickOn(nodeElement: Element) {
   nodeElement.dispatchEvent(event)
 }
 
+// Text with each Salesforce id as a link. legalOnly: other ids stay text;
+// otherwise every id is linked and ids of unknown objects are disabled once
+// the org's key prefixes are known (see removeIllegalIdLinks).
+function withIdLinks(text: string, legalOnly = false): Node[] {
+  return splitIds(text).map(part => {
+    if (typeof part === 'string') return document.createTextNode(part)
+    const legal = isLegalId(part.id)
+    if (legalOnly && !legal) return document.createTextNode(part.id)
+    const link = document.createElement('a')
+    link.href = '/' + part.id
+    link.className = keyPrefixes.length && !legal ? 'disableClick' : 'idLink'
+    link.textContent = part.id
+    return link
+  })
+}
+
+function renderBlock(block: LogBlock): Node[] {
+  const nodes = block.parts.flatMap(part =>
+    typeof part === 'string' ? withIdLinks(part) : renderBlock(part)
+  )
+  if (block.className === null) return nodes
+  const div = document.createElement('div')
+  div.className = block.className
+  div.append(...nodes)
+  return [div]
+}
+
+function span(className: string, text: string) {
+  const element = document.createElement('span')
+  element.className = className
+  element.append(...withIdLinks(text))
+  return element
+}
+
 function addExpansionButtonsForUserDebugDivs(userDebugDiv: HTMLElement) {
-  const debugLevelMatch = userDebugDiv.innerHTML.match(/\[\d+\](\|[A-Z]+\|)/)
-  if (!debugLevelMatch) return
-  const debugLevel = debugLevelMatch[1]
-  const debugParts = userDebugDiv.innerHTML.split(debugLevel)
-  userDebugDiv.innerHTML =
-    '<span class="debugHeader searchable">' +
-    debugParts[0] +
-    debugLevel +
-    '</span> <span class="debugContent searchable">' +
-    debugParts[1] +
-    '</span>'
-  const debugText = unescapeHtml(debugParts[1])
+  const userDebug = splitUserDebug(userDebugDiv.textContent)
+  if (!userDebug) return
+  userDebugDiv.replaceChildren(
+    span('debugHeader searchable', userDebug.header),
+    ' ',
+    span('debugContent searchable', userDebug.message)
+  )
+  const debugText = userDebug.message
   if (
     looksLikeHtml(debugText) ||
     looksLikeSfdcObject(debugText) ||
@@ -251,61 +270,6 @@ function addExpansionButtonsForUserDebugDivs(userDebugDiv: HTMLElement) {
     buttonExpand.textContent = '+'
     userDebugDiv.insertBefore(buttonExpand, userDebugDiv.children[0])
   }
-}
-
-function toMultilineDivs(prevVal: string, curLine: string, index: number) {
-  if (index == 1) {
-    // handling first line
-    return '<div class="rest">' + prevVal + '</div>' + curLine
-  } else if (
-    curLine.lastIndexOf('</div>') == curLine.length - '</div>'.length &&
-    curLine.length - '</div>'.length != -1
-  ) {
-    // current line ends with <div> tag all good
-    return prevVal + curLine
-  } else {
-    // expanding <div> to mutliline (e.g. LIMIT_USAGE_FOR_NS is multiline and cant recognise each line separately or USER_DEBUG with /n)
-    return (
-      prevVal.substr(0, prevVal.length - '</div>'.length) +
-      '\n' +
-      curLine +
-      '</div>'
-    )
-  }
-}
-
-function addTagsToKnownLines(curLine: string) {
-  if (curLine.indexOf('Execute Anonymous:') === 0) {
-    return '<div class="system searchable">' + curLine + '</div>'
-  }
-  if (curLine.search(idRegex) > -1) {
-    curLine = curLine.replace(idRegex, '<a href="/$&" class="idLink">$&</a>')
-  }
-  const timeStampIndex = curLine.indexOf('|')
-  let cutLine: string
-  if (timeStampIndex > -1) {
-    cutLine = curLine.substr(timeStampIndex + 1)
-  }
-  let resultTag = ''
-  for (let i = 0; i < logEntryToDivTagClass.length; i++) {
-    if (curLine.indexOf(logEntryToDivTagClass[i].logEntry) > -1) {
-      resultTag =
-        '<div class="' +
-        logEntryToDivTagClass[i].divClass +
-        '">' +
-        (JSON.parse(getSetting('showTimeStamp')) ? curLine : cutLine) +
-        '</div>'
-      break
-    }
-  }
-  if (resultTag) {
-    return resultTag
-  }
-  const splitedDebugLine = curLine.split('|')
-  if (!splitedDebugLine || splitedDebugLine.length <= 2) {
-    return curLine
-  }
-  return '<div class="rest searchable">' + curLine + '</div>'
 }
 
 function haltEvent(event: Event) {
@@ -345,39 +309,27 @@ function toggleHidden(className: string) {
 
 function expandUserDebug() {
   const debugNode = this.nextElementSibling.nextElementSibling
-  const oldHtmlVal = debugNode.innerHTML
+  const collapsedNodes = [...debugNode.childNodes]
   const debugNodeText = debugNode.textContent
+  let expanded = debugNodeText
   if (looksLikeHtml(debugNodeText)) {
-    debugNode.textContent = jsBeautify.html(debugNodeText)
+    expanded = jsBeautify.html(debugNodeText)
   } else if (looksLikeSfdcObject(debugNodeText)) {
-    debugNode.textContent = jsBeautify.js(sfdcObjectBeautify(debugNodeText))
+    expanded = jsBeautify.js(sfdcObjectBeautify(debugNodeText))
   } else if (isJsonString(debugNodeText)) {
-    debugNode.textContent = jsBeautify.js(debugNodeText)
+    expanded = jsBeautify.js(debugNodeText)
   }
-  if (debugNodeText.search(idRegex) > -1) {
-    debugNode.innerHTML = debugNode.textContent.replace(
-      idRegex,
-      withLegalIdLink
-    )
-  }
+  debugNode.replaceChildren(...withIdLinks(expanded, true))
   this.textContent = '-'
   this.classList.add('expanded')
   this.classList.remove('collapsed')
   this.onclick = function () {
-    debugNode.innerHTML = oldHtmlVal
+    debugNode.replaceChildren(...collapsedNodes)
     this.classList.remove('expanded')
     this.classList.add('collapsed')
     this.textContent = '+'
     this.onclick = expandUserDebug
     this.onmouseup = haltEvent
-  }
-}
-
-function withLegalIdLink(id: string) {
-  if (isLegalId(id)) {
-    return '<a href="/' + id + '" class="idLink">' + id + '</a>'
-  } else {
-    return id
   }
 }
 
@@ -407,26 +359,6 @@ function isJsonString(str: string) {
     return false
   }
   return true
-}
-
-function escapeHtml(text: string) {
-  const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  }
-  return text.replace(/[&<>"']/g, m => map[m])
-}
-
-function unescapeHtml(str: string) {
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
 }
 
 init()
