@@ -8,7 +8,7 @@
 //
 //   node ux-audit.mjs [--out <dir>] [--views app,classic,options]
 //                     [--sizes 1440x900,1024x768] [--compare <previous out dir>]
-//                     [--mock]
+//                     [--mock]   (views also: auto-refresh)
 //
 // Output (default e2e/ux-artifacts/, gitignored):
 //   <view>-<state>@<W>x<H>.png   screenshot of each state
@@ -46,7 +46,7 @@ const AXE_PATH = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 const { values: args } = parseArgs({
   options: {
     out: { type: 'string', default: join(HERE, 'ux-artifacts') },
-    views: { type: 'string', default: 'app,classic,options' },
+    views: { type: 'string', default: 'app,classic,options,auto-refresh' },
     sizes: { type: 'string', default: '1440x900,1024x768' },
     compare: { type: 'string' },
     mock: { type: 'boolean', default: process.env.SF_MOCK === '1' }
@@ -1606,6 +1606,208 @@ async function optionsView(ctx) {
   await page.close()
 }
 
+// --- Auto-refresh of the app's log list (header control, menu, states) -----
+// Its states are reached in the browser only: the trace flag query is
+// answered as "no flag" (paused, logging off), the log queries are failed
+// (failing), and visibilityState is overridden (paused, in the background);
+// nothing is changed in the org. Only one new log is created, with
+// anonymous Apex, for the New badge. Auto-refresh is set back to Off.
+
+async function autoRefreshView(ctx) {
+  const V = 'auto-refresh'
+  const { logs, sf } = ctx
+  const page = await newPage(ctx)
+  let mode = 'normal' // 'no-logging' | 'fail-logs'
+  await page.setRequestInterception(true)
+  page.on('request', req => {
+    const url = decodeURIComponent(req.url()).replace(/\+/g, ' ')
+    if (mode === 'no-logging' && /FROM TraceFlag/i.test(url) && /ExpirationDate/.test(url)) {
+      return req
+        .respond({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ size: 0, totalSize: 0, done: true, records: [] })
+        })
+        .catch(() => {})
+    }
+    if (mode === 'fail-logs' && /FROM ApexLog/i.test(url)) return req.abort('internetdisconnected').catch(() => {})
+    req.continue().catch(() => {})
+  })
+  const scheme = value => page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value }])
+  // Its tooltip's text becomes a native title while closed: match the label.
+  const control = () => byName(page, [/auto-refresh: (off|\d+ s)/i], { roles: ['button'] })
+  const status = () => page.$eval('[data-testid="auto-refresh-status"]', el => el.textContent).catch(() => '')
+  const waitForStatus = (re, timeout = 30000) =>
+    page
+      .waitForFunction(
+        s => new RegExp(s, 'i').test(document.querySelector('[data-testid="auto-refresh-status"]')?.textContent || ''),
+        { timeout, polling: 250 },
+        re.source
+      )
+      .then(() => true)
+      .catch(() => false)
+  const choose = async label => {
+    const button = await control()
+    if (!button) return summary.errors.push('auto-refresh: no control found')
+    await safeClick(button)
+    await delay(400)
+    const item = await page.$(`::-p-aria([name="${label}"][role="menuitemradio"])`)
+    if (!item) return summary.errors.push(`auto-refresh: no menu item ${label}`)
+    await item.click()
+    await page.waitForSelector('[role="menu"]', { hidden: true }).catch(() => {})
+    await delay(300)
+  }
+  const load = async () => {
+    await page.goto(appUrl(ctx), { waitUntil: 'networkidle2' })
+    await page.waitForSelector(`[data-log-id="${logs.main.Id}"]`, { timeout: 30000 }).catch(() => {})
+    await delay(800)
+  }
+
+  await scheme('light')
+  await load()
+  await choose('Off') // a previous size may have left it on
+  await capture(ctx, page, V, 'off')
+
+  // The menu, opened by keyboard: where focus goes and whether it returns.
+  {
+    const button = await control()
+    if (button) {
+      const kb = { dialog: 'auto-refresh menu' }
+      await button.focus()
+      await page.keyboard.press('Enter')
+      await delay(500)
+      kb.opened = Boolean(await page.$('[role="menu"]'))
+      kb.focusMovedIntoMenu = await page.evaluate(() => Boolean(document.activeElement?.closest('[role="menu"]')))
+      kb.firstFocus = await describeActive(page)
+      await page.keyboard.press('ArrowDown')
+      await delay(150)
+      kb.afterArrowDown = await describeActive(page)
+      await capture(ctx, page, V, 'menu')
+      await scheme('dark')
+      await delay(400)
+      await capture(ctx, page, V, 'menu-dark')
+      await scheme('light')
+      await page.keyboard.press('Escape')
+      await delay(500)
+      kb.closedWithEscape = !(await page.$('[role="menu"]'))
+      kb.focusReturnedToTrigger = await button.evaluate(el => document.activeElement === el)
+      kb.focusVisible = await focusIndicatorVisible(page)
+      writeJson(`${V}-keyboard-menu@${ctx.size.label}.json`, kb)
+      summary.keyboard[`${V}-menu@${ctx.size.label}`] = {
+        dialog: kb.dialog,
+        focusMovedIntoDialog: kb.focusMovedIntoMenu,
+        focusReturnedToTrigger: kb.focusReturnedToTrigger
+      }
+    }
+  }
+
+  // Running.
+  await choose('Every 10 s')
+  if (!(await waitForStatus(/every 10/, 10000))) summary.errors.push(`auto-refresh: not running (${await status()})`)
+  await capture(ctx, page, V, 'running')
+  {
+    const button = await control()
+    if (button) {
+      await button.hover()
+      await delay(900)
+      await capture(ctx, page, V, 'running-tooltip')
+      await page.mouse.move(0, 0)
+      await delay(300)
+    }
+  }
+
+  // A new log arrives: the New badge on top.
+  {
+    const before = await page.$$eval('[data-log-id]', rows => rows.map(r => r.dataset.logId))
+    await sf.executeAnonymous(`System.debug('UXAUTOREFRESH${Date.now()}');`)
+    const arrived = await page
+      .waitForFunction(
+        known => [...document.querySelectorAll('[data-log-id]')].some(r => !known.includes(r.dataset.logId)),
+        { timeout: 45000, polling: 250 },
+        before
+      )
+      .then(() => true)
+      .catch(() => false)
+    if (!arrived) summary.errors.push('auto-refresh: the new log was not listed')
+    await capture(ctx, page, V, 'new-log')
+    await scheme('dark')
+    await delay(400)
+    await capture(ctx, page, V, 'new-log-dark')
+    await scheme('light')
+    // The badge in the compact list, next to an open log.
+    await page.evaluate(id => (location.hash = `#/logs/${id}`), logs.main.Id)
+    await delay(1500)
+    await capture(ctx, page, V, 'new-log-compact')
+    await page.evaluate(() => (location.hash = ''))
+    await delay(800)
+  }
+
+  // Paused while the tab is in the background.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  if (!(await waitForStatus(/background/, 5000)))
+    summary.errors.push(`auto-refresh: no hidden pause (${await status()})`)
+  await capture(ctx, page, V, 'paused-hidden')
+  await page.evaluate(() => {
+    delete document.visibilityState
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+
+  // Failing: the log queries can't reach Salesforce; then a failed Refresh
+  // shows the list's error banner, which the next good poll clears.
+  mode = 'fail-logs'
+  if (!(await waitForStatus(/could not|can.t reach|trying again/, 30000)))
+    summary.errors.push(`auto-refresh: no failing state (${await status()})`)
+  await capture(ctx, page, V, 'failing')
+  await scheme('dark')
+  await delay(400)
+  await capture(ctx, page, V, 'failing-dark')
+  await scheme('light')
+  const refresh = await byName(page, [/^refresh logs/i], { roles: ['button'] })
+  if (refresh) {
+    await safeClick(refresh)
+    await page.waitForSelector('[role="alert"]', { timeout: 10000 }).catch(() => {})
+    await delay(300)
+    await capture(ctx, page, V, 'failing-refresh-error')
+  }
+  mode = 'normal'
+  const cleared = await page
+    .waitForFunction(
+      () =>
+        !document.querySelector('[role="alert"]') &&
+        !/could not|trying again/i.test(
+          document.querySelector('[data-testid="auto-refresh-status"]')?.textContent || ''
+        ),
+      {
+        timeout: 60000,
+        polling: 250
+      }
+    )
+    .then(() => true)
+    .catch(() => false)
+  summary.autoRefreshErrorClearedByPoll = cleared
+  if (!cleared) summary.errors.push('auto-refresh: a good poll did not clear the error banner')
+  await capture(ctx, page, V, 'recovered')
+
+  // Paused because logging is off (the trace flag query finds none).
+  mode = 'no-logging'
+  await load()
+  if (!(await waitForStatus(/logging is off/, 10000)))
+    summary.errors.push(`auto-refresh: no logging pause (${await status()})`)
+  await capture(ctx, page, V, 'paused-logging')
+  await scheme('dark')
+  await delay(400)
+  await capture(ctx, page, V, 'paused-logging-dark')
+  await scheme('light')
+  mode = 'normal'
+
+  await choose('Off')
+  summary.pageErrors = { ...(summary.pageErrors || {}), [`${V}@${ctx.size.label}`]: page.errors.map(redact) }
+  await page.close()
+}
+
 // ---------------------------------------------------------------------------
 
 function compareWith(previousDir) {
@@ -1646,7 +1848,7 @@ async function main() {
     for (const [i, size] of SIZES.entries()) {
       const ctx = { ext, session, sf, logs, size, primary: i === 0 }
       for (const view of VIEWS) {
-        const fn = { app: appView, classic: classicViews, options: optionsView }[view]
+        const fn = { app: appView, classic: classicViews, options: optionsView, 'auto-refresh': autoRefreshView }[view]
         if (!fn) throw new Error(`unknown view ${view}`)
         log(`--- ${view} @ ${size.label}`)
         try {
