@@ -17,7 +17,14 @@ import { fileURLToPath } from 'node:url'
 import { login, frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { Salesforce } from './lib/salesforce.mjs'
 import { launchWithExtension } from './lib/browser.mjs'
-import { logThemes, CLASSIC_CATEGORY_CLASS, eventCategory, computedCategoryStyle, toRgb } from './lib/styles.mjs'
+import {
+  logThemes,
+  CLASSIC_CATEGORY_CLASS,
+  eventCategory,
+  computedCategoryStyle,
+  toRgb,
+  uiColors
+} from './lib/styles.mjs'
 
 const MARKER = `E2E_MARKER_${Date.now()}`
 // Log text is untrusted (System.debug of a public Site's input): the views must
@@ -41,19 +48,29 @@ for (Integer i = 0; i < 2500; i++) { System.debug('${LONG_MARKER} line ' + i); }
 System.debug('${LONG_MARKER} end');
 `
 
+// A log over 2.5 MB: earlier versions hid such logs behind a default size
+// filter (docs/ux/baseline-review.md B1). About 3 MB of USER_DEBUG lines.
+const BIG_MARKER = `E2E_BIG_${Date.now()}`
+const BIG_APEX = `
+String filler = '${BIG_MARKER} ' + 'abcdefghij'.repeat(100);
+for (Integer i = 0; i < 2800; i++) { System.debug(filler); }
+`
+
 const ARTIFACTS = join(dirname(fileURLToPath(import.meta.url)), 'artifacts')
 
-let session, sf, log, longLog, ext
+let session, sf, log, longLog, bigLog, ext
 
 before(async () => {
   session = await login()
   sf = new Salesforce(session)
   await sf.ensureLogging()
   const since = new Date(Date.now() - 60000)
+  await sf.executeAnonymous(BIG_APEX)
   await sf.executeAnonymous(LONG_APEX)
   await sf.executeAnonymous(APEX)
   log = await sf.findLog(MARKER, { since })
   longLog = await sf.findLog(LONG_MARKER, { since })
+  bigLog = await sf.findLog(BIG_MARKER, { since })
   // No token is saved on the options page: the extension has to find the
   // session itself, from the HttpOnly sid cookie that frontdoor.jsp sets.
   ext = await launchWithExtension()
@@ -396,24 +413,54 @@ test('React log viewer', async t => {
   // Network failures (e.g. unreachable optional services) are not page bugs.
   const errors = collectPageErrors(app)
   await app.setViewport({ width: 1400, height: 1000 })
+  // Menus and selects close when their page loses focus: keep the app in front.
+  await app.bringToFront()
+  // Start in light mode (the dark mode check switches explicitly), without
+  // animations, so menus and panels are where they end up when clicked.
+  await app.emulateMediaFeatures([
+    { name: 'prefers-color-scheme', value: 'light' },
+    { name: 'prefers-reduced-motion', value: 'reduce' }
+  ])
 
-  const rows = () => app.$$eval('tbody tr', trs => trs.map(tr => tr.innerText))
-  // A select: MUI renders a combobox labelled by its label and its current
-  // value, so match the label part only.
-  const combobox = label =>
-    `::-p-xpath(//*[@role="combobox"][starts-with(@aria-labelledby, //label[normalize-space()="${label}"]/@id)])`
-  // A button of the open dialog, by its text (its accessible name is
-  // upper-cased by the button's text-transform).
-  const dialogButton = text => `::-p-xpath(//*[@role="dialog"]//button[normalize-space()="${text}"])`
-  const closeButton = dialogButton('Close')
+  // The log grid's rows carry their log id.
+  const rowIds = () => app.$$eval('[role="grid"] [data-log-id]', rows => rows.map(r => r.dataset.logId))
+  const rowTexts = () => app.$$eval('[role="grid"] [data-log-id]', rows => rows.map(r => r.innerText))
+  const listCount = () => app.$eval('[data-testid="list-count"]', el => el.textContent)
+  // A select: MUI renders a combobox named by its label.
+  const combobox = label => `::-p-aria([name="${label}"][role="combobox"])`
+  const option = text => `::-p-xpath(//li[@role="option" and normalize-space()="${text}"])`
+  const chooseOption = async (label, text) => {
+    await app.click(combobox(label))
+    await app.waitForSelector(option(text), { visible: true })
+    await app.click(option(text))
+    // Until the menu and its backdrop are gone, clicks land on them.
+    await app.waitForSelector('[role="listbox"]', { hidden: true })
+    await delay(200)
+  }
+  const dialog = name => `::-p-aria([name="${name}"][role="dialog"])`
+  const SEARCH = '#search'
   const search = async term => {
-    // Select the previous term so typing replaces it (a triple click doesn't
-    // always select the whole field).
-    await app.click('#search')
-    await app.$eval('#search', el => el.select())
-    await app.type('#search', term)
-    await app.keyboard.press('Enter')
-    await app.waitForFunction(() => /Found \d+ matching logs/.test(document.body.innerText), { timeout: 30000 })
+    // Select the previous term so typing replaces it.
+    await app.click(SEARCH)
+    await app.$eval(SEARCH, el => el.select())
+    await app.type(SEARCH, term)
+    // Live search (debounced): wait for this term's persistent result.
+    await app.waitForFunction(
+      term => {
+        const count = document.querySelector('[data-testid="list-count"]')
+        return count && count.textContent.includes(`match “${term}”`)
+      },
+      { timeout: 120000 },
+      term
+    )
+  }
+  const openMenuItem = async name => {
+    await app.click('::-p-aria([name="More actions"][role="button"])')
+    const item = `::-p-aria([name="${name}"][role="menuitem"])`
+    await app.waitForSelector(item, { visible: true })
+    await app.click(item)
+    await app.waitForSelector('[role="menu"]', { hidden: true })
+    await delay(200)
   }
 
   await t.test('session comes from the HttpOnly cookie, not a saved token', async () => {
@@ -427,90 +474,139 @@ test('React log viewer', async t => {
   })
 
   await t.test('log is listed', async () => {
-    await app.waitForFunction(() => document.querySelectorAll('tbody tr').length > 0, {
-      timeout: 30000
-    })
-    const listed = await rows()
-    assert.ok(
-      listed.some(r => r.includes(log.Operation)),
-      `a row for ${log.Operation} is listed`
-    )
+    await app.waitForSelector(`[role="grid"] [data-log-id="${log.Id}"]`, { timeout: 30000 })
   })
 
-  await t.test('light theme: white background, dark text, teal toolbar', async () => {
+  await t.test('no hidden default filter: a log over 2.5 MB is listed', async () => {
+    assert.ok(bigLog.LogLength > 2_500_000, `the big log has ${bigLog.LogLength} bytes`)
+    assert.ok((await rowIds()).includes(bigLog.Id), 'the big log is in the list')
+    const chips = await app.$$eval('[aria-label="Active filters"] li', els => els.length)
+    assert.equal(chips, 0, 'no filter is active when the app opens')
+  })
+
+  await t.test('light mode: light surfaces, dark text, readable header', async () => {
     const colors = await app.evaluate(() => {
-      const cell = document.querySelector('tbody td')
-      let bg = cell
-      while (bg && getComputedStyle(bg).backgroundColor === 'rgba(0, 0, 0, 0)') bg = bg.parentElement
-      const search = document.querySelector('#search')
+      const cell = document.querySelector('[role="grid"] [data-log-id] td')
       return {
-        tableBackground: bg ? getComputedStyle(bg).backgroundColor : 'none',
-        cellText: getComputedStyle(cell).color,
-        toolbar: getComputedStyle(document.querySelector('header')).backgroundColor,
-        searchText: getComputedStyle(search).color
+        body: getComputedStyle(document.body).backgroundColor,
+        header: getComputedStyle(document.querySelector('header')).backgroundColor,
+        headerText: getComputedStyle(document.querySelector('header h1')).color,
+        cellText: getComputedStyle(cell).color
       }
     })
-    const luminance = rgb => {
-      const [r, g, b] = rgb.match(/\d+/g).map(Number)
-      return (0.299 * r + 0.587 * g + 0.114 * b) / 255
-    }
-    assert.equal(colors.tableBackground, 'rgb(255, 255, 255)', 'log table background')
-    assert.ok(luminance(colors.cellText) < 0.3, `table text is dark (${colors.cellText})`)
-    assert.equal(colors.toolbar, toRgb('#009688'), 'toolbar is teal')
-    assert.ok(luminance(colors.searchText) > 0.9, `toolbar search text is white (${colors.searchText})`)
+    assert.equal(colors.body, toRgb(uiColors.light.bg), 'page background')
+    assert.equal(colors.header, toRgb(uiColors.light.surface), 'header background')
+    assert.equal(colors.headerText, toRgb(uiColors.light.text), 'header text')
+    assert.equal(colors.cellText, toRgb(uiColors.light.text), 'list text')
   })
 
   await t.test('search finds the log and hides non-matching ones', async () => {
     await search(MARKER)
-    assert.equal((await rows()).length, 1, 'only the log containing the marker remains')
-    // Let the previous result message close so the next wait sees the new one.
-    await app.waitForFunction(() => !/Found \d+ matching logs/.test(document.body.innerText))
+    assert.deepEqual(await rowIds(), [log.Id], 'only the log containing the marker remains')
     await search(MARKER.toLowerCase())
-    assert.equal((await rows()).length, 1, 'search ignores case')
-    const message = await app.evaluate(() => document.body.innerText.match(/Found \d+ matching logs[^\n]*/)[0])
-    assert.match(message, /^Found 1 matching logs in \d+ searched$/, 'reports how many logs were searched')
+    assert.deepEqual(await rowIds(), [log.Id], 'search ignores case')
+    assert.match(await listCount(), /^1 of \d+ logs match “/, 'the result stays visible')
     await search(`NO_SUCH_TEXT_${Date.now()}`)
-    assert.equal((await rows()).length, 0, 'an unknown term matches no logs')
-    await app.click('#search', { clickCount: 3 })
+    assert.equal((await rowIds()).length, 0, 'an unknown term matches no logs')
+    await app.waitForSelector('::-p-text(No logs contain)')
+    await app.focus(SEARCH)
     await app.keyboard.press('Escape')
-    await app.waitForFunction(() => document.querySelectorAll('tbody tr').length > 0)
+    await app.waitForFunction(() => document.querySelectorAll('[role="grid"] [data-log-id]').length > 1)
+    assert.match(await listCount(), /^\d+ logs$/, 'clearing the search shows every log again')
   })
 
   await t.test('operation filter reloads only matching logs', async () => {
-    const dialog = '::-p-aria([name="Filters"][role="dialog"])'
-    const closeDialog = async () => {
-      await app.click(closeButton)
-      await app.waitForSelector(dialog, { hidden: true })
-    }
-    const reload = async () => {
-      const errorsBefore = errors.length
-      await app.click('button[aria-label="Load logs"]')
+    const reloaded = async () => {
       await app.waitForFunction(
-        () => !document.querySelector('[role="progressbar"]') && document.querySelectorAll('tbody tr').length > 0,
+        () =>
+          !document.querySelector('[aria-label="Loading logs"]') &&
+          document.querySelectorAll('[role="grid"] [data-log-id]').length > 0,
         { timeout: 30000 }
       )
-      assert.deepEqual(errors.slice(errorsBefore), [], 'no page errors while loading logs')
     }
-    await app.click('button[aria-label="Filter logs"]')
-    await app.waitForSelector(dialog, { visible: true })
-    await app.click(combobox('Operation'))
-    const option = `::-p-xpath(//li[@role="option" and normalize-space()="${log.Operation}"])`
-    await app.waitForSelector(option, { visible: true })
-    await app.click(option)
-    await app.waitForSelector(option, { hidden: true })
-    await closeDialog()
-    await reload()
-    const listed = await rows()
+    const errorsBefore = errors.length
+    await app.click('::-p-aria([name="Filters"][role="button"])')
+    await app.waitForSelector(dialog('Filters'), { visible: true })
+    const shortOp = log.Operation.split('/').filter(Boolean).pop()
+    await chooseOption('Operation', shortOp)
+    await app.click(`${dialog('Filters')} ::-p-aria([name="Done"][role="button"])`)
+    await app.waitForSelector(dialog('Filters'), { hidden: true })
+    await reloaded()
+    const chip = `::-p-aria([name="Remove filter Operation: ${shortOp}"])`
+    await app.waitForSelector(chip, { visible: true })
+    const listed = await rowTexts()
     assert.ok(
-      listed.every(r => r.includes(log.Operation)),
-      `every row is a ${log.Operation} log`
+      listed.every(r => r.includes(shortOp)),
+      `every row is a ${shortOp} log`
     )
+    assert.match(await listCount(), /^\d+ of \d+ logs$/, 'the count says the list is filtered')
+    await app.click(chip)
+    await app.waitForSelector(chip, { hidden: true })
+    await reloaded()
+    assert.deepEqual(errors.slice(errorsBefore), [], 'no page errors while filtering')
+  })
 
-    await app.click('button[aria-label="Filter logs"]')
-    await app.waitForSelector(dialog, { visible: true })
-    await app.click(dialogButton('Clear filters'))
-    await closeDialog()
-    await reload()
+  await t.test('keyboard: Tab reaches a log row and Enter opens it', async () => {
+    await app.focus(SEARCH)
+    let rowId = null
+    for (let i = 0; i < 12 && !rowId; i++) {
+      await app.keyboard.press('Tab')
+      rowId = await app.evaluate(() => document.activeElement.dataset.logId || null)
+    }
+    assert.ok(rowId, 'a log row takes focus with Tab')
+    const focusVisible = await app.evaluate(() => getComputedStyle(document.activeElement).outlineStyle)
+    assert.notEqual(focusVisible, 'none', 'the focused row shows a focus ring')
+    await app.keyboard.press('ArrowDown')
+    const next = await app.evaluate(() => document.activeElement.dataset.logId || null)
+    assert.ok(next && next !== rowId, 'the down arrow moves to the next row')
+    await app.keyboard.press('Enter')
+    await app.waitForFunction(id => location.hash === `#/logs/${id}`, { timeout: 5000 }, next)
+    await app.evaluate(() => (location.hash = '#/'))
+    await app.waitForSelector('[role="grid"] thead')
+  })
+
+  await t.test('delete dialog shows scope and count, and Cancel deletes nothing', async () => {
+    const countBefore = (await sf.query(`SELECT Id FROM ApexLog WHERE Id = '${log.Id}'`)).length
+    await openMenuItem('Delete logs…')
+    const DELETE = dialog('Delete debug logs')
+    await app.waitForSelector(DELETE, { visible: true })
+    // Counts load after the dialog opens.
+    await app.waitForFunction(
+      () => /Only my logs \(\d[\d,]*\)/.test(document.querySelector('[role="dialog"]').innerText),
+      {
+        timeout: 30000
+      }
+    )
+    const state = await app.evaluate(() => {
+      const d = document.querySelector('[role="dialog"]')
+      const radios = [...d.querySelectorAll('input[type="radio"]')]
+      return {
+        text: d.innerText,
+        checked: radios.filter(r => r.checked).map(r => r.value),
+        confirm: [...d.querySelectorAll('button')].map(b => b.textContent).find(t => /^Delete/.test(t))
+      }
+    })
+    assert.deepEqual(state.checked, ['mine'], 'only my logs is the default scope')
+    assert.match(state.text, /All users’ logs in \S+ \(\d[\d,]*\)/, 'the org-wide scope shows its count')
+    assert.match(state.confirm, /^Delete [\d,]+ logs?$/, 'the confirm button names the action and count')
+    await app.click(`${DELETE} ::-p-aria([name="Cancel"][role="button"])`)
+    await app.waitForSelector(DELETE, { hidden: true })
+    await delay(1000)
+    const countAfter = (await sf.query(`SELECT Id FROM ApexLog WHERE Id = '${log.Id}'`)).length
+    assert.equal(countAfter, countBefore, 'the log still exists')
+    assert.ok((await rowIds()).includes(log.Id), 'the log is still listed')
+  })
+
+  await t.test('help overlay lists the shortcuts', async () => {
+    await app.evaluate(() => document.activeElement && document.activeElement.blur())
+    await app.keyboard.press('?')
+    const HELP = dialog('Keyboard shortcuts')
+    await app.waitForSelector(HELP, { visible: true })
+    const text = await app.$eval(HELP, d => d.innerText)
+    assert.match(text, /Refresh the list of logs/)
+    assert.doesNotMatch(text, /delete all/i)
+    await app.keyboard.press('Escape')
+    await app.waitForSelector(HELP, { hidden: true })
   })
 
   await app.evaluate(id => (location.hash = `#/logs/${id}`), log.Id)
@@ -549,6 +645,33 @@ test('React log viewer', async t => {
     assert.equal(lastRendered, lastLine.trim())
   })
 
+  await t.test('find in log counts and highlights matches', async () => {
+    const FIND = '::-p-aria([name="Find in log"][role="textbox"])'
+    await app.click(FIND)
+    await app.type(FIND, MARKER.toLowerCase())
+    await app.waitForFunction(() => /^1 of \d+$/.test(document.querySelector('#find-counter').textContent), {
+      timeout: 5000
+    })
+    const total = Number((await app.$eval('#find-counter', el => el.textContent)).split(' of ')[1])
+    const marks = await app.$$eval('pre mark', els => els.length)
+    assert.equal(marks, total, 'every match is highlighted')
+    await app.keyboard.press('Enter')
+    assert.match(await app.$eval('#find-counter', el => el.textContent), /^2 of /, 'Enter goes to the next match')
+    await app.click(FIND, { clickCount: 3 })
+    await app.keyboard.press('Escape')
+    await app.waitForFunction(() => document.querySelectorAll('pre mark').length === 0)
+  })
+
+  await t.test('errors have a marker, not only a color', async () => {
+    const markers = await app.$$eval(
+      'pre > div[data-category="error"] [role="img"][aria-label="Error"]',
+      els => els.length
+    )
+    const errorLines = await app.$$eval('pre > div[data-category="error"]', els => els.length)
+    assert.ok(errorLines > 0, 'the log has an error line (the caught exception)')
+    assert.equal(markers, errorLines, 'each error line has an error marker')
+  })
+
   await t.test('indent toggle beautifies a debugged SObject', async () => {
     // "<marker> users (User:{Id=…, Name=…})" is pretty-printed with js-beautify.
     const line = () =>
@@ -565,7 +688,7 @@ test('React log viewer', async t => {
       const div = [...document.querySelectorAll('pre > div')].find(
         d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker)
       )
-      div.querySelector('button[aria-label="Expand"]').click()
+      div.querySelector('button[aria-label="Expand value"]').click()
     }, MARKER)
     await app.waitForFunction(
       marker => {
@@ -580,14 +703,14 @@ test('React log viewer', async t => {
     assert.match(await line(), /\n\s+Id:[^\n]*\n\s+Name:/, 'expanded: one field per indented line')
   })
 
-  const DIALOG = '::-p-aria([name="Log View Style"][role="dialog"])'
-  const openStyleDialog = async () => {
-    await app.click('button[aria-label="Style settings"]')
-    await app.waitForSelector(DIALOG, { visible: true })
+  const APPEARANCE = dialog('Appearance')
+  const openAppearance = async () => {
+    await openMenuItem('Appearance…')
+    await app.waitForSelector(APPEARANCE, { visible: true })
   }
-  const closeStyleDialog = async () => {
-    await app.click(closeButton)
-    await app.waitForSelector(DIALOG, { hidden: true })
+  const closeAppearance = async () => {
+    await app.click(`${APPEARANCE} ::-p-aria([name="Close appearance"][role="button"])`)
+    await app.waitForSelector(APPEARANCE, { hidden: true })
   }
   // Sets a React-controlled input's value the way a user edit would.
   const setInput = async (selector, value) =>
@@ -606,7 +729,7 @@ test('React log viewer', async t => {
       return {
         background: getComputedStyle(pre.parentElement).backgroundColor,
         fontSize: getComputedStyle(pre).fontSize,
-        whiteSpace: getComputedStyle(pre).whiteSpace,
+        whiteSpace: getComputedStyle(pre.querySelector('div')).whiteSpace,
         elements: [...pre.children].slice(1).map(div => ({
           text: div.innerText.slice(0, 80),
           color: getComputedStyle(div).color,
@@ -615,80 +738,98 @@ test('React log viewer', async t => {
         }))
       }
     })
-  // Category the app assigns to a log line (eventCategory, as in parsed-log.js).
+  // Category the app assigns to a log line (eventCategory, as in log-lines.ts).
   const categoryOf = text => eventCategory((text.match(/\|([A-Z_]+)/) || [])[1] || '')
+  const checkTheme = async theme => {
+    const styles = await renderedStyles()
+    assert.equal(styles.background, toRgb(theme.background), 'background color')
+    const failures = []
+    for (const el of styles.elements) {
+      const category = categoryOf(el.text)
+      const style = theme.categories[category]
+      if (!style) {
+        failures.push(`theme has no style for category "${category}" (${el.text})`)
+        continue
+      }
+      for (const [prop, value] of Object.entries(computedCategoryStyle(style))) {
+        if (!el[prop].startsWith(value))
+          failures.push(`${category} ${prop}: expected ${value}, got ${el[prop]} (${el.text})`)
+      }
+    }
+    assert.deepEqual([...new Set(failures)], [])
+  }
 
-  const THEME_SELECT = combobox('Log Color Theme')
-  const themeOptions = () => app.$$('li[role="option"]')
-
-  await t.test('theme menu opens on click', async () => {
-    await openStyleDialog()
-    await app.click(THEME_SELECT)
-    await new Promise(r => setTimeout(r, 500))
-    const opened = (await themeOptions()).length > 0
+  await t.test('log colors menu opens on click', async () => {
+    await openAppearance()
+    await app.click(combobox('Log colors'))
+    await delay(500)
+    const opened = (await app.$$('li[role="option"]')).length > 0
     if (opened) {
       await app.keyboard.press('Escape')
-      // The menu fades out over the dialog; wait so Close isn't clicked on it.
       await app.waitForSelector('[role="listbox"]', { hidden: true })
     }
-    await closeStyleDialog()
-    assert.ok(opened, 'clicking the Log Color Theme select shows the theme list')
+    await closeAppearance()
+    assert.ok(opened, 'clicking the Log colors select shows the palettes')
   })
 
   for (const theme of Object.values(logThemes)) {
-    await t.test(`theme "${theme.name}" applies to every event type`, async () => {
-      await openStyleDialog()
-      // Opened with the keyboard so theme coverage doesn't depend on the
-      // click check above.
-      await app.focus(THEME_SELECT)
-      await app.keyboard.press('ArrowDown')
-      const option = `::-p-xpath(//li[@role="option" and normalize-space()="${theme.label}"])`
-      await app.waitForSelector(option, { visible: true })
-      await app.click(option)
-      await app.waitForSelector(option, { hidden: true })
-      await closeStyleDialog()
-      const styles = await renderedStyles()
-      assert.equal(styles.background, toRgb(theme.background), 'background color')
-      const failures = []
-      for (const el of styles.elements) {
-        const category = categoryOf(el.text)
-        const style = theme.categories[category]
-        if (!style) {
-          failures.push(`theme has no style for category "${category}" (${el.text})`)
-          continue
-        }
-        for (const [prop, value] of Object.entries(computedCategoryStyle(style))) {
-          if (!el[prop].startsWith(value))
-            failures.push(`${category} ${prop}: expected ${value}, got ${el[prop]} (${el.text})`)
-        }
-      }
-      assert.deepEqual([...new Set(failures)], [])
+    await t.test(`palette "${theme.name}" applies to every event type`, async () => {
+      await openAppearance()
+      await chooseOption('Log colors', theme.label)
+      await closeAppearance()
+      await checkTheme(theme)
     })
   }
 
   await t.test('custom color applies', async () => {
-    await openStyleDialog()
-    await setInput('::-p-aria([name="Debug"][role="textbox"])', '#123456')
-    await closeStyleDialog()
+    await openAppearance()
+    await setInput('::-p-aria([name="Debug output"][role="textbox"])', '#123456')
+    await closeAppearance()
     const { elements } = await renderedStyles()
     const debugLine = elements.find(e => e.text.includes('|USER_DEBUG|'))
     assert.equal(debugLine.color, toRgb('#123456'))
+    await openAppearance()
+    await app.click(`${APPEARANCE} ::-p-aria([name="Reset to palette"][role="button"])`)
+    await closeAppearance()
   })
 
   await t.test('font size applies', async () => {
-    await openStyleDialog()
-    await setInput('::-p-aria([name="Font Size"][role="spinbutton"])', '13')
-    await closeStyleDialog()
-    assert.equal((await renderedStyles()).fontSize, '13px')
+    await openAppearance()
+    await setInput('::-p-aria([name="Font size"][role="spinbutton"])', '15')
+    await closeAppearance()
+    assert.equal((await renderedStyles()).fontSize, '15px')
   })
 
   await t.test('text wrap toggle applies', async () => {
     const before = (await renderedStyles()).whiteSpace
-    await openStyleDialog()
-    await app.click('::-p-aria(Text Wrap)')
-    await closeStyleDialog()
+    await openAppearance()
+    await app.click('::-p-aria(Wrap long lines)')
+    await closeAppearance()
     const afterToggle = (await renderedStyles()).whiteSpace
-    assert.notEqual(afterToggle, before, `white-space stays "${before}" after toggling Text Wrap`)
+    assert.notEqual(afterToggle, before, `white-space stays "${before}" after toggling wrapping`)
+  })
+
+  await t.test('dark mode renders the app and the log dark', async () => {
+    await openAppearance()
+    await chooseOption('Log colors', 'Match app (Light or Dark)')
+    await app.click(`${APPEARANCE} ::-p-aria([name="Dark"][role="button"])`)
+    await closeAppearance()
+    const colors = await app.evaluate(() => ({
+      body: getComputedStyle(document.body).backgroundColor,
+      header: getComputedStyle(document.querySelector('header')).backgroundColor,
+      headerText: getComputedStyle(document.querySelector('header h1')).color,
+      mode: document.documentElement.dataset.adColorMode
+    }))
+    assert.equal(colors.mode, 'dark')
+    assert.equal(colors.body, toRgb(uiColors.dark.bg), 'page background')
+    assert.equal(colors.header, toRgb(uiColors.dark.surface), 'header background')
+    assert.equal(colors.headerText, toRgb(uiColors.dark.text), 'header text')
+    await checkTheme(logThemes.dark)
+    // Following the OS again: light here.
+    await openAppearance()
+    await app.click(`${APPEARANCE} ::-p-aria([name="System"][role="button"])`)
+    await closeAppearance()
+    await checkTheme(logThemes.light)
   })
 
   await t.test('a long log renders the lines in view, and every line when scrolled through', async () => {
@@ -801,14 +942,7 @@ test('Lightning Experience: Shift+W opens the app with the org session', async t
           'app talks to the my.salesforce.com host'
         )
         assert.ok(appUrl.searchParams.get('sid'), 'app gets a session id')
-        await app.waitForFunction(() => document.querySelectorAll('tbody tr').length > 0, {
-          timeout: 30000
-        })
-        const listed = await app.$$eval('tbody tr', trs => trs.map(tr => tr.innerText))
-        assert.ok(
-          listed.some(r => r.includes(log.Operation)),
-          "the app lists the org's logs"
-        )
+        await app.waitForSelector(`[role="grid"] [data-log-id="${log.Id}"]`, { timeout: 30000 })
       })
     }
   } finally {
@@ -828,10 +962,10 @@ test('pages without readable ids', async t => {
       await page.goto(
         `chrome-extension://${ext.extensionId}/html/app.html?oid=undefined&uid=undefined&sid=${encodeURIComponent(session.sessionId)}&host=${host}`
       )
-      await page.waitForFunction(() => document.querySelectorAll('tbody tr').length > 0, { timeout: 30000 })
-      // The flow keeps a trace flag on the user: the toolbar shows "Logging
-      // Activity" (instead of "Start Logging") once the user id is known.
-      await page.waitForFunction(() => /Logging Activity/i.test(document.body.innerText), {
+      await page.waitForSelector('[role="grid"] [data-log-id]', { timeout: 30000 })
+      // The flow keeps a trace flag on the user: the header shows "Logging on"
+      // (instead of "Logging off") once the user id is known.
+      await page.waitForFunction(() => /Logging on/.test(document.body.innerText), {
         timeout: 30000
       })
       assert.deepEqual(
