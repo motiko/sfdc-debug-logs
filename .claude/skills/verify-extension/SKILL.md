@@ -25,7 +25,7 @@ The same checks run in CI (`.github/workflows/ci.yml`). If `format:check` fails,
 
 ## 3. End-to-end flow
 
-Needs `.env.local` (SF_USER, SF_PASS, SF_TOKEN, optional SF_LOGIN_URL). Never print its values or session ids.
+Needs `.env.local` (SF_USER, SF_PASS, SF_TOKEN, optional SF_LOGIN_URL; an optional second org as SF_USER_2 etc. takes over when the first is near its daily API limit). Never print its values or session ids.
 
 ```sh
 cd e2e && npm install && npm test

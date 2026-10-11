@@ -6,6 +6,12 @@
 //   for sandboxes).
 // Alternatively SF_ACCESS_TOKEN + SF_INSTANCE_URL use an existing session
 // (e.g. from `sf org display`) and skip the SOAP login.
+//
+// Further orgs are numbered: SF_USER_2, SF_PASS_2, SF_TOKEN_2, SF_LOGIN_URL_2
+// (or SF_ACCESS_TOKEN_2 + SF_INSTANCE_URL_2), then _3 and so on. login() takes
+// the first org that logs in and still has at least SF_MIN_API_REQUESTS
+// (default 500) of its daily API requests left, so a second org keeps the
+// e2e flow running when the first one hits its daily limit.
 
 import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -77,9 +83,70 @@ async function sessionFromToken({ SF_ACCESS_TOKEN, SF_INSTANCE_URL }) {
   }
 }
 
-// Returns { sessionId, instance, userId, orgId }.
-export function login(env = loadEnv()) {
-  return env.SF_ACCESS_TOKEN && env.SF_INSTANCE_URL ? sessionFromToken(env) : soapLogin(env)
+const CREDENTIAL_KEYS = ['SF_USER', 'SF_PASS', 'SF_TOKEN', 'SF_LOGIN_URL', 'SF_ACCESS_TOKEN', 'SF_INSTANCE_URL']
+
+// The credential sets in env: the plain keys, then SF_*_2, SF_*_3, ... until
+// a number has neither SF_USER_n nor SF_ACCESS_TOKEN_n. Unset CI secrets are
+// empty strings, so empty values count as unset.
+export function credentialSets(env) {
+  const sets = []
+  for (let n = 1; ; n++) {
+    const suffix = n === 1 ? '' : `_${n}`
+    const set = {}
+    for (const key of CREDENTIAL_KEYS) {
+      if (env[`${key}${suffix}`]) set[key] = env[`${key}${suffix}`]
+    }
+    if (!set.SF_USER && !set.SF_ACCESS_TOKEN) break
+    sets.push({ name: set.SF_USER || `org ${n}`, ...set })
+  }
+  return sets
+}
+
+function loginSet(set) {
+  return set.SF_ACCESS_TOKEN && set.SF_INSTANCE_URL ? sessionFromToken(set) : soapLogin(set)
+}
+
+// Daily API requests the org still has (undefined if the call fails).
+async function remainingApiRequests({ instance, sessionId }) {
+  const res = await fetch(`${instance}/services/data/v${API_VERSION}/limits`, {
+    headers: { Authorization: `Bearer ${sessionId}` }
+  })
+  if (!res.ok) return undefined
+  const limits = await res.json()
+  return limits.DailyApiRequests && limits.DailyApiRequests.Remaining
+}
+
+// Returns { sessionId, instance, userId, orgId } for the first credential set
+// that logs in with enough daily API requests left. If every org is low, the
+// one with the most requests left is used anyway.
+export async function login(env = loadEnv()) {
+  const sets = credentialSets(env)
+  if (!sets.length) throw new Error('SF_USER and SF_PASS are required (see .env.example)')
+  const minRequests = Number(env.SF_MIN_API_REQUESTS) || 500
+  const failures = []
+  let fallback
+  for (const set of sets) {
+    let session
+    try {
+      session = await loginSet(set)
+    } catch (e) {
+      failures.push(`${set.name}: ${e.message.replace(/^Salesforce login failed: /, '')}`)
+      continue
+    }
+    const remaining = await remainingApiRequests(session)
+    if (remaining === undefined || remaining >= minRequests) return session
+    failures.push(`${set.name}: only ${remaining} daily API requests left`)
+    if (!fallback || remaining > fallback.remaining) fallback = { session, remaining }
+  }
+  if (fallback) {
+    console.warn(`Every Salesforce org is near its daily API limit (${failures.join('; ')}); using the best one`)
+    return fallback.session
+  }
+  throw new Error(
+    failures.length === 1
+      ? `Salesforce login failed: ${failures[0].replace(/^[^:]*: /, '')}`
+      : `Salesforce login failed:\n  ${failures.join('\n  ')}`
+  )
 }
 
 export function frontdoorUrl({ instance, sessionId }, retURL) {
