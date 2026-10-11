@@ -9,7 +9,6 @@ import indigo from 'material-ui/colors/indigo'
 import teal from 'material-ui/colors/teal'
 import { HashRouter as Router, Route, Switch } from 'react-router-dom'
 import { Provider } from 'react-redux'
-import idbKeyval from 'idb-keyval'
 import thunk from 'redux-thunk'
 import { compose, createStore, applyMiddleware } from 'redux'
 import appReducer from './reducers'
@@ -18,8 +17,6 @@ import appReducer from './reducers'
 import LogsPage from './pages/logs/logs'
 import globalSf from './global-sf'
 import './app.css'
-import { defaultInnerLogsState } from './pages/logs/reducer'
-import { defaultStyleConfig } from './pages/logs/dialogs/style/reducer'
 
 class App extends React.Component {
   componentDidMount() {

@@ -7,13 +7,11 @@ import Dialog, {
   DialogContentText,
   DialogTitle
 } from 'material-ui/Dialog'
-import { FormControlLabel, FormControl, FormHelperText } from 'material-ui/Form'
 import { connect } from 'react-redux'
 import MenuItem from 'material-ui/Menu/MenuItem'
 import { withStyles } from 'material-ui/styles'
 import { toggleFiltersDialog, updateFilter, clearFilters } from './actions'
 import Slider from 'rc-slider'
-import Tooltip from 'rc-tooltip'
 import 'rc-slider/assets/index.css'
 import 'rc-tooltip/assets/bootstrap.css'
 
@@ -123,5 +121,5 @@ class FilterDialog extends React.Component {
 }
 
 export default withStyles(styles)(
-  connect(state => state.logsPage.filters, mapDispatchToProps)(FilterDialog)
+  connect(mapStateToProps, mapDispatchToProps)(FilterDialog)
 )

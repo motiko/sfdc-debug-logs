@@ -22,7 +22,6 @@ function matchesByText(log, filters) {
       switch (filterName) {
         case 'user':
           return log.LogUser.Name === filterValue
-          break
         default:
           return log[upcase(filterName)] === filterValue
       }

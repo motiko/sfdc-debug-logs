@@ -15,7 +15,9 @@ async function cdpPageSocket() {
       const targets = await (await fetch(`http://localhost:${PORT}/json/list`)).json()
       const page = targets.find(t => t.type === 'page')
       if (page) return page.webSocketDebuggerUrl
-    } catch (e) {}
+    } catch (e) {
+      // Chrome is not listening yet; retry.
+    }
     await new Promise(r => setTimeout(r, 500))
   }
   throw new Error(`No Chrome page on CDP port ${PORT}; is scripts/chrome-dev.sh running?`)

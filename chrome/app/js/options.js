@@ -1,8 +1,8 @@
 const $i = document.getElementById.bind(document)
 
-onload()
+initOptions()
 
-function onload() {
+function initOptions() {
   const shortcutsTable = $i('shortcutsTable')
   $i('save_btn').addEventListener('click', save)
   $i('restore_defaults_btn').addEventListener('click', (event) => {
@@ -25,7 +25,7 @@ function onload() {
     shortcuts
   }) {
     const shortcutLines = buildShortcuts(shortcuts)
-    for (line of shortcutLines) {
+    for (const line of shortcutLines) {
       shortcutsTable.appendChild(line)
     }
     [...document.querySelectorAll('.remove_btn')].forEach((removeBtnNode) => {
@@ -49,7 +49,7 @@ function newShortcutLine() {
 
 function buildShortcuts(shortcuts = default_shortcuts) {
   return shortcuts.map((shortcut) => {
-    template = newShortcutLine();
+    const template = newShortcutLine();
     template.querySelector(".val_name").value = shortcut.name;
     template.querySelector(".val_key").value = shortcut.key;
     if (shortcut.path !== undefined) {
