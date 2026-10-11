@@ -339,12 +339,18 @@ export default function ShortcutsSettings() {
                     ) : (
                       <TextField
                         fullWidth
+                        multiline
+                        maxRows={4}
                         value={shortcut.path}
                         placeholder="Path, e.g. /001 or /lightning/setup/ApexClasses/home"
                         error={Boolean(pathProblem)}
                         helperText={pathProblem ? pathProblem.message : null}
                         onChange={e =>
-                          change(shortcut.id, { path: e.target.value })
+                          // Multiline only to show long paths whole; a path
+                          // is one line.
+                          change(shortcut.id, {
+                            path: e.target.value.replace(/[\r\n]+/g, '')
+                          })
                         }
                         slotProps={{
                           formHelperText: { id: `${shortcut.id}-path-problem` },

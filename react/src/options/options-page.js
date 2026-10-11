@@ -27,7 +27,7 @@ function Page() {
         }}
       >
         <Container
-          maxWidth="md"
+          maxWidth="lg"
           sx={{ py: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}
         >
           <Box
@@ -49,7 +49,7 @@ function Page() {
       </Box>
       <Container
         component="main"
-        maxWidth="md"
+        maxWidth="lg"
         sx={{ py: 3, display: 'flex', flexDirection: 'column', gap: 3 }}
       >
         <Section
