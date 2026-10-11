@@ -53,9 +53,9 @@ Development
 The extension lives in `chrome/app`. The full-page log viewer is a React app in `react/`, built with Vite into `chrome/app/js/build/` (not committed). Build it before loading `chrome/app` as an unpacked extension:
 
 ```bash
-cd react
-npm ci
-npm run build   # or `npm run dev` to rebuild on save
+./build.sh           # installs dependencies if needed, then builds
+./build.sh --watch   # rebuild on every save
+./build.sh --zip     # build and package chrome/app as apex-debugger.zip
 ```
 
 Before a pull request, run the checks that CI runs (Node 24, see `.nvmrc`):

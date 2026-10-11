@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository layout
 
 - `chrome/app/`: the unpacked extension (`manifest.json`, service worker, content scripts, options page, CSS). Plain JS, no bundler.
-- `react/`: source for the full-page log viewer (`html/app.html`). The only part with a build step. Its output, `chrome/app/js/build/app.js` and `app.css`, is **not committed** (gitignored): run `npm run build` in `react/` before loading `chrome/app` unpacked.
+- `react/`: source for the full-page log viewer (`html/app.html`). The only part with a build step. Its output, `chrome/app/js/build/app.js` and `app.css`, is **not committed** (gitignored): run `./build.sh` (installs dependencies if needed; `--watch` rebuilds on save, `--zip` packages `chrome/app`) before loading `chrome/app` unpacked.
 - `scripts/`: local dev tooling (test browser launcher, Salesforce login).
 - `e2e/`: end-to-end flow against a real org (see below).
 
@@ -39,7 +39,7 @@ The toolchain is Vite (`react/vite.config.mjs`) plus TypeScript for type checkin
 `scripts/chrome-dev.sh [url]` launches an isolated browser with the unpacked `chrome/app` extension. Branded Chrome 137+ ignores `--load-extension`, so the script downloads **Chrome for Testing** (stable) into `.chrome-test/` (gitignored). The profile in `.chrome-test/profile` persists. The DevTools protocol is on port 9222 (override with `CDP_PORT`).
 
 - **Auto-login:** if `.env.local` exists (gitignored; keys in `.env.example`: `SF_USER`, `SF_PASS`, `SF_TOKEN`, optional `SF_LOGIN_URL`) and no URL argument is given, Chrome starts blank and `scripts/sf-login.mjs` logs in via SOAP `login()` + `frontdoor.jsp`, landing on the Debug Logs page. The session id goes over CDP, not the command line. Rerun it against a running browser with `node scripts/sf-login.mjs [retURL]`.
-- The script builds the React bundle if it is missing (running `npm ci` in `react/` first if needed). After changing content scripts or the service worker, reload the extension on `chrome://extensions`. React changes need a rebuild (or `npm run dev` running) and a page reload.
+- The script builds the React bundle if it is missing (running `npm ci` in `react/` first if needed). After changing content scripts or the service worker, reload the extension on `chrome://extensions`. React changes need a rebuild (or `./build.sh --watch` running) and a page reload.
 - **Session token:** the `sid` cookie is HttpOnly on current Salesforce, so content scripts can't read it. `getSession()` in `utils.js` asks the service worker (`getToken` message), which reads `sid` with `chrome.cookies` for the org's `my.salesforce.com` host (`apiHostFor()` maps Lightning and `salesforce-setup.com` hosts) and returns `{ token, host }`. It answers only for org hosts (`isOrgHost()`): content scripts also run on public Salesforce Sites under `*.force.com`, which must never get a session. Only if there's no cookie does it fall back to the token saved on the options page (`chrome.storage.local.token`). The React app asks the same way after a 401. The e2e flow saves no token, so it exercises the cookie path.
 
 ## End-to-end flow (`e2e/`)
