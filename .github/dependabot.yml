@@ -6,3 +6,18 @@ updates:
     directory: /
     schedule:
       interval: monthly
+  # npm security and version updates, grouped to one PR per directory.
+  - package-ecosystem: npm
+    directory: /react
+    schedule:
+      interval: monthly
+    groups:
+      react-deps:
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule:
+      interval: monthly
+    groups:
+      e2e-deps:
+        patterns: ["*"]

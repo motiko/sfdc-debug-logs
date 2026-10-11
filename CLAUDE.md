@@ -60,3 +60,9 @@ CI: `.github/workflows/e2e.yml` runs the flow on pushes to `main`, same-repo pul
 ## Releasing
 
 See "Releasing" in README.md. `scripts/version.sh patch|minor|major` bumps `chrome/app/manifest.json` (the source of truth for the version), commits and tags `vX.Y.Z`; `git push --follow-tags` runs `.github/workflows/release.yml`, which builds, zips `chrome/app`, creates a GitHub release and calls `publish-chrome-web-store.yml` (Chrome Web Store API v2, keyless auth via workload identity federation, set up as in `docs/chrome-web-store-publishing.md`). Retry a failed upload with `gh workflow run publish-chrome-web-store.yml -f tag=vX.Y.Z`. Any new remote host the app calls must be added to `content_security_policy.extension_pages` `connect-src` and to `host_permissions`.
+
+## Claude tooling
+
+- `.claude/skills/verify-extension`: build, lint and run the e2e flow before committing.
+- `.claude/skills/triage-reports`: check GitHub issues and Chrome Web Store reviews against the code.
+- `.claude/agents/market-research`: compares competing extensions and files feature requests (labels `enhancement`, `market-research`).
