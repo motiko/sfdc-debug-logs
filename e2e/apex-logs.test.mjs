@@ -687,6 +687,24 @@ test('React log viewer', async t => {
     assert.notEqual(afterToggle, before, `white-space stays "${before}" after toggling Text Wrap`)
   })
 
+  await t.test("Shift+W again focuses the org's open app instead of opening another", async () => {
+    const appPages = async () => (await ext.browser.pages()).filter(p => p.url().includes('/html/app.html'))
+    await sfPage.bringToFront()
+    await sfPage.evaluate(() => {
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur()
+      window.focus()
+    })
+    const pressedAt = Date.now()
+    await sfPage.keyboard.down('Shift')
+    await sfPage.keyboard.press('KeyW')
+    await sfPage.keyboard.up('Shift')
+    await app.waitForFunction(() => document.visibilityState === 'visible', { timeout: 10000 })
+    const asked = (await workerMessages()).filter(m => m.command === 'focusAppTab' && m.time >= pressedAt)
+    assert.ok(asked.length > 0, 'the shortcut asked the service worker to focus the app')
+    await delay(1000)
+    assert.equal((await appPages()).length, 1, 'no second app tab was opened')
+  })
+
   const unexpected = errors.filter(e => !/Failed to fetch/.test(e))
   if (unexpected.length) t.diagnostic(`page errors: ${unexpected.join(' | ')}`)
 })

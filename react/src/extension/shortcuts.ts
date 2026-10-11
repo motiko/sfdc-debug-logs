@@ -52,17 +52,20 @@ async function openApp() {
   }
   const { orgId, userId } = parseDiscoCookie()
   const session = await getSession()
-  chrome.runtime.sendMessage({ command: 'focusAppTab' }).then(appOpened => {
-    if (!appOpened) {
-      if (document.location.hostname.includes('.salesforce')) {
-        chrome.runtime.sendMessage(openAppMessage(orgId, userId, session))
-      } else {
-        // *.force.com: open the classic log list, whose content script
-        // (debug-log-list.ts) opens the app for ?openApp=yes.
-        openInNewTab('/setup/ui/listApexTraces.apexp?openApp=yes')
+  // Focus the org's log viewer if it is already open.
+  chrome.runtime
+    .sendMessage({ command: 'focusAppTab', name: `app_${orgId}` })
+    .then(appOpened => {
+      if (!appOpened) {
+        if (document.location.hostname.includes('.salesforce')) {
+          chrome.runtime.sendMessage(openAppMessage(orgId, userId, session))
+        } else {
+          // *.force.com: open the classic log list, whose content script
+          // (debug-log-list.ts) opens the app for ?openApp=yes.
+          openInNewTab('/setup/ui/listApexTraces.apexp?openApp=yes')
+        }
       }
-    }
-  })
+    })
 }
 
 function shortcutMethod(char: string, method: (inNewTab?: boolean) => void) {
