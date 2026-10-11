@@ -181,10 +181,10 @@ describe('beautifyCallout', () => {
 })
 
 describe('canBeautifyCallout', () => {
-  it('is true for objects with several fields, JSON and XML', () => {
-    expect(
-      canBeautifyCallout('System.HttpResponse[Status=OK, StatusCode=200]')
-    ).toBe(true)
+  it('is true for objects with three or more fields, JSON and XML', () => {
+    expect(canBeautifyCallout('Req[Endpoint=https://x, Method=GET, a=1]')).toBe(
+      true
+    )
     expect(canBeautifyCallout('{"a":1}')).toBe(true)
     expect(canBeautifyCallout('<a>1</a>')).toBe(true)
     expect(canBeautifyCallout('Req[Body={"a":1}]')).toBe(true)
@@ -192,6 +192,14 @@ describe('canBeautifyCallout', () => {
 
   it('is false when expanding would change nothing', () => {
     expect(canBeautifyCallout('System.HttpResponse[Status=OK]')).toBe(false)
+    expect(
+      canBeautifyCallout('System.HttpResponse[Status=OK, StatusCode=200]')
+    ).toBe(false)
+    expect(
+      canBeautifyCallout(
+        'System.HttpRequest[Endpoint=https://api.example.com/ping, Method=GET]'
+      )
+    ).toBe(false)
     expect(canBeautifyCallout('System.HttpResponse[]')).toBe(false)
     expect(canBeautifyCallout('plain text')).toBe(false)
   })
@@ -205,16 +213,28 @@ describe('values (USER_DEBUG and callouts)', () => {
     expect(splitValue(entry('EXECUTION_STARTED'))).toBeNull()
   })
 
-  it('every callout entry of the fixture can be expanded', () => {
+  it('only callouts that expanding changes much can be expanded', () => {
     const callouts = entries.filter(e => splitCallout(e))
     expect(callouts).toHaveLength(10)
-    for (const e of callouts) expect(isExpandable(e)).toBe(true)
+    const expandable = callouts.filter(isExpandable).map(e => {
+      const { header } = splitCallout(e)
+      return header.replace(/^[^|]*\|/, '')
+    })
+    // Named Credential entries (many fields), the nested SOAP object, the
+    // JSON and the XML response; not the two-field HttpRequest/HttpResponse.
+    expect(expandable).toEqual([
+      'NAMED_CREDENTIAL_REQUEST|',
+      'NAMED_CREDENTIAL_RESPONSE|',
+      'CALLOUT_REQUEST|[14]|',
+      'CALLOUT_RESPONSE|[14]|',
+      'CALLOUT_RESPONSE|[17]|'
+    ])
     expect(isExpandable(entry('EXECUTION_STARTED'))).toBe(false)
   })
 
   it('expandEntry keeps the header and pretty-prints the value', () => {
-    expect(expandEntry(entry('CALLOUT_RESPONSE|[5]'))).toBe(
-      '10:15:02.391 (391508447)|CALLOUT_RESPONSE|[5]|System.HttpResponse[\n  Status=OK,\n  StatusCode=200\n]'
+    expect(expandEntry(entry('CALLOUT_RESPONSE|[14]'))).toBe(
+      '10:15:02.9 (900113562)|CALLOUT_RESPONSE|[14]|{\n  "status": "accepted",\n  "order": {\n    "id": 42,\n    "lines": [1, 2, 3]\n  }\n}'
     )
     expect(expandEntry(entry('USER_DEBUG'))).toMatch(
       /^10:15:02\.392 \(392011245\)\|USER_DEBUG\|\[6\]\|DEBUG\|\{\n {2}"orders"/
@@ -224,8 +244,8 @@ describe('values (USER_DEBUG and callouts)', () => {
   })
 
   it('canExpandValue and expandValue follow the kind', () => {
-    expect(canExpandValue('debug', 'Req[a=1, b=2]')).toBe(false)
-    expect(canExpandValue('callout', 'Req[a=1, b=2]')).toBe(true)
+    expect(canExpandValue('debug', 'Req[a=1, b=2, c=3]')).toBe(false)
+    expect(canExpandValue('callout', 'Req[a=1, b=2, c=3]')).toBe(true)
     expect(expandValue('debug', '{"a":1}')).toBe('{\n  "a": 1\n}')
   })
 

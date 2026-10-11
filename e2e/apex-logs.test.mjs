@@ -1239,7 +1239,9 @@ test(
 
 // HTTP callouts need a Remote Site Setting or Named Credential in a real org;
 // the mock org answers every callout. CALLOUT_REQUEST/RESPONSE and the Named
-// Credential entries can be expanded in both views (core/log/callouts.ts).
+// Credential entries are callouts in both views (core/log/callouts.ts); only
+// the ones expanding changes much have a button: the Named Credential entries
+// (many fields), not the two-field HttpRequest and HttpResponse.
 test('callouts can be expanded in both views', { skip: !MOCK && 'mock org only' }, async t => {
   const marker = `E2E_CALLOUT_${Date.now()}`
   const since = new Date(Date.now() - 60000)
@@ -1273,7 +1275,7 @@ System.debug(res.getBody());
       button
     )
 
-  await t.test('React app: a callout request expands to one field per line', async () => {
+  await t.test('React app: a Named Credential request expands to one field per line', async () => {
     const page = await ext.browser.newPage()
     const errors = collectPageErrors(page)
     const ROW = 'pre > div'
@@ -1288,18 +1290,29 @@ System.debug(res.getBody());
         { timeout: 30000 },
         ROW
       )
-      const request = () => lineText(page, ROW, 'CALLOUT_REQUEST')
+      const request = () => lineText(page, ROW, 'NAMED_CREDENTIAL_REQUEST')
       assert.ok(!(await request()).trim().includes('\n'), 'collapsed: one line')
       const callouts = await page.$$eval(`${ROW}[data-category="callout"]`, divs =>
-        divs.map(d => Boolean(d.querySelector('button[aria-label="Expand value"]')))
+        divs.map(d => [
+          d.textContent.match(/\|(\w+)\|/)[1],
+          Boolean(d.querySelector('button[aria-label="Expand value"]'))
+        ])
       )
-      assert.equal(callouts.length, 4, 'callout and Named Credential entries are callouts')
-      assert.ok(callouts.every(Boolean), 'each callout entry has an expand button')
-      await clickIn(page, ROW, 'CALLOUT_REQUEST', 'button[aria-label="Expand value"]')
+      assert.deepEqual(
+        callouts,
+        [
+          ['NAMED_CREDENTIAL_REQUEST', true],
+          ['CALLOUT_REQUEST', false],
+          ['NAMED_CREDENTIAL_RESPONSE', true],
+          ['CALLOUT_RESPONSE', false]
+        ],
+        'callout and Named Credential entries are callouts; only the long ones have an expand button'
+      )
+      await clickIn(page, ROW, 'NAMED_CREDENTIAL_REQUEST', 'button[aria-label="Expand value"]')
       await page.waitForFunction(
         row =>
           [...document.querySelectorAll(row)]
-            .find(d => d.textContent.includes('CALLOUT_REQUEST'))
+            .find(d => d.textContent.includes('NAMED_CREDENTIAL_REQUEST'))
             .querySelector('button[aria-expanded="true"][aria-label="Collapse value"]'),
         { timeout: 5000 },
         ROW
@@ -1307,7 +1320,7 @@ System.debug(res.getBody());
       assert.match(
         await request(),
         new RegExp(
-          `System\\.HttpRequest\\[\\n\\s+Endpoint=callout:Orders_API/v1/orders\\?ref=${marker},\\n\\s+Method=POST\\n\\]`
+          `NamedCallout\\[\\n\\s+Named Credential Id=\\w+,\\n[^]*\\n\\s+Endpoint=callout:Orders_API/v1/orders\\?ref=${marker},\\n\\s+Method=POST,\\n`
         ),
         'expanded: one field per indented line'
       )
@@ -1335,17 +1348,27 @@ System.debug(res.getBody());
       await page.goto(frontdoorUrl(session, classicUrl(calloutLog.Id)), { waitUntil: 'networkidle2' })
       await page.waitForSelector(`${LINE} .expandUserDebugBtn`, { timeout: 20000 })
       const buttons = await page.$$eval(`${LINE} .expandUserDebugBtn`, els => els.length)
-      assert.equal(buttons, 4, 'every callout entry has an expand button')
-      const before = await lineText(page, LINE, 'CALLOUT_RESPONSE')
-      assert.ok(before.includes('System.HttpResponse[Status=OK, StatusCode=200]'), 'collapsed as logged')
-      await clickIn(page, LINE, 'CALLOUT_RESPONSE', '.expandUserDebugBtn')
+      assert.equal(buttons, 2, 'the two Named Credential entries have an expand button')
+      const response = await lineText(page, LINE, 'CALLOUT_RESPONSE')
+      assert.ok(response.includes('System.HttpResponse[Status=OK, StatusCode=200]'), 'short response as logged')
+      assert.equal(
+        await page.$$eval(
+          `${LINE}`,
+          divs =>
+            divs.filter(d => /\|CALLOUT_(REQUEST|RESPONSE)\|/.test(d.textContent) && d.querySelector('button')).length
+        ),
+        0,
+        'no button on the two-field request and response'
+      )
+      const before = await lineText(page, LINE, 'NAMED_CREDENTIAL_RESPONSE')
+      await clickIn(page, LINE, 'NAMED_CREDENTIAL_RESPONSE', '.expandUserDebugBtn')
       assert.match(
-        await lineText(page, LINE, 'CALLOUT_RESPONSE'),
-        /System\.HttpResponse\[\n\s+Status=OK,\n\s+StatusCode=200\n\]/,
+        await lineText(page, LINE, 'NAMED_CREDENTIAL_RESPONSE'),
+        /NamedCallout\[\n\s+Named Credential Id=\w+,\n[^]*\n\s+Status Code=200,\n/,
         'expanded: one field per indented line'
       )
-      await clickIn(page, LINE, 'CALLOUT_RESPONSE', '.expandUserDebugBtn')
-      assert.equal(await lineText(page, LINE, 'CALLOUT_RESPONSE'), before, 'collapsing restores the line')
+      await clickIn(page, LINE, 'NAMED_CREDENTIAL_RESPONSE', '.expandUserDebugBtn')
+      assert.equal(await lineText(page, LINE, 'NAMED_CREDENTIAL_RESPONSE'), before, 'collapsing restores the line')
     } finally {
       if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
       await page.close()

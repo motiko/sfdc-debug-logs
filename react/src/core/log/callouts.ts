@@ -157,14 +157,20 @@ function formatRecord(record: ApexRecord): string {
   return `${open}\n${lines.join('\n')}\n]${record.suffix}`
 }
 
-// Whether beautifyCallout changes the format of this value: an object with
-// more than one field or with a field worth pretty-printing, or a JSON, XML,
-// HTML or Apex object value.
+// Objects with fewer fields read fine on one line
+// ("System.HttpResponse[Status=OK, StatusCode=200]").
+export const MIN_FIELDS_TO_EXPAND = 3
+
+// Whether expanding this value is worth a button: an object with at least
+// MIN_FIELDS_TO_EXPAND fields or with a field worth pretty-printing (JSON,
+// XML, a nested object), or a JSON, XML, HTML or Apex object value. Short
+// requests and responses such as "System.HttpRequest[Endpoint=…, Method=GET]"
+// get no button, so it marks the entries where expanding helps.
 export function canBeautifyCallout(message: string): boolean {
   const record = parseApexRecord(message.trim())
   if (record) {
     return (
-      record.fields.length > 1 ||
+      record.fields.length >= MIN_FIELDS_TO_EXPAND ||
       record.fields.some(([, value]) => canBeautifyValue(value))
     )
   }
