@@ -66,4 +66,5 @@ See "Releasing" in README.md. `scripts/version.sh patch|minor|major` bumps `chro
 
 - `.claude/skills/verify-extension`: build, lint and run the e2e flow before committing.
 - `.claude/skills/triage-reports`: check GitHub issues and Chrome Web Store reviews against the code.
+- `.claude/skills/release-extension`: readiness checks, tagging, and watching the release and store upload.
 - `.claude/agents/market-research`: compares competing extensions and files feature requests (labels `enhancement`, `market-research`).
