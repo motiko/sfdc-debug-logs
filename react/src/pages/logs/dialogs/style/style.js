@@ -14,7 +14,7 @@ import {
   toggleTextWrap,
   toggleStyleDialog
 } from './actions'
-import { defaultLogThemes } from '../../constants'
+import { appTheme, logThemes } from '../../../../core/log/themes'
 import { withStyles } from 'material-ui/styles'
 import { FormControlLabel } from 'material-ui/Form'
 import Grid from 'material-ui/Grid'
@@ -84,14 +84,14 @@ class StyleDialog extends React.Component {
                   className={classes.textField}
                   value={theme.themeName}
                   onChange={e =>
-                    this.props.updateTheme(defaultLogThemes[e.target.value])
+                    this.props.updateTheme(appTheme(e.target.value))
                   }
                   helperText="Please select log color theme"
                   margin="normal"
                 >
-                  {Object.keys(defaultLogThemes).map(option => (
-                    <MenuItem key={option} value={option}>
-                      {option}
+                  {Object.values(logThemes).map(option => (
+                    <MenuItem key={option.name} value={option.name}>
+                      {option.label}
                     </MenuItem>
                   ))}
                 </TextField>

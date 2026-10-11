@@ -1,7 +1,7 @@
-import { defaultLogThemes } from '../../constants'
+import { appTheme, DEFAULT_THEME } from '../../../../core/log/themes'
 
 export const defaultStyleConfig = {
-  theme: defaultLogThemes.dark,
+  theme: appTheme(DEFAULT_THEME),
   fontSize: 19,
   textWrap: true
 }

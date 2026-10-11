@@ -1,12 +1,22 @@
-// Pure helpers behind the log view (components/parsed-log.js): split an Apex
-// debug log into its header and entries, find each entry's event type and
-// color category, split out Salesforce ids for linking, and pretty-print
-// USER_DEBUG messages.
+// Parsing of Apex debug logs, shared by both log views: the app
+// (pages/logs/components/parsed-log.js) and the classic log page
+// (extension/debug-log-page.ts, via classic-blocks.ts). Splits a log into its
+// header and entries, finds each entry's event type, splits out Salesforce
+// ids for linking, and pretty-prints USER_DEBUG messages.
+//
+// Everything here returns plain text: the views turn it into DOM text nodes
+// (or React text), never HTML, since logs carry data from untrusted users (for
+// example System.debug of a public Site's input).
 import jsBeautify from 'js-beautify'
-import { sfIdRegex, logEventToType } from './constants'
+
+export { eventCategory, logEventToType, LOG_CATEGORIES } from './categories'
+export type { LogCategory } from './categories'
 
 // "12:01:02.123 (1234567)|EVENT_TYPE"
 const entryHeaderRegex = /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|([A-Z_]*)/
+
+// A Salesforce record id (15 or 18 characters).
+export const sfIdRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g
 
 export interface SplitLog {
   // The lines before the first entry: API version and log levels, and the
@@ -28,8 +38,8 @@ export function splitLog(body: string): SplitLog {
   return { intro: intro ? intro[0] : null, entries }
 }
 
-// The entry's event type ("USER_DEBUG", "SOQL_EXECUTE_BEGIN", …), or null if
-// the entry doesn't start with a timestamp and event.
+// The entry's (or line's) event type ("USER_DEBUG", "SOQL_EXECUTE_BEGIN", …),
+// or null if it doesn't start with a timestamp and event.
 export function eventTypeOf(entry: string): string | null {
   const match = entryHeaderRegex.exec(entry)
   return match ? match[1] : null
@@ -52,48 +62,59 @@ export function filterEntries(
   })
 }
 
-// The theme color category (debug, soql, method, …) for an event type.
-export function eventCategory(eventType: string): string {
-  const found = Object.entries(logEventToType).find(([prefix]) =>
-    eventType.startsWith(prefix)
-  )
-  return found ? found[1] : 'rest'
+export type TextOrId = string | { id: string }
+
+// Splits text into plain strings and Salesforce ids ({ id }), keeping all
+// text, including after the last id.
+export function splitIds(text: string): TextOrId[] {
+  const result: TextOrId[] = []
+  let last = 0
+  for (const match of text.matchAll(sfIdRegex)) {
+    if (match.index > last) result.push(text.slice(last, match.index))
+    result.push({ id: match[0] })
+    last = match.index + match[0].length
+  }
+  if (last < text.length) result.push(text.slice(last))
+  return result
 }
 
-// Splits text at Salesforce ids: ids are at the odd indexes, the text around
-// them at the even ones, so all text is kept, including after the last id.
-export function splitAtIds(text: string): string[] {
-  return text.split(new RegExp(`(${sfIdRegex.source})`))
-}
-
-// Splits a USER_DEBUG entry into its header ("…|USER_DEBUG|[12]|DEBUG|") and
-// the logged message, or returns null if it isn't one.
-export function parseUserDebug(
+// Splits a USER_DEBUG entry or line into its header ("…|USER_DEBUG|[12]|
+// DEBUG|", with or without the timestamp) and the logged message, or returns
+// null if it isn't one.
+export function splitUserDebug(
   entry: string
 ): { header: string; message: string } | null {
   const parsed = entry.match(
-    /^(\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|USER_DEBUG\|\[\d+\]\|[A-Z_]+\|)([^]*)/m
+    /^((?:\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|)?USER_DEBUG\|\[\d+\]\|[A-Z_]+\|)([^]*)/
   )
-  if (parsed && parsed.length > 2) {
-    return { header: parsed[1], message: parsed[2] }
-  }
-  return null
+  return parsed ? { header: parsed[1], message: parsed[2] } : null
 }
 
 // The entry with its USER_DEBUG message pretty-printed; other entries as is.
 export function indentUserDebug(entry: string): string {
-  const parsed = parseUserDebug(entry)
+  const parsed = splitUserDebug(entry)
   return parsed ? `${parsed.header}${beautifyUserDebug(parsed.message)}` : entry
+}
+
+// Whether beautifyUserDebug changes the format of this message.
+export function canBeautify(userDebug: string): boolean {
+  return Boolean(
+    looksLikeHtml(userDebug) ||
+    isJsonString(userDebug) ||
+    looksLikeSfdcObject(userDebug)
+  )
 }
 
 // Pretty-prints HTML, JSON or an Apex object's toString()
 // ("Account:{Id=001…, Name=Acme}"); anything else is returned unchanged.
+// JSON is re-indented as text rather than parsed and printed again, so large
+// numbers and duplicate keys stay exactly as logged.
 export function beautifyUserDebug(userDebug: string): string {
   if (looksLikeHtml(userDebug)) {
     return jsBeautify.html(userDebug)
   }
   if (isJsonString(userDebug)) {
-    return JSON.stringify(JSON.parse(userDebug), null, 2)
+    return jsBeautify.js(userDebug.trim(), { indent_size: 2 })
   }
   if (looksLikeSfdcObject(userDebug)) {
     return jsBeautify.js(sfdcObjectBeautify(userDebug))
@@ -104,7 +125,7 @@ export function beautifyUserDebug(userDebug: string): string {
 export function isJsonString(str: string): boolean {
   try {
     JSON.parse(str)
-  } catch (e) {
+  } catch {
     return false
   }
   return true

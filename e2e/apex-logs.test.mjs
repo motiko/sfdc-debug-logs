@@ -1,10 +1,11 @@
 // End-to-end flow: run Apex in the org, then check the resulting debug log in
 // both of the extension's views:
 //   - classic view: the content script on Salesforce's log detail page
-//     (react/src/extension/debug-log-page.ts, themes in chrome/app/css/debug.css)
+//     (react/src/extension/debug-log-page.ts)
 //   - React app: html/app.html opened with Shift+W (react/src/pages/logs)
 // For each view: the log is visible, it can be searched, and every theme
-// applies its color/font rules to every event type in the log.
+// (react/src/core/log/themes.ts, shared by both views) applies its color and
+// font rules to every event type in the log.
 //
 // Credentials: .env.local (see scripts/lib/sf-auth.mjs). Run: npm test (in e2e/)
 
@@ -16,7 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { login, frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { Salesforce } from './lib/salesforce.mjs'
 import { launchWithExtension } from './lib/browser.mjs'
-import { classicThemes, defaultLogThemes, logEventToType, computedValue, toRgb } from './lib/styles.mjs'
+import { logThemes, CLASSIC_CATEGORY_CLASS, eventCategory, computedCategoryStyle, toRgb } from './lib/styles.mjs'
 
 const MARKER = `E2E_MARKER_${Date.now()}`
 // Log text is untrusted (System.debug of a public Site's input): the views must
@@ -226,7 +227,10 @@ test('classic log view', async t => {
   })
 
   await t.test('log covers the styled event types', async () => {
-    const categories = ['debug', 'soql', 'system', 'rest', 'method', 'err']
+    // The Apex makes no callout; every other category is in the log.
+    const categories = Object.entries(CLASSIC_CATEGORY_CLASS)
+      .filter(([category]) => category !== 'callout')
+      .map(([, className]) => className)
     const present = await page.evaluate(
       cats => cats.filter(c => document.querySelector(`#debugText div.${c}`)),
       categories
@@ -234,35 +238,40 @@ test('classic log view', async t => {
     assert.deepEqual(present, categories)
   })
 
-  const themes = classicThemes()
-  for (const [theme, { background, classes }] of Object.entries(themes)) {
-    await t.test(`theme "${theme}" applies to every event type`, async () => {
-      await page.select('#styleSelection', theme)
+  for (const theme of Object.values(logThemes)) {
+    await t.test(`theme "${theme.name}" applies to every event type`, async () => {
+      await page.select('#styleSelection', theme.name)
+      const classes = Object.entries(CLASSIC_CATEGORY_CLASS)
       const actual = await page.evaluate(
-        (classNames, props) => {
+        classNames => {
           const root = document.querySelector('#debugText')
           const result = { className: root.className, background: getComputedStyle(root).backgroundColor, classes: {} }
           for (const cls of classNames) {
             const el = root.querySelector(`div.${cls}`)
             if (!el) continue
             const style = getComputedStyle(el)
-            result.classes[cls] = Object.fromEntries(props.map(p => [p, style.getPropertyValue(p)]))
+            result.classes[cls] = {
+              color: style.color,
+              'font-weight': style.fontWeight,
+              'font-style': style.fontStyle
+            }
           }
           return result
         },
-        Object.keys(classes),
-        [...new Set(Object.values(classes).flatMap(Object.keys))]
+        classes.map(([, cls]) => cls)
       )
-      assert.equal(actual.className, theme)
-      assert.equal(actual.background, toRgb(background), 'background color')
-      for (const cls of Object.keys(actual.classes)) {
-        for (const [prop, value] of Object.entries(classes[cls])) {
-          assert.ok(
-            actual.classes[cls][prop].startsWith(computedValue(prop, value)),
-            `.${theme} .${cls} ${prop}: expected ${value}, got ${actual.classes[cls][prop]}`
-          )
+      assert.equal(actual.className, theme.name)
+      assert.equal(actual.background, toRgb(theme.background), 'background color')
+      const failures = []
+      for (const [category, cls] of classes) {
+        if (!actual.classes[cls]) continue
+        for (const [prop, value] of Object.entries(computedCategoryStyle(theme.categories[category]))) {
+          if (!actual.classes[cls][prop].startsWith(value)) {
+            failures.push(`.${cls} (${category}) ${prop}: expected ${value}, got ${actual.classes[cls][prop]}`)
+          }
         }
       }
+      assert.deepEqual(failures, [])
     })
   }
 
@@ -595,16 +604,14 @@ test('React log viewer', async t => {
         whiteSpace: getComputedStyle(pre).whiteSpace,
         elements: [...pre.children].slice(1).map(div => ({
           text: div.innerText.slice(0, 80),
-          color: getComputedStyle(div).color
+          color: getComputedStyle(div).color,
+          'font-weight': getComputedStyle(div).fontWeight,
+          'font-style': getComputedStyle(div).fontStyle
         }))
       }
     })
-  // Category the app assigns to a log line (same rule as parsed-log.js).
-  const categoryOf = text => {
-    const event = (text.match(/\|([A-Z_]+)/) || [])[1] || ''
-    const match = Object.entries(logEventToType).find(([prefix]) => event.startsWith(prefix))
-    return match ? match[1] : 'rest'
-  }
+  // Category the app assigns to a log line (eventCategory, as in parsed-log.js).
+  const categoryOf = text => eventCategory((text.match(/\|([A-Z_]+)/) || [])[1] || '')
 
   const THEME_SELECT = '[aria-haspopup="true"]'
   const themeOptions = () => app.$$('li[role="option"]')
@@ -619,14 +626,14 @@ test('React log viewer', async t => {
     assert.ok(opened, 'clicking the Log Color Theme select shows the theme list')
   })
 
-  for (const [name, theme] of Object.entries(defaultLogThemes)) {
-    await t.test(`theme "${name}" applies to every event type`, async () => {
+  for (const theme of Object.values(logThemes)) {
+    await t.test(`theme "${theme.name}" applies to every event type`, async () => {
       await openStyleDialog()
       // Opened with the keyboard so theme coverage doesn't depend on the
       // click check above.
       await app.focus(THEME_SELECT)
       await app.keyboard.press('ArrowDown')
-      const option = `::-p-xpath(//li[@role="option" and normalize-space()="${name}"])`
+      const option = `::-p-xpath(//li[@role="option" and normalize-space()="${theme.label}"])`
       await app.waitForSelector(option, { visible: true })
       await app.click(option)
       await app.waitForSelector(option, { hidden: true })
@@ -636,10 +643,14 @@ test('React log viewer', async t => {
       const failures = []
       for (const el of styles.elements) {
         const category = categoryOf(el.text)
-        if (!theme[category]) {
-          failures.push(`theme has no color for category "${category}" (${el.text})`)
-        } else if (el.color !== toRgb(theme[category])) {
-          failures.push(`${category}: expected ${theme[category]}, got ${el.color} (${el.text})`)
+        const style = theme.categories[category]
+        if (!style) {
+          failures.push(`theme has no style for category "${category}" (${el.text})`)
+          continue
+        }
+        for (const [prop, value] of Object.entries(computedCategoryStyle(style))) {
+          if (!el[prop].startsWith(value))
+            failures.push(`${category} ${prop}: expected ${value}, got ${el[prop]} (${el.text})`)
         }
       }
       assert.deepEqual([...new Set(failures)], [])

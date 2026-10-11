@@ -16,6 +16,7 @@ import appReducer from './reducers'
 // import FeedbackPage from './pages/feedback/feedback'
 import LogsPage from './pages/logs/logs'
 import globalSf from './global-sf'
+import { migrateAppTheme } from './core/log/themes'
 import './app.css'
 
 class App extends React.Component {
@@ -55,10 +56,26 @@ const storage = compose(
   ])
 )(adapter(window.sessionStorage))
 
+// A theme saved by an earlier version keeps its colors under its current
+// name (e.g. "dark" -> "monokai").
+function withCurrentThemeName(logsPage) {
+  if (!logsPage || !logsPage.styleConfig) return logsPage
+  return {
+    ...logsPage,
+    styleConfig: {
+      ...logsPage.styleConfig,
+      theme: migrateAppTheme(logsPage.styleConfig.theme)
+    }
+  }
+}
+
 const reducer = compose(
   mergePersistedState((initialState, persistedState) => ({
     ...initialState,
-    logsPage: { ...initialState.logsPage, ...persistedState.logsPage }
+    logsPage: {
+      ...initialState.logsPage,
+      ...withCurrentThemeName(persistedState.logsPage)
+    }
   }))
 )(appReducer)
 

@@ -1,27 +1,14 @@
-.monokai { background-color: #292724 }
-.monokai .debug,.monokai .debug a{ color: #a6e22e }
-.monokai .soql,.monokai .soql a { color: #66d9ef }
-.monokai .callout,.monokai .callout a { color: #ae81ff }
-.monokai .system,.monokai .system a { color: #75715e }
-.monokai .rest,.monokai .rest a { color: #f8f8f2 }
-.monokai .method,.monokai .method a{ color: #e6db74 }
-
-.monokai .err,.monokai .err a{ color: #f92672 }
-
-.emacs { background-color: #ffffcc }
-.emacs .debug,.emacs .debug a {color: #0000FF; font-weight: bold }
-.emacs .soql,.emacs .soql a { color: #AA22FF; font-style: italic }
-.emacs .callout,.emacs .callout a { color: #A0A000 }
-.emacs .system,.emacs .system a { color: #008800;}
-.emacs .rest,.emacs .rest a {  color: #880000}
-.emacs .method,.emacs .method a { color: #BB4444}
-.emacs .err,.emacs .err a{ color: #f92672 }
-
-.bw {background-color: #ffffff}
-.bw .debug,.bw .debug a {font-weight: bold }
-.bw .soql,.bw .soql a { font-style: italic; font-weight: 600 }
-.bw .callout,.bw .callout a { font-style: oblique}
-.bw .err,.bw .err a{ color: #f92672 }
+/* Log themes: the colors and fonts come from the theme data in
+   react/src/core/log/themes.ts, which debug-log-page.ts sets on #debugText as
+   custom properties (themeCssVariables). One rule per category class. */
+#debugText { background-color: var(--log-background) }
+#debugText .debug,#debugText .debug a { color: var(--log-debug-color); font-weight: var(--log-debug-weight); font-style: var(--log-debug-style) }
+#debugText .soql,#debugText .soql a { color: var(--log-soql-color); font-weight: var(--log-soql-weight); font-style: var(--log-soql-style) }
+#debugText .callout,#debugText .callout a { color: var(--log-callout-color); font-weight: var(--log-callout-weight); font-style: var(--log-callout-style) }
+#debugText .system,#debugText .system a { color: var(--log-system-color); font-weight: var(--log-system-weight); font-style: var(--log-system-style) }
+#debugText .rest,#debugText .rest a { color: var(--log-rest-color); font-weight: var(--log-rest-weight); font-style: var(--log-rest-style) }
+#debugText .method,#debugText .method a { color: var(--log-method-color); font-weight: var(--log-method-weight); font-style: var(--log-method-style) }
+#debugText .err,#debugText .err a { color: var(--log-error-color); font-weight: var(--log-error-weight); font-style: var(--log-error-style) }
 
 .wrap{
     white-space: pre-wrap;

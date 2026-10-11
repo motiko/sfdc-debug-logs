@@ -77,6 +77,9 @@ export default defineConfig({
   // Unit tests (npm test): pure logic only, no DOM.
   test: {
     include: ['src/**/*.test.{js,ts}'],
-    environment: 'node'
+    environment: 'node',
+    // Let tests import chrome/app/css/debug.css?raw (themes.test.ts); Vitest
+    // otherwise replaces CSS with an empty module.
+    css: { include: [/debug\.css/] }
   }
 })

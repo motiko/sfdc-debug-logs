@@ -1,37 +1,13 @@
-// Expected log styles, read from the extension's own sources so the flow
-// checks that every defined style is actually applied.
+// Expected log styles, read from the extension's own theme data
+// (react/src/core/log/themes.ts, the single source for both views), so the
+// flow checks that every defined theme is actually applied everywhere.
+// Node imports the .ts files directly (type stripping); they have no runtime
+// imports.
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { ROOT } from '../../scripts/lib/sf-auth.mjs'
+import { logThemes, CLASSIC_CATEGORY_CLASS } from '../../react/src/core/log/themes.ts'
 
-export { defaultLogThemes, logEventToType } from '../../react/src/pages/logs/constants.js'
-
-// Parses chrome/app/css/debug.css into
-// { monokai: { background: {...}, classes: { debug: { color: '#a6e22e' }, ... } }, ... }
-export function classicThemes() {
-  const css = readFileSync(join(ROOT, 'chrome/app/css/debug.css'), 'utf8')
-  const themes = {}
-  for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
-    const decls = Object.fromEntries(
-      body
-        .split(';')
-        .map(d => d.split(':').map(s => s.trim()))
-        .filter(([prop, value]) => prop && value)
-    )
-    for (const selector of selectors.split(',').map(s => s.trim())) {
-      let m
-      if ((m = selector.match(/^\.(\w+)$/)) && decls['background-color']) {
-        themes[m[1]] = themes[m[1]] || { classes: {} }
-        themes[m[1]].background = decls['background-color']
-      } else if ((m = selector.match(/^\.(\w+) \.(\w+)$/))) {
-        themes[m[1]] = themes[m[1]] || { classes: {} }
-        themes[m[1]].classes[m[2]] = decls
-      }
-    }
-  }
-  return themes
-}
+export { logThemes, CLASSIC_CATEGORY_CLASS }
+export { eventCategory, LOG_CATEGORIES } from '../../react/src/core/log/categories.ts'
 
 // '#abc' / '#aabbcc' / '#000' -> 'rgb(r, g, b)' as returned by getComputedStyle.
 export function toRgb(hex) {
@@ -41,9 +17,12 @@ export function toRgb(hex) {
   return `rgb(${r}, ${g}, ${b})`
 }
 
-// Normalizes an expected CSS value to what getComputedStyle reports.
-export function computedValue(prop, value) {
-  if (prop === 'color' || prop === 'background-color') return toRgb(value)
-  if (prop === 'font-weight') return { bold: '700', normal: '400' }[value] || value
-  return value
+// A category style of a theme as getComputedStyle reports it:
+// { color: 'rgb(…)', 'font-weight': '700', 'font-style': 'italic' }.
+export function computedCategoryStyle({ color, fontWeight = 'normal', fontStyle = 'normal' }) {
+  return {
+    color: toRgb(color),
+    'font-weight': { bold: '700', normal: '400' }[fontWeight] || fontWeight,
+    'font-style': fontStyle
+  }
 }
