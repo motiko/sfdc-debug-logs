@@ -6,7 +6,7 @@
 // indicators, dialog focus return). Used by the ux-ui-review agent
 // (.claude/agents/ux-ui-review.md), and meant to be rerun after UI changes.
 //
-//   node ux-audit.mjs [--out <dir>] [--views app,classic,options]
+//   node ux-audit.mjs [--out <dir>] [--views app,classic,options,trace]
 //                     [--sizes 1440x900,1024x768] [--compare <previous out dir>]
 //                     [--mock]
 //
@@ -46,7 +46,7 @@ const AXE_PATH = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 const { values: args } = parseArgs({
   options: {
     out: { type: 'string', default: join(HERE, 'ux-artifacts') },
-    views: { type: 'string', default: 'app,classic,options' },
+    views: { type: 'string', default: 'app,classic,options,trace' },
     sizes: { type: 'string', default: '1440x900,1024x768' },
     compare: { type: 'string' },
     mock: { type: 'boolean', default: process.env.SF_MOCK === '1' }
@@ -1566,6 +1566,280 @@ async function classicViews(ctx) {
   }
 }
 
+// --- Trace flags dialog (app, "Trace flags…") -----------------------------
+
+// The trace flags dialog's own UI: the dialog and the popups it opens.
+const TRACE_SCOPE = ['[role=dialog]', '[role=listbox]', '[role=presentation] [role=listbox]']
+
+// Captures the Trace flags dialog: loading, its read error, open (active
+// flags), each target picker with search results, no matches and a search
+// error, the custom levels editor (scrolled to the end), a start error, and
+// filled (after tracing another user and a class). Starting and stopping
+// traces only happens on the mock org; against a real org the view only
+// opens the dialog and reads.
+async function traceFlagsView(ctx) {
+  const V = 'trace'
+  const page = await newPage(ctx)
+  await page.emulateMediaFeatures([
+    { name: 'prefers-color-scheme', value: 'light' },
+    { name: 'prefers-reduced-motion', value: 'reduce' }
+  ])
+  // Requests matching a rule are failed with a Salesforce-style error.
+  const failing = []
+  await page.setRequestInterception(true)
+  page.on('request', req => {
+    const url = decodeURIComponent(req.url())
+    const rule = failing.find(r => r.method === req.method() && r.match.test(url))
+    if (!rule) return req.continue().catch(() => {})
+    req
+      .respond({
+        status: rule.status || 500,
+        contentType: 'application/json',
+        body: JSON.stringify([{ errorCode: rule.code || 'UNKNOWN_EXCEPTION', message: rule.message }])
+      })
+      .catch(() => {})
+  })
+  await page.goto(appUrl(ctx), { waitUntil: 'networkidle2' })
+  await delay(1000)
+  const DIALOG = '[role=dialog]'
+  const open = async () => {
+    let trigger = await byName(page, [/^trace flags…$/i], { roles: ['button'] })
+    if (!trigger) {
+      const status = await byName(page, [/^logging on/i], { roles: ['button'] })
+      if (!status) throw new Error('no logging control')
+      await safeClick(status)
+      await delay(500)
+      trigger = await byName(page, [/^trace flags…/i], { roles: ['menuitem'] })
+    }
+    if (!trigger) throw new Error('no "Trace flags…" control')
+    await safeClick(trigger)
+    await page.waitForSelector(DIALOG, { visible: true, timeout: 10000 })
+    await delay(300)
+  }
+  const waitIdle = () =>
+    page
+      .waitForFunction(
+        sel => !/Loading trace flags|Starting the trace|Stopping/.test(document.querySelector(sel)?.innerText || ''),
+        { timeout: 15000 },
+        DIALOG
+      )
+      .catch(() => {})
+  const close = async () => {
+    await page.keyboard.press('Escape')
+    await page.waitForSelector(DIALOG, { hidden: true, timeout: 5000 }).catch(() => {})
+    await delay(300)
+  }
+  const combobox = label => page.$(`${DIALOG} ::-p-aria([name="${label}"][role="combobox"])`)
+  const choose = async (label, text) => {
+    const control = await combobox(label)
+    if (!control) throw new Error(`no ${label} field`)
+    await chooseOption(page, control, text)
+    await page.waitForSelector('[role=listbox]', { hidden: true, timeout: 5000 }).catch(() => {})
+  }
+  const search = async (label, term) => {
+    const input = await combobox(label)
+    if (!input) throw new Error(`no ${label} search`)
+    await typeInto(page, input, term)
+    await delay(1200) // debounce plus the query
+  }
+  const scrollDialog = fraction =>
+    page.evaluate(fraction => {
+      const el =
+        document.querySelector('[role=dialog] .MuiDialogContent-root') || document.querySelector('[role=dialog]')
+      el.scrollTop = (el.scrollHeight - el.clientHeight) * fraction
+      return { scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }
+    }, fraction)
+  // Opens the dialog with the keyboard ("Trace flags…" button, or the
+  // logging menu's item), then checks focus moves in, Tab stays in, and
+  // Escape returns focus to the header's control.
+  const traceKeyboard = async () => {
+    const direct = await byName(page, [/^trace flags…$/i], { roles: ['button'] })
+    const status = direct ? null : await byName(page, [/^logging on/i], { roles: ['button'] })
+    const trigger = direct || status
+    if (!trigger) return { dialog: 'trace flags', error: 'trigger not found' }
+    if (direct) return dialogKeyboard(page, direct, 'trace flags')
+    const result = { dialog: 'trace flags (from the logging menu)' }
+    await status.focus()
+    await page.keyboard.press('Enter')
+    await delay(500)
+    for (let i = 0; i < 6; i++) {
+      const name = await page.evaluate(() => document.activeElement?.innerText || '')
+      if (/^Trace flags…/.test(name)) break
+      await page.keyboard.press('ArrowDown')
+      await delay(100)
+    }
+    await page.keyboard.press('Enter')
+    await page.waitForSelector(DIALOG, { visible: true, timeout: 10000 }).catch(() => {})
+    await delay(600)
+    const dialog = await openDialog(page)
+    result.opened = Boolean(dialog)
+    if (!dialog) return result
+    result.focusMovedIntoDialog = await dialog.evaluate(d => d.contains(document.activeElement))
+    const outside = []
+    for (let i = 0; i < 25; i++) {
+      await page.keyboard.press('Tab')
+      await delay(100)
+      if (!(await dialog.evaluate(d => d.contains(document.activeElement)))) {
+        const stop = await describeActive(page)
+        outside.push(stop.body ? 'body' : `${stop.element} "${stop.name}"`)
+      }
+    }
+    result.tabStaysInDialog = outside.length === 0
+    result.tabStopsOutsideDialog = outside
+    await page.keyboard.press('Escape')
+    await delay(700)
+    result.closedWithEscape = !(await openDialog(page))
+    result.focusReturnedToTrigger = await status.evaluate(el => document.activeElement === el)
+    result.focusAfterClose = await describeActive(page)
+    await dialog.dispose()
+    return result
+  }
+  const shot = (state, opts = {}) => capture(ctx, page, V, state, { scope: TRACE_SCOPE, ...opts })
+
+  try {
+    // Read error: the active flags query fails.
+    failing.push({ method: 'GET', match: /FROM TraceFlag/, message: 'Simulated failure (ux audit)' })
+    await open()
+    await waitIdle()
+    await shot('load-error')
+    failing.length = 0
+    await close()
+
+    await open()
+    await waitIdle()
+    await shot('open')
+    if (ctx.primary) {
+      await close()
+      saveKeyboard(`${V}-keyboard-dialog`, [await traceKeyboard()])
+      await open()
+      await waitIdle()
+    }
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await delay(500)
+    await shot('open-dark')
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await delay(300)
+
+    // Target menu, then "Another user" with nothing picked (Start disabled).
+    const target = await combobox('Trace')
+    if (target) {
+      await target.click()
+      await delay(400)
+      await shot('target-menu')
+      await page.keyboard.press('Escape')
+      await delay(300)
+    }
+    await choose('Trace', 'Another user')
+    await shot('user-not-picked')
+    // Start with no user picked: the field says what's missing.
+    await safeClick(await byName(page, [/^start tracing$/i], { within: DIALOG, roles: ['button'] }))
+    await delay(300)
+    await shot('user-missing')
+    await search('User', 'd')
+    await shot('user-search-short')
+    await search('User', 'dev')
+    await shot('user-search-results')
+    await search('User', 'zzzz')
+    await shot('user-search-no-matches')
+    failing.push({ method: 'GET', match: /FROM User/, message: 'Simulated failure (ux audit)' })
+    await search('User', 'other')
+    await delay(500)
+    await shot('user-search-error')
+    failing.length = 0
+
+    await choose('Trace', 'An Apex class or trigger')
+    await search('Apex class or trigger', 'lead')
+    await shot('code-search-results')
+    await page.keyboard.press('Escape')
+    await delay(200)
+
+    await choose('Debug level', 'Custom levels…')
+    await shot('custom-levels')
+    await scrollDialog(1)
+    await shot('custom-levels-scrolled')
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await delay(500)
+    await shot('custom-levels-dark')
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await delay(300)
+    await close()
+
+    if (ctx.session && args.mock) {
+      // Start error: Salesforce refuses the new flag.
+      await open()
+      await waitIdle()
+      await choose('Trace', 'Automated Process')
+      failing.push({
+        method: 'POST',
+        match: /sobjects\/TraceFlag/,
+        status: 400,
+        code: 'FIELD_INTEGRITY_EXCEPTION',
+        message: 'Simulated failure (ux audit)'
+      })
+      failing.push({
+        method: 'PATCH',
+        match: /sobjects\/TraceFlag/,
+        status: 400,
+        message: 'Simulated failure (ux audit)'
+      })
+      const start = await byName(page, [/^start tracing$/i], { within: DIALOG, roles: ['button'] })
+      await safeClick(start)
+      await page.waitForSelector(`${DIALOG} [role=alert]`, { timeout: 10000 }).catch(() => {})
+      await waitIdle()
+      await scrollDialog(1)
+      await shot('start-error')
+      failing.length = 0
+
+      // Filled: trace another user and a class (mock org only), then stop them.
+      await choose('Trace', 'Another user')
+      await search('User', 'other')
+      const option = await page.waitForSelector(
+        '::-p-xpath(//li[@role="option" and .//*[normalize-space()="Other Developer"]])',
+        {
+          visible: true,
+          timeout: 10000
+        }
+      )
+      await option.click()
+      await delay(300)
+      await safeClick(await byName(page, [/^start tracing$/i], { within: DIALOG, roles: ['button'] }))
+      await waitIdle()
+      await choose('Trace', 'An Apex class or trigger')
+      await search('Apex class or trigger', 'invoice')
+      const cls = await page.waitForSelector(
+        '::-p-xpath(//li[@role="option" and .//*[normalize-space()="InvoiceBatch"]])',
+        {
+          visible: true,
+          timeout: 10000
+        }
+      )
+      await cls.click()
+      await delay(300)
+      await safeClick(await byName(page, [/^start tracing$/i], { within: DIALOG, roles: ['button'] }))
+      await waitIdle()
+      await delay(500)
+      await scrollDialog(0)
+      await shot('filled')
+      await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+      await delay(500)
+      await shot('filled-dark')
+      await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+      for (const name of ['Other Developer', 'InvoiceBatch']) {
+        const stop = await page.$(`${DIALOG} ::-p-aria([name="Stop tracing ${name}"][role="button"])`)
+        if (stop) {
+          await stop.click()
+          await waitIdle()
+          await delay(500)
+        }
+      }
+      await close()
+    }
+  } finally {
+    summary.pageErrors = { ...(summary.pageErrors || {}), [`trace@${ctx.size.label}`]: page.errors.map(redact) }
+    await page.close()
+  }
+}
+
 // --- Options page ----------------------------------------------------------
 
 async function optionsView(ctx) {
@@ -1646,7 +1920,7 @@ async function main() {
     for (const [i, size] of SIZES.entries()) {
       const ctx = { ext, session, sf, logs, size, primary: i === 0 }
       for (const view of VIEWS) {
-        const fn = { app: appView, classic: classicViews, options: optionsView }[view]
+        const fn = { app: appView, classic: classicViews, options: optionsView, trace: traceFlagsView }[view]
         if (!fn) throw new Error(`unknown view ${view}`)
         log(`--- ${view} @ ${size.label}`)
         try {
