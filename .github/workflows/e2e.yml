@@ -47,6 +47,11 @@ jobs:
           SF_PASS: ${{ secrets.SF_PASS }}
           SF_TOKEN: ${{ secrets.SF_TOKEN }}
           SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
+          # Optional second org, used when the first is near its daily API limit.
+          SF_USER_2: ${{ secrets.SF_USER_2 }}
+          SF_PASS_2: ${{ secrets.SF_PASS_2 }}
+          SF_TOKEN_2: ${{ secrets.SF_TOKEN_2 }}
+          SF_LOGIN_URL_2: ${{ secrets.SF_LOGIN_URL_2 }}
         run: npm test
 
       - uses: actions/upload-artifact@v7
