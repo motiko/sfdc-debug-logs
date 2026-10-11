@@ -1,11 +1,7 @@
 node_modules/
 package-lock.json
 chrome/app/js/build/
-chrome/app/js/lib/
 .chrome-test/
 .claude/worktrees/
 e2e/artifacts/
 react/mocks/
-# Content scripts use another style (semicolons, double quotes, mixed);
-# reformatting them would rewrite most lines. Left for the M3 refactor.
-chrome/app/js/

@@ -11,7 +11,7 @@
   },
   "description": "Debug Salesforce apex code with ease",
   "background": {
-    "service_worker": "js/background.js"
+    "service_worker": "js/build/background.js"
   },
   "options_ui": {
     "page": "html/options.html"
@@ -34,9 +34,7 @@
         "https://*.salesforce-setup.com/p/setup/layout/ApexDebugLogDetailEdit/*"
       ],
       "js": [
-        "js/lib/beautify/1.7.4/beautify.min.js",
-        "js/lib/beautify/1.7.4/beautify-html.min.js",
-        "js/sfdc.debug.js"
+        "js/build/debug-log-page.js"
       ],
       "run_at": "document_idle"
     },
@@ -50,7 +48,7 @@
         "css/debug.logs.css"
       ],
       "js": [
-        "js/sfdc.debug.btn.js"
+        "js/build/debug-log-list.js"
       ],
       "run_at": "document_idle"
     },
@@ -61,10 +59,7 @@
         "https://*.salesforce-setup.com/*"
       ],
       "js": [
-        "js/default_shortcuts.js",
-        "js/lib/mousetrap/1.6.1/mousetrap.min.js",
-        "js/utils.js",
-        "js/shortcuts.js"
+        "js/build/shortcuts.js"
       ],
       "run_at": "document_end"
     },
@@ -78,7 +73,7 @@
         "https://*.salesforce-setup.com/setup/build/allTriggers.apexp*"
       ],
       "js": [
-        "js/sfdc.classes.js"
+        "js/build/class-page.js"
       ],
       "run_at": "document_idle"
     }

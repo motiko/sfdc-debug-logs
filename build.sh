@@ -18,7 +18,7 @@ case "${1:-}" in
   --zip)
     npm run build --prefix react
     rm -f apex-debugger.zip
-    (cd chrome/app && zip -qr -X ../../apex-debugger.zip . -x '*.DS_Store' 'js/build/.gitignore')
+    (cd chrome/app && zip -qr -X ../../apex-debugger.zip . -x '*.DS_Store' '*.map' 'js/build/.gitignore')
     echo "Built apex-debugger.zip" ;;
   "")
     npm run build --prefix react

@@ -14,7 +14,6 @@ export default [
     ignores: [
       '**/node_modules/',
       'chrome/app/js/build/',
-      'chrome/app/js/lib/',
       '.chrome-test/',
       '.claude/',
       'e2e/artifacts/',
@@ -71,7 +70,8 @@ export default [
       'e2e/**/*.{js,mjs}',
       'scripts/**/*.{js,mjs}',
       'eslint.config.js',
-      'react/vite.config.mjs'
+      'react/vite.config.mjs',
+      'react/build.mjs'
     ],
     languageOptions: {
       ecmaVersion: 'latest',
@@ -80,78 +80,15 @@ export default [
     }
   },
   // e2e callbacks passed to evaluate() run in pages or in the extension's
-  // service worker (getSession is a background.js function).
+  // service worker (getSessionForUrl is exposed by extension/background.ts).
   {
     files: ['e2e/**/*.{js,mjs}'],
     languageOptions: {
       globals: {
         ...globals.browser,
         ...globals.webextensions,
-        getSession: 'readonly'
+        getSessionForUrl: 'readonly'
       }
-    }
-  },
-
-  // Extension scripts: classic scripts that share top-level names with the
-  // other files loaded before them (manifest.json content_scripts order,
-  // options.html script order). Declared here instead of refactored into
-  // modules for now.
-  {
-    files: ['chrome/app/js/**/*.js'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'script',
-      globals: { ...globals.browser, ...globals.webextensions }
-    },
-    rules: {
-      // Top-level functions are called from other files or from the page.
-      'no-unused-vars': [
-        'error',
-        { vars: 'local', args: 'none', caughtErrors: 'none' }
-      ],
-      // Legacy regexes escape more than needed; harmless.
-      'no-useless-escape': 'off'
-    }
-  },
-  {
-    // Content scripts on Salesforce pages. Every page also gets the
-    // "all Salesforce pages" group (default_shortcuts.js, Mousetrap, utils.js,
-    // shortcuts.js at document_end), and content scripts of one extension
-    // share a global scope, so the later scripts use these names.
-    files: ['chrome/app/js/**/*.js'],
-    ignores: [
-      'chrome/app/js/background.js',
-      'chrome/app/js/options.js',
-      'chrome/app/js/default_shortcuts.js',
-      'chrome/app/js/utils.js'
-    ],
-    languageOptions: {
-      globals: {
-        default_shortcuts: 'readonly',
-        Mousetrap: 'readonly',
-        API_PATH: 'readonly',
-        ASYNC_API_PATH: 'readonly',
-        getSession: 'readonly',
-        getToken: 'readonly',
-        sfRequest: 'readonly',
-        parseDiscoCookie: 'readonly',
-        getUserId: 'readonly',
-        logEvent: 'readonly'
-      }
-    }
-  },
-  {
-    // Loaded after the vendored js-beautify.
-    files: ['chrome/app/js/sfdc.debug.js'],
-    languageOptions: {
-      globals: { js_beautify: 'readonly', html_beautify: 'readonly' }
-    }
-  },
-  {
-    // options.html loads browser-polyfill and default_shortcuts.js first.
-    files: ['chrome/app/js/options.js'],
-    languageOptions: {
-      globals: { default_shortcuts: 'readonly' }
     }
   }
 ]

@@ -29,10 +29,10 @@ if [ -z "$URL" ]; then
   fi
 fi
 
-# The React bundle isn't committed; build it on first run. While developing,
-# keep `./build.sh --watch` running to rebuild on save.
-if [ ! -f "$EXT/js/build/app.js" ]; then
-  echo "chrome/app/js/build/app.js is missing; building it." >&2
+# The built scripts aren't committed; build them on first run. While
+# developing, keep `./build.sh --watch` running to rebuild on save.
+if [ ! -f "$EXT/js/build/app.js" ] || [ ! -f "$EXT/js/build/background.js" ]; then
+  echo "chrome/app/js/build/ is missing scripts; building them." >&2
   "$ROOT/build.sh"
 fi
 

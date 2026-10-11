@@ -1,7 +1,7 @@
 // End-to-end flow: run Apex in the org, then check the resulting debug log in
 // both of the extension's views:
 //   - classic view: the content script on Salesforce's log detail page
-//     (chrome/app/js/sfdc.debug.js, themes in chrome/app/css/debug.css)
+//     (react/src/extension/debug-log-page.ts, themes in chrome/app/css/debug.css)
 //   - React app: html/app.html opened with Shift+W (react/src/pages/logs)
 // For each view: the log is visible, it can be searched, and every theme
 // applies its color/font rules to every event type in the log.
@@ -110,7 +110,7 @@ const keyboardState = page =>
 // Opens the app with the real Shift+W shortcut on a Salesforce page and
 // returns the app page. Saves artifacts as <name>.png/.log on failure.
 //
-// Shift+W is bound by shortcuts.js (Mousetrap) only once the content script's
+// Shift+W is bound by shortcuts.ts (Mousetrap) only once the content script's
 // getShortcuts message to the service worker is answered, and Mousetrap only
 // sees keys that reach the top document while no input, select or iframe has
 // focus (content scripts don't run in frames); other key presses are silently
@@ -620,7 +620,7 @@ test('sessions are only handed out for org hosts', async () => {
   // *.my.site.com). They must not get the saved token or an org cookie.
   await ext.background.evaluate(() => chrome.storage.local.set({ token: 'saved-token' }))
   try {
-    const lookup = url => ext.background.evaluate(url => getSession(url), url)
+    const lookup = url => ext.background.evaluate(url => getSessionForUrl(url), url)
     for (const url of ['https://someone.force.com/s/', 'https://someone.my.site.com/', 'https://evil.example.com/']) {
       assert.equal((await lookup(url)).token, undefined, url)
     }
