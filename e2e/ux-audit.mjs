@@ -38,6 +38,7 @@ import { createRequire } from 'node:module'
 import { parseArgs } from 'node:util'
 import { frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { startRun } from './lib/run.mjs'
+import { captureDownload } from './lib/downloads.mjs'
 import { logThemes } from './lib/styles.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -46,7 +47,7 @@ const AXE_PATH = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 const { values: args } = parseArgs({
   options: {
     out: { type: 'string', default: join(HERE, 'ux-artifacts') },
-    views: { type: 'string', default: 'app,classic,options' },
+    views: { type: 'string', default: 'app,classic,options,download' },
     sizes: { type: 'string', default: '1440x900,1024x768' },
     compare: { type: 'string' },
     mock: { type: 'boolean', default: process.env.SF_MOCK === '1' }
@@ -1606,6 +1607,158 @@ async function optionsView(ctx) {
   await page.close()
 }
 
+// --- Download log (app viewer and classic toolbar) ------------------------
+
+// Where the Download button sits in its toolbar: whether the toolbar wraps
+// onto more rows, and whether the button is clipped, wrapped or off screen.
+function downloadLayout(buttonSelector, rowSelector) {
+  const button = document.querySelector(buttonSelector)
+  if (!button) return { error: `no ${buttonSelector}` }
+  const row = rowSelector ? button.closest(rowSelector) : button.parentElement
+  const r = button.getBoundingClientRect()
+  const style = getComputedStyle(button)
+  const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3
+  const childTops = row
+    ? [...row.children]
+        .map(c => c.getBoundingClientRect())
+        .filter(c => c.width > 0 && c.height > 0)
+        .map(c => Math.round(c.top))
+    : []
+  const rowTops = [...new Set(childTops)].sort((a, b) => a - b)
+  // Rows: children whose tops differ by more than half a control height.
+  const rows = rowTops.reduce((acc, t) => (acc.length && t - acc[acc.length - 1] < 14 ? acc : [...acc, t]), [])
+  return {
+    text: button.textContent.trim(),
+    name: button.getAttribute('aria-label') || button.textContent.trim(),
+    keyShortcuts: button.getAttribute('aria-keyshortcuts'),
+    rect: {
+      left: Math.round(r.left),
+      top: Math.round(r.top),
+      width: Math.round(r.width),
+      height: Math.round(r.height)
+    },
+    inViewport: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight,
+    clipped: button.scrollWidth > button.clientWidth + 1,
+    textWraps: button.tagName === 'BUTTON' && !button.querySelector('svg') && r.height > lineHeight * 2 + 8,
+    toolbarRows: rows.length,
+    buttonRow: rows.findIndex(
+      (t, i) => Math.round(r.top) >= t - 14 && (i === rows.length - 1 || Math.round(r.top) < rows[i + 1] - 14)
+    )
+  }
+}
+
+async function downloadView(ctx) {
+  const V = 'download'
+  const { logs } = ctx
+  const layout = {}
+
+  // App: the log view's Download button (Shift+D), its tooltip, light and
+  // dark, and disabled while the body is still loading.
+  {
+    const page = await newPage(ctx)
+    await page.setRequestInterception(true)
+    let holdBody = true
+    page.on('request', req => {
+      if (holdBody && /\/ApexLog\/[^/]+\/Body/i.test(req.url())) {
+        setTimeout(() => req.continue().catch(() => {}), 5000)
+      } else req.continue().catch(() => {})
+    })
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await page.goto(`${appUrl(ctx)}#/logs/${logs.main.Id}`, { waitUntil: 'domcontentloaded' })
+    const button = 'button[aria-label="Download log"]'
+    await page.waitForSelector(button, { timeout: 30000 })
+    await delay(600)
+    const disabled = await page.$eval(button, b => b.disabled)
+    if (disabled) {
+      await page.hover(button).catch(() => {})
+      await delay(900) // the tooltip fades in
+      await capture(ctx, page, V, 'app-loading')
+    } else log('download: the body loaded before the disabled state could be captured')
+    holdBody = false
+    await waitForText(page, `Done ${MARKER}`, 60000)
+    await page.mouse.move(0, 0)
+    await delay(800)
+    await capture(ctx, page, V, 'app-viewer')
+    layout[`app@${ctx.size.label}`] = await page.evaluate(downloadLayout, button, 'section > div')
+    await page.hover(button)
+    await delay(900)
+    const tooltip = await page.evaluate(() => {
+      const t = document.querySelector('[role=tooltip]')
+      return t ? t.textContent : null
+    })
+    layout[`app@${ctx.size.label}`].tooltip = tooltip
+    await capture(ctx, page, V, 'app-tooltip')
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await delay(800)
+    await capture(ctx, page, V, 'app-tooltip-dark')
+    await page.mouse.move(0, 0)
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await delay(500)
+    // The "?" overlay lists Shift+D with the log's keys.
+    await page.evaluate(() => document.activeElement && document.activeElement.blur())
+    await page.keyboard.press('?')
+    await delay(700)
+    const dialog = await openDialog(page)
+    if (dialog) {
+      layout[`app-help@${ctx.size.label}`] = await dialog.evaluate(el => {
+        const row = [...el.querySelectorAll('li, tr, div')].find(
+          n => /download/i.test(n.textContent) && n.textContent.length < 120
+        )
+        return row ? row.textContent : null
+      })
+      await dialog.evaluate(el => {
+        const row = [...el.querySelectorAll('*')].find(n => /^download/i.test(n.textContent.trim()))
+        if (row) row.scrollIntoView({ block: 'center' })
+      })
+      await capture(ctx, page, V, 'app-help')
+      await dialog.dispose()
+      await closeDialog(page)
+    }
+    if (ctx.primary) {
+      // Shift+D saves the file (the name is recorded; the file is deleted).
+      const saved = await captureDownload(page, async () => {
+        await page.keyboard.down('Shift')
+        await page.keyboard.press('KeyD')
+        await page.keyboard.up('Shift')
+      }).catch(e => ({ error: e.message }))
+      summary.download = { shortcut: saved.error ? saved : { name: saved.name, bytes: saved.text.length } }
+    }
+    await page.close()
+  }
+
+  // Classic log page: "Download log" next to Expand all, light and dark.
+  {
+    const page = await newPage(ctx)
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await gotoSalesforce(ctx, page, `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${logs.main.Id}`)
+    await page.waitForFunction(m => document.body.innerText.includes(m), { timeout: 30000 }, `Done ${MARKER}`)
+    await delay(1000)
+    const themeSelect = await controlByLabel(page, /log colors/i)
+    if (themeSelect) await chooseOption(page, themeSelect, 'Match color mode').catch(() => {})
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.focus('#adDownloadLog').catch(() => summary.errors.push('download: no #adDownloadLog'))
+    await page.hover('#adDownloadLog').catch(() => {})
+    await delay(600)
+    layout[`classic@${ctx.size.label}`] = await page.evaluate(downloadLayout, '#adDownloadLog', '.ad-toolbar-row')
+    await capture(ctx, page, V, 'classic-toolbar', { scope: ['#adToolbar'] })
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await delay(600)
+    await capture(ctx, page, V, 'classic-toolbar-dark', { scope: ['#adToolbar'] })
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    if (ctx.primary) {
+      const saved = await captureDownload(page, () => page.click('#adDownloadLog')).catch(e => ({ error: e.message }))
+      summary.download = {
+        ...(summary.download || {}),
+        classic: saved.error ? saved : { name: saved.name, bytes: saved.text.length }
+      }
+    }
+    await page.close()
+  }
+
+  summary.downloadLayout = { ...(summary.downloadLayout || {}), ...layout }
+  log('download layout', JSON.stringify(layout))
+}
+
 // ---------------------------------------------------------------------------
 
 function compareWith(previousDir) {
@@ -1646,7 +1799,7 @@ async function main() {
     for (const [i, size] of SIZES.entries()) {
       const ctx = { ext, session, sf, logs, size, primary: i === 0 }
       for (const view of VIEWS) {
-        const fn = { app: appView, classic: classicViews, options: optionsView }[view]
+        const fn = { app: appView, classic: classicViews, options: optionsView, download: downloadView }[view]
         if (!fn) throw new Error(`unknown view ${view}`)
         log(`--- ${view} @ ${size.label}`)
         try {
