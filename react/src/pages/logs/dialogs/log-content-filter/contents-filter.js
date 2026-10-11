@@ -1,107 +1,96 @@
-import React from 'react'
-import { withStyles } from 'material-ui/styles'
-import Button from 'material-ui/Button'
-import Input from 'material-ui/Input'
-import Chip from 'material-ui/Chip'
-import Select from 'react-select'
-import Paper from 'material-ui/Paper'
-import { connect } from 'react-redux'
-import Dialog, {
+import { useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import {
+  Autocomplete,
+  Box,
+  Button,
+  Chip,
+  Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle
-} from 'material-ui/Dialog'
+  DialogTitle,
+  TextField
+} from '@mui/material'
 import { allEventTypes } from '../../constants'
-import 'react-select/dist/react-select.css'
-import { styles } from './contents-filter-style'
 import {
   addVisibleEvents,
-  removeVisibleEvent,
   clearVisibleEvents,
+  removeVisibleEvent,
   toggleContentsFilter
-} from '../../actions'
+} from '../../logs-slice'
 
-class ContentsFilter extends React.Component {
-  availableItems = () => {
-    return allEventTypes
-      .filter(eventType => {
-        return this.props.selected.indexOf(eventType) == -1
-      })
-      .map(eventType => ({ label: eventType, value: eventType }))
-  }
+const ITEM_HEIGHT = 48
 
-  componentDidMount() {
-    if (this.inputElement) {
-      this.inputElement.focus()
-    }
-  }
+// Picks the event types the log body shows (all when none is picked).
+export default function ContentsFilter() {
+  const dispatch = useDispatch()
+  const selected = useSelector(state => state.logsPage.visibleEvents)
+  const isOpen = useSelector(state => state.logsPage.contentsFilterOpen)
+  const [input, setInput] = useState('')
+  const available = allEventTypes.filter(type => !selected.includes(type))
+  const close = () => dispatch(toggleContentsFilter())
 
-  render() {
-    const {
-      classes,
-      selected,
-      addAll,
-      handleAdd,
-      handleRemove,
-      removeAll,
-      toggleContentsFilter,
-      isOpen
-    } = this.props
-
-    return (
-      <Dialog open={isOpen} onClose={toggleContentsFilter} fullWidth>
-        <DialogTitle id="form-dialog-title">Filter log contents</DialogTitle>
-        <DialogContent>
-          <Input
-            inputRef={element => {
-              this.inputElement = element
-            }}
-            fullWidth
-            inputComponent={Select}
-            inputProps={{
-              classes,
-              onChange: handleAdd,
-              placeholder: 'Filter by event type',
-              simpleValue: true,
-              options: this.availableItems()
-            }}
-          />
-          <Paper className={classes.selectedEvents} elevation={0}>
-            {selected.map(item => (
-              <Chip
-                key={item}
-                label={item}
-                onDelete={() => handleRemove(item)}
-                className={classes.chip}
-              />
-            ))}
-          </Paper>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={removeAll} color="primary">
-            Remove All
-          </Button>
-          <Button onClick={addAll} color="primary">
-            Add All
-          </Button>
-        </DialogActions>
-      </Dialog>
-    )
-  }
+  return (
+    <Dialog
+      open={isOpen}
+      onClose={close}
+      fullWidth
+      aria-labelledby="contents-filter-title"
+    >
+      <DialogTitle id="contents-filter-title">Filter log contents</DialogTitle>
+      <DialogContent>
+        <Autocomplete
+          options={available}
+          value={null}
+          inputValue={input}
+          onInputChange={(e, value, reason) =>
+            setInput(reason === 'reset' ? '' : value)
+          }
+          onChange={(e, eventType) => {
+            if (eventType) dispatch(addVisibleEvents([eventType]))
+            setInput('')
+          }}
+          renderInput={params => (
+            <TextField
+              {...params}
+              autoFocus
+              variant="standard"
+              placeholder="Filter by event type"
+              slotProps={{
+                htmlInput: {
+                  ...params.inputProps,
+                  'aria-label': 'Event type to show'
+                }
+              }}
+            />
+          )}
+        />
+        <Box
+          sx={{
+            mt: 2,
+            maxHeight: ITEM_HEIGHT * 4,
+            minHeight: ITEM_HEIGHT * 4,
+            overflow: 'auto'
+          }}
+        >
+          {selected.map(item => (
+            <Chip
+              key={item}
+              label={item}
+              onDelete={() => dispatch(removeVisibleEvent(item))}
+              sx={{ m: 0.5 }}
+            />
+          ))}
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => dispatch(clearVisibleEvents())}>
+          Remove All
+        </Button>
+        <Button onClick={() => dispatch(addVisibleEvents(allEventTypes))}>
+          Add All
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
 }
-
-export default withStyles(styles)(
-  connect(
-    state => ({
-      selected: state.logsPage.visibleEvents,
-      isOpen: state.logsPage.contentsFilterOpen
-    }),
-    dispatch => ({
-      handleAdd: newItem => dispatch(addVisibleEvents([newItem])),
-      handleRemove: removedItem => dispatch(removeVisibleEvent(removedItem)),
-      addAll: () => dispatch(addVisibleEvents(allEventTypes)),
-      removeAll: () => dispatch(clearVisibleEvents()),
-      toggleContentsFilter: () => dispatch(toggleContentsFilter())
-    })
-  )(ContentsFilter)
-)

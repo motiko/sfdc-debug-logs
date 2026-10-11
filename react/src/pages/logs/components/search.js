@@ -1,63 +1,48 @@
-import React from 'react'
-import TextField from 'material-ui/TextField'
-import SearchIcon from 'material-ui-icons/Search'
-import IconButton from 'material-ui/IconButton'
-import { InputAdornment } from 'material-ui/Input'
-import Tooltip from 'material-ui/Tooltip'
+import { useState } from 'react'
+import { IconButton, InputAdornment, TextField, Tooltip } from '@mui/material'
+import SearchIcon from '@mui/icons-material/Search'
 
-export default class Search extends React.Component {
-  constructor(props) {
-    super(props)
-    this.state = { searchTerm: '' }
-    this.updateSearchTerm = this.updateSearchTerm.bind(this)
-    this.handleKey = this.handleKey.bind(this)
+// Searches the loaded logs' bodies on Enter or the search button; clearing the
+// field (or Escape) shows all logs again.
+export default function Search({ handleSearch }) {
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const updateSearchTerm = newTerm => {
+    if (newTerm === '') handleSearch('')
+    setSearchTerm(newTerm)
   }
 
-  handleKey(e) {
-    if (e.keyCode === 13) {
-      this.props.handleSearch(this.state.searchTerm)
-    }
-    if (e.keyCode === 27) {
-      this.updateSearchTerm('')
-    }
+  const handleKey = e => {
+    if (e.key === 'Enter') handleSearch(searchTerm)
+    if (e.key === 'Escape') updateSearchTerm('')
   }
 
-  updateSearchTerm(newTerm) {
-    if (newTerm === '') {
-      this.props.handleSearch('')
-    }
-    this.setState({ searchTerm: newTerm })
-  }
-
-  render() {
-    return (
-      <React.Fragment>
-        <TextField
-          id="search"
-          type="search"
-          color="accent"
-          label="Find in Logs"
-          value={this.state.searchTerm}
-          onKeyUp={this.handleKey}
-          onChange={e => this.updateSearchTerm(e.target.value)}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <Tooltip title="Search">
-                  <IconButton
-                    color="inherit"
-                    onClick={() =>
-                      this.props.handleSearch(this.state.searchTerm)
-                    }
-                  >
-                    <SearchIcon />
-                  </IconButton>
-                </Tooltip>
-              </InputAdornment>
-            )
-          }}
-        />
-      </React.Fragment>
-    )
-  }
+  return (
+    <TextField
+      id="search"
+      type="search"
+      variant="standard"
+      label="Find in Logs"
+      value={searchTerm}
+      onKeyUp={handleKey}
+      onChange={e => updateSearchTerm(e.target.value)}
+      slotProps={{
+        input: {
+          endAdornment: (
+            <InputAdornment position="end">
+              <Tooltip title="Search">
+                <IconButton
+                  color="inherit"
+                  aria-label="Search"
+                  onClick={() => handleSearch(searchTerm)}
+                >
+                  <SearchIcon />
+                </IconButton>
+              </Tooltip>
+            </InputAdornment>
+          )
+        }
+      }}
+    />
+  )
 }

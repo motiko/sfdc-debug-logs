@@ -1,6 +1,4 @@
-export const maxLogSizeToParse = 1000000,
-  maxLogSize = 2 * Math.pow(10, 6)
-
+// The event types the contents filter offers.
 // Themes: core/log/themes.ts. Event categories: core/log/categories.ts.
 
 export const allEventTypes = [

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { search } from './actions'
+import { searchDone, searchInit } from './logs-slice'
 
 const bodies = {
   '07L000000000001AAA':
@@ -29,11 +30,11 @@ async function runSearch(
         : Promise.resolve(bodies[id])
     )
   }
-  await search(term)(dispatch, getState, sf)
-  expect(dispatch).toHaveBeenCalledWith({ type: 'SEARCH_INIT' })
+  await search(term)(dispatch, getState as never, sf as never)
+  expect(dispatch).toHaveBeenCalledWith(searchInit())
   const done = dispatch.mock.calls
     .map(([action]) => action)
-    .find(a => a.type === 'SEARCH_DONE')
+    .find(a => searchDone.match(a)).payload
   return { done, sf }
 }
 

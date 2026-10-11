@@ -1,46 +1,20 @@
-import Table, {
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell
-} from 'material-ui/Table'
-import { withStyles } from 'material-ui/styles'
+import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material'
+import { openLog } from '../../../hash-route'
 
-const styles = theme => ({
-  table: {
-    background: theme.palette.background.default
-  }
+const timeFormatter = Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: 'numeric',
+  second: 'numeric',
+  hour12: false
 })
 
-function LogsTable({ history, logs, classes }) {
-  const timeFormatter = Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    second: 'numeric',
-    hour12: false
-  })
-  const openLog = logId => {
-    history.push(`/logs/${logId}`)
-  }
-  const toTableRow = log => {
-    const timeString = timeFormatter.format(new Date(log.StartTime))
-    return (
-      <TableRow hover onClick={() => openLog(log.Id)} key={log.Id}>
-        <TableCell>{timeString}</TableCell>
-        <TableCell>{log.Operation}</TableCell>
-        <TableCell>{log.Status}</TableCell>
-        <TableCell>{log.LogUser.Name}</TableCell>
-        <TableCell>{log.DurationMilliseconds + 'ms'}</TableCell>
-        <TableCell>{`${(log.LogLength / 1000).toFixed(2)} k`}</TableCell>
-      </TableRow>
-    )
-  }
-
+// The log list (#/); a click opens the log.
+export default function LogsTable({ logs }) {
   return (
-    <Table className={classes.table}>
+    <Table sx={{ bgcolor: 'background.default' }}>
       <TableHead>
         <TableRow>
           <TableCell>Time</TableCell>
@@ -51,9 +25,25 @@ function LogsTable({ history, logs, classes }) {
           <TableCell>Length</TableCell>
         </TableRow>
       </TableHead>
-      <TableBody>{Object.values(logs).map(toTableRow)}</TableBody>
+      <TableBody>
+        {logs.map(log => (
+          <TableRow
+            hover
+            onClick={() => openLog(log.Id)}
+            key={log.Id}
+            sx={{ cursor: 'pointer' }}
+          >
+            <TableCell>
+              {timeFormatter.format(new Date(log.StartTime))}
+            </TableCell>
+            <TableCell>{log.Operation}</TableCell>
+            <TableCell>{log.Status}</TableCell>
+            <TableCell>{log.LogUser.Name}</TableCell>
+            <TableCell>{log.DurationMilliseconds + 'ms'}</TableCell>
+            <TableCell>{`${(log.LogLength / 1000).toFixed(2)} k`}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
     </Table>
   )
 }
-
-export default withStyles(styles)(LogsTable)

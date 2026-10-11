@@ -30,7 +30,7 @@ export default [
     }
   },
 
-  // React app: JSX in .js files, React 16 class components.
+  // React app: JSX in .js files, function components with hooks.
   {
     files: ['react/src/**/*.js'],
     ...react.configs.flat.recommended,
@@ -41,7 +41,7 @@ export default [
       parserOptions: { ecmaFeatures: { jsx: true } },
       globals: { ...globals.browser, ...globals.webextensions }
     },
-    settings: { react: { version: '16.14' } }
+    settings: { react: { version: '19.2' } }
   },
   {
     files: ['react/src/**/*.js'],
