@@ -1,14 +1,21 @@
 // Content script on the classic single-log page (ApexDebugLogDetailEdit):
-// colors and indents the log, with themes (css/debug.css), font size, id links,
-// filters and expandable USER_DEBUG values (HTML, JSON, Apex objects).
-import jsBeautify from 'js-beautify'
-import { API_PATH, sfRequest } from '../core/page-session'
+// colors and indents the log, with themes (core/log/themes.ts, applied through
+// css/debug.css), font size, id links, filters and expandable USER_DEBUG
+// values (HTML, JSON, Apex objects).
+import { pageSalesforce } from '../core/page-session'
+import { logToBlocks, type LogBlock } from '../core/log/classic-blocks'
 import {
-  logToBlocks,
+  beautifyUserDebug,
+  canBeautify,
   splitIds,
-  splitUserDebug,
-  type LogBlock
-} from './classic-log'
+  splitUserDebug
+} from '../core/log/parsing'
+import {
+  logThemes,
+  resolveThemeName,
+  themeByName,
+  themeCssVariables
+} from '../core/log/themes'
 
 // Log text is untrusted (System.debug of a public Site's input, record data):
 // it only ever reaches the page as text nodes, never as HTML.
@@ -27,8 +34,8 @@ function init() {
   document.body.addEventListener('keyup', keyUpListener)
   const codeBlock = document.querySelector('pre')
   const debugText = document.createElement('div')
-  debugText.className = 'monokai'
   debugText.id = 'debugText'
+  applyTheme(debugText, getSetting('style'))
   const showTimestamps = JSON.parse(getSetting('showTimeStamp'))
   for (const block of logToBlocks(codeBlock.textContent, showTimestamps)) {
     debugText.append(...renderBlock(block))
@@ -61,12 +68,9 @@ function toArray(elementList: ArrayLike<any>): any[] {
 function addDropDowns() {
   addController(generateStyleSelect())
   addController(generateFontSelect())
-  const savedStyle = getSetting('style')
-  if (savedStyle) {
-    const styleSelection: any = document.querySelector('#styleSelection')
-    styleSelection.value = savedStyle
-    styleSelection.onchange()
-  }
+  const styleSelection =
+    document.querySelector<HTMLSelectElement>('#styleSelection')
+  styleSelection.value = resolveThemeName(getSetting('style'))
   const savedFontSize = getSetting('fontSize')
   const fontSize = savedFontSize || 18
   const fontSizeSelection: any = document.querySelector('#fontSelection')
@@ -104,24 +108,30 @@ function generateStyleSelect() {
   label.textContent = 'Pick Style: '
   const dropDown = document.createElement('select')
   dropDown.id = 'styleSelection'
-  const styles = [
-    { name: 'monokai', label: 'Monokai' },
-    { name: 'bw', label: 'Black/White' },
-    { name: 'emacs', label: 'Emacs' }
-  ]
-  styles.forEach(style => {
+  Object.values(logThemes).forEach(theme => {
     const opt = document.createElement('option')
-    opt.value = style.name
-    opt.textContent = style.label
+    opt.value = theme.name
+    opt.textContent = theme.label
     dropDown.appendChild(opt)
   })
   dropDown.onchange = function () {
-    document.querySelector('#debugText').className = dropDown.value
+    applyTheme(document.querySelector('#debugText'), dropDown.value)
     setSetting('style', dropDown.value)
   }
   selectStyleContainer.appendChild(label)
   selectStyleContainer.appendChild(dropDown)
   return selectStyleContainer
+}
+
+// Sets the theme's colors and fonts as CSS custom properties, which the rules
+// in css/debug.css apply to each category's class. The class name is the
+// theme's name. Saved names of earlier versions map to their current theme.
+function applyTheme(debugText: HTMLElement, name: string | null) {
+  const theme = themeByName(name)
+  debugText.className = theme.name
+  for (const [property, value] of Object.entries(themeCssVariables(theme))) {
+    debugText.style.setProperty(property, value)
+  }
 }
 
 function addCheckboxes() {
@@ -257,12 +267,7 @@ function addExpansionButtonsForUserDebugDivs(userDebugDiv: HTMLElement) {
     ' ',
     span('debugContent searchable', userDebug.message)
   )
-  const debugText = userDebug.message
-  if (
-    looksLikeHtml(debugText) ||
-    looksLikeSfdcObject(debugText) ||
-    isJsonString(debugText)
-  ) {
+  if (canBeautify(userDebug.message)) {
     const buttonExpand = document.createElement('button')
     buttonExpand.onclick = expandUserDebug
     buttonExpand.onmouseup = haltEvent
@@ -277,14 +282,10 @@ function haltEvent(event: Event) {
 }
 
 function removeIllegalIdLinks() {
-  sfRequest(API_PATH + '/sobjects')
-    .then(r => r.json())
-    .then(function (response) {
-      const sobjects: any[] = response.sobjects
-      keyPrefixes = sobjects
-        .filter(sobj => sobj.keyPrefix !== undefined)
-        .map(sobjectDescribe => sobjectDescribe.keyPrefix)
-      keyPrefixes.push('03d') // validation rule
+  pageSalesforce()
+    .keyPrefixes()
+    .then(function (prefixes) {
+      keyPrefixes = [...prefixes, '03d'] // 03d: validation rule
       const idLinks = document.getElementsByClassName('idLink')
       toArray(idLinks).forEach(link => {
         if (!isLegalId(link.textContent)) {
@@ -310,15 +311,7 @@ function toggleHidden(className: string) {
 function expandUserDebug() {
   const debugNode = this.nextElementSibling.nextElementSibling
   const collapsedNodes = [...debugNode.childNodes]
-  const debugNodeText = debugNode.textContent
-  let expanded = debugNodeText
-  if (looksLikeHtml(debugNodeText)) {
-    expanded = jsBeautify.html(debugNodeText)
-  } else if (looksLikeSfdcObject(debugNodeText)) {
-    expanded = jsBeautify.js(sfdcObjectBeautify(debugNodeText))
-  } else if (isJsonString(debugNodeText)) {
-    expanded = jsBeautify.js(debugNodeText)
-  }
+  const expanded = beautifyUserDebug(debugNode.textContent)
   debugNode.replaceChildren(...withIdLinks(expanded, true))
   this.textContent = '-'
   this.classList.add('expanded')
@@ -331,34 +324,6 @@ function expandUserDebug() {
     this.onclick = expandUserDebug
     this.onmouseup = haltEvent
   }
-}
-
-function sfdcObjectBeautify(string: string) {
-  string = string.replace(/={/g, ':{')
-  return string.replace(
-    /([{| |\[]\w+)=(.+?)(?=, |},|}\)|:{|])/g,
-    function (match, p1, p2) {
-      return p1 + ":'" + p2 + "'"
-    }
-  )
-}
-
-function looksLikeSfdcObject(string: string) {
-  return string.match(/\w+:{\w+=.+,?\s*}/)
-}
-
-function looksLikeHtml(source: string) {
-  const trimmed = source.replace(/^[ \t\n\r]+/, '')
-  return trimmed && trimmed.substring(0, 1) === '<'
-}
-
-function isJsonString(str: string) {
-  try {
-    JSON.parse(str)
-  } catch (e) {
-    return false
-  }
-  return true
 }
 
 init()

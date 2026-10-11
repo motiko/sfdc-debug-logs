@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { logToBlocks, splitIds, splitUserDebug } from './classic-log'
+import { logToBlocks } from './classic-blocks'
 
 const log = [
   '62.0 APEX_CODE,FINEST',
@@ -7,7 +7,13 @@ const log = [
   '12:00:00.1 (100)|USER_DEBUG|[1]|DEBUG|<img src=x onerror="alert(1)">',
   'second line of the message',
   '12:00:00.2 (200)|SOQL_EXECUTE_BEGIN|[2]|Aggregations:0|SELECT Id FROM User',
-  '12:00:00.3 (300)|HEAP_ALLOCATE|[72]|Bytes:3'
+  '12:00:00.3 (300)|HEAP_ALLOCATE|[72]|Bytes:3',
+  '12:00:00.4 (400)|METHOD_ENTRY|[1]|01p000000000001|Foo.bar()',
+  '12:00:00.5 (500)|SYSTEM_METHOD_ENTRY|[2]|System.debug(ANY)',
+  '12:00:00.6 (600)|FATAL_ERROR|System.MathException: Divide by 0',
+  '12:00:00.7 (700)|CALLOUT_REQUEST|[3]|System.HttpRequest',
+  '12:00:00.8 (800)|CUMULATIVE_LIMIT_USAGE',
+  '  Number of SOQL queries: 1 out of 100'
 ].join('\n')
 
 describe('logToBlocks', () => {
@@ -18,6 +24,11 @@ describe('logToBlocks', () => {
       'system searchable',
       'debug',
       'soql searchable wrap',
+      'rest searchable',
+      'method methodLog searchable',
+      'system systemMethodLog searchable',
+      'err searchable',
+      'callout searchable',
       'rest searchable'
     ])
   })
@@ -36,23 +47,9 @@ describe('logToBlocks', () => {
   })
 })
 
-describe('splitIds', () => {
-  it('splits out 15 and 18 character ids', () => {
-    expect(splitIds('user 005000000000001AAA and 001000000000001')).toEqual([
-      'user ',
-      { id: '005000000000001AAA' },
-      ' and ',
-      { id: '001000000000001' }
-    ])
-  })
-})
-
-describe('splitUserDebug', () => {
-  it('splits at the first level marker and keeps the rest of the message', () => {
-    expect(splitUserDebug('USER_DEBUG|[3]|DEBUG|a |DEBUG| b')).toEqual({
-      header: 'USER_DEBUG|[3]|DEBUG|',
-      message: 'a |DEBUG| b'
-    })
-    expect(splitUserDebug('no level')).toBeNull()
-  })
+it('appends lines without an event to the entry before', () => {
+  const last = logToBlocks(log, true).pop()
+  expect(last.parts.join('')).toBe(
+    '12:00:00.8 (800)|CUMULATIVE_LIMIT_USAGE\n  Number of SOQL queries: 1 out of 100'
+  )
 })

@@ -1,18 +1,17 @@
 // Content script on the classic debug log list (listApexTraces.apexp): Delete
-// All (Bulk API), Load New Logs, Add Current User, logs per page, search in
+// All (Bulk API 2.0), Load New Logs, Add Current User, logs per page, search in
 // log bodies, and hotkeys for each. Opens the log viewer for ?openApp=yes
 // (see shortcuts.ts).
 import Mousetrap from 'mousetrap'
 import {
-  API_PATH,
-  ASYNC_API_PATH,
   getSession,
-  getToken,
   getUserId,
   openAppMessage,
-  parseDiscoCookie,
-  sfRequest
+  pageSalesforce,
+  parseDiscoCookie
 } from '../core/page-session'
+
+const sf = pageSalesforce()
 
 const LOGS_TABLE_ID = 'Apex_Trace_List:traceForm:traceTable:thetracetable:tb'
 const LOGS_TABLE_ID_ESCAPED = LOGS_TABLE_ID.replace(/:/g, '\\:')
@@ -139,29 +138,16 @@ function addDeleteAllBtn() {
 function realDeleteAll(event: Event) {
   event.preventDefault()
   document.body.style.cursor = 'wait'
-
-  sfRequest(
-    API_PATH +
-      '/tooling/query/?q=' +
-      encodeURIComponent('Select Id From ApexLog')
+  sf.deleteAllLogs().then(
+    deleted => {
+      if (deleted > 0) location.reload()
+      else document.body.style.cursor = 'auto'
+    },
+    err => {
+      console.error('Apex Debugger: deleting logs failed', err)
+      document.body.style.cursor = 'auto'
+    }
   )
-    .then(r => r.json())
-    .then(function (responseObject) {
-      if (responseObject.records.length == 0) {
-        document.body.style.cursor = 'auto'
-        return
-      }
-      const logIdsCsv = responseObject.records
-        .map((logObj: any) => `"${logObj.Id}"`)
-        .reduce((sum: string, id: string) => sum + '\n' + id, '"Id"')
-      return createJob('ApexLog', 'delete').then(function (jobId) {
-        createBatch(jobId, logIdsCsv).then(function (batchId) {
-          pollBatchStatus(jobId, batchId).then(function () {
-            location.reload()
-          })
-        })
-      })
-    })
 }
 
 function loadedLogIds() {
@@ -227,21 +213,15 @@ function addToTable(tr: HTMLElement) {
 // the "Monitored Users" table hid logs of entities without a user link there,
 // such as the Automated Process user (#10).
 function requestLogs(): Promise<any[]> {
-  const selectQuery = [
-    `SELECT LogUser.Name,Application,DurationMilliseconds,`,
-    `Id,LastModifiedDate,Location,LogLength,LogUserId,`,
-    `Operation,Request,StartTime,Status,SystemModstamp From `,
-    `ApexLog ORDER BY `,
-    `LastModifiedDate DESC LIMIT ${showLogsNum}`
-  ].join('')
   return (
-    sfRequest(API_PATH + '/tooling/query/?q=' + encodeURIComponent(selectQuery))
-      .then(r => r.json())
+    sf
+      .recentLogs(showLogsNum)
       // Newest first from the query; the table is filled by inserting each row
       // at the top, so add them oldest first.
-      .then(responseObj => responseObj.records.reverse())
+      .then(logs => logs.reverse())
       .catch(function (err) {
         console.error(err)
+        return []
       })
   )
 }
@@ -356,55 +336,16 @@ function clearTable() {
   document.getElementById(LOGS_TABLE_ID).innerHTML = ''
 }
 
+// Traces the current user for 24 hours, like "Start Logging" in the app, then
+// reloads so the Monitored Users table shows the flag.
 async function addCurrentUser(event?: Event) {
   if (event) event.preventDefault()
-  const token = await getToken()
-  const logLevelName = 'ApexDebugger'
-  const headers = {
-    'Content-Type': 'application/json; charset=UTF-8',
-    Authorization: 'Bearer ' + token,
-    Accept: '*/*'
+  try {
+    await sf.traceUser(getUserId())
+    location.reload()
+  } catch (err) {
+    console.error('Apex Debugger: adding the current user failed', err)
   }
-  const query = encodeURI(
-    "Select Id From DebugLevel Where DeveloperName = '" + logLevelName + "'"
-  )
-  const debugLevelPayload = {
-    DeveloperName: logLevelName,
-    MasterLabel: logLevelName,
-    Workflow: 'DEBUG',
-    Validation: 'DEBUG',
-    Callout: 'DEBUG',
-    ApexCode: 'DEBUG',
-    ApexProfiling: 'DEBUG',
-    Visualforce: 'DEBUG',
-    System: 'DEBUG',
-    Database: 'DEBUG'
-  }
-  return fetch(`${API_PATH}/tooling/query?q=${query}`, { headers })
-    .then(res => res.json())
-    .then(existingDebugLevel => {
-      if (existingDebugLevel.records.length > 0) {
-        return existingDebugLevel.records[0].Id
-      } else {
-        return fetch(API_PATH + '/tooling/sobjects/DebugLevel', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(debugLevelPayload)
-        }).then(res => res.json().then(result => result.id))
-      }
-    })
-    .then(dlId => {
-      const payload = {
-        TracedEntityId: getUserId(),
-        DebugLevelId: dlId,
-        LogType: 'USER_DEBUG'
-      }
-      fetch(API_PATH + '/tooling/sobjects/TraceFlag/', {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload)
-      }).then(res => res.json())
-    })
 }
 
 function addSearchControllers() {
@@ -492,10 +433,8 @@ function searchLogs() {
     })
     .filter(e => e)
   const promises = visibleLogRows.map(logRow => {
-    return sfRequest(
-      API_PATH + '/tooling/sobjects/ApexLog/' + logRow.id + '/Body'
-    )
-      .then(r => r.text())
+    return sf
+      .logBody(logRow.id)
       .then(rawLogContents => {
         if (searchRegex.test(rawLogContents)) {
           logRow.element.style.background = 'rgb(104, 170, 87)'
@@ -513,66 +452,6 @@ function searchLogs() {
     document.body.style.cursor = 'default'
     document.getElementById('LoadinImage').style.display = 'none'
   })
-}
-
-function createJob(objectName: string, operation: string): Promise<string> {
-  const queryJob = `<?xml version="1.0" encoding="UTF-8"?>
-   <jobInfo xmlns="http://www.force.com/2009/06/asyncapi/dataload">
-        <operation>${operation}</operation>
-        <object>${objectName}</object>
-        <concurrencyMode>Parallel</concurrencyMode>
-        <contentType>CSV</contentType>
-   </jobInfo>`
-  return sfRequest(
-    ASYNC_API_PATH + '/job',
-    'POST',
-    {
-      'Content-Type': 'application/xml',
-      'X-SFDC-Session': true
-    },
-    queryJob
-  )
-    .then(r => r.text())
-    .then(response => response.match(/<id>(.*)<\/id>/)[1])
-}
-
-function pollBatchStatus(jobId: string, batchId: string) {
-  return new Promise(function (resolve, reject) {
-    const intervalId = setInterval(function () {
-      checkBatchStatus(jobId, batchId).then(function (state) {
-        if (state === 'Completed') {
-          resolve(state)
-          clearInterval(intervalId)
-        }
-        if (state === 'Error' || state === 'Not Processed') {
-          reject(state)
-          clearInterval(intervalId)
-        }
-      })
-    }, 1000)
-  })
-}
-
-function checkBatchStatus(jobId: string, batchId: string) {
-  return sfRequest(`${ASYNC_API_PATH}/job/${jobId}/batch/${batchId}`, 'GET', {
-    'X-SFDC-Session': true
-  })
-    .then(r => r.text())
-    .then(resultXml => resultXml.match(/<state>(.*)<\/state>/)[1])
-}
-
-function createBatch(jobId: string, csv: string): Promise<string> {
-  return sfRequest(
-    `${ASYNC_API_PATH}/job/${jobId}/batch`,
-    'POST',
-    {
-      'Content-Type': 'text/csv; charset=UTF-8',
-      'X-SFDC-Session': true
-    },
-    csv
-  )
-    .then(r => r.text())
-    .then(response => response.match(/<id>(.*)<\/id>/)[1])
 }
 
 function escapeRegExp(str: string) {

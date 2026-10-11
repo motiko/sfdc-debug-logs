@@ -10,9 +10,22 @@ import {
   filterEntries,
   eventTypeOf,
   eventCategory,
-  splitAtIds,
+  splitIds,
   indentUserDebug
-} from '../log-parsing'
+} from '../../../core/log/parsing'
+import { themeByName } from '../../../core/log/themes'
+
+// A category's style: the color from the (possibly user-edited) theme, the
+// font weight and style from the theme's definition.
+function categoryStyle(logTheme, category) {
+  const { fontWeight, fontStyle } =
+    themeByName(logTheme.themeName).categories[category] || {}
+  return {
+    color: logTheme[category],
+    fontWeight: fontWeight || 'normal',
+    fontStyle: fontStyle || 'normal'
+  }
+}
 const styles = theme => ({
   expandButton: {
     margin: 0,
@@ -47,7 +60,7 @@ function ParsedLog({ body, classes, logStyleConfig, visibleEvents }) {
       }}
     >
       <div
-        style={{ color: logStyleConfig.theme.system }}
+        style={categoryStyle(logStyleConfig.theme, 'system')}
         className={classes.logElement}
       >
         {intro}
@@ -103,27 +116,27 @@ class LogElementBase extends React.Component {
 
     // Turns Salesforce ids into links and keeps all text around them.
     const addLinks = elementBody => {
-      const parts = splitAtIds(elementBody)
-      if (parts.length === 1) return elementBody
+      const parts = splitIds(elementBody)
+      if (parts.every(part => typeof part === 'string')) return elementBody
       return parts.map((part, index) =>
-        index % 2 === 1 ? (
+        typeof part === 'string' ? (
+          part
+        ) : (
           <a
-            href={`https://${globalSf.hostname}/${part}`}
-            style={{ color: logTheme[className] }}
+            href={`https://${globalSf.hostname}/${part.id}`}
+            style={{ color: logTheme[category] }}
             key={index}
           >
-            {part}
+            {part.id}
           </a>
-        ) : (
-          part
         )
       )
     }
 
-    const className = eventCategory(eventType)
+    const category = eventCategory(eventType)
     return (
       <div
-        style={{ color: logTheme[className] }}
+        style={categoryStyle(logTheme, category)}
         className={classes.logElement}
       >
         {eventType === 'USER_DEBUG' ? (
@@ -137,7 +150,7 @@ class LogElementBase extends React.Component {
             {indented ? <RemoveIcon /> : <AddIcon />}
           </IconButton>
         ) : null}
-        {addLinks(beautify(body), className)}
+        {addLinks(beautify(body))}
       </div>
     )
   }

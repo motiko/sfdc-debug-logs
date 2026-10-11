@@ -13,11 +13,11 @@ Key Features
 ------------
 
   * Search in logs
-  * Improved view of logs (select from available themes).
+  * Improved view of logs, with the same color themes in the log viewer and on Salesforce's log page: Monokai (dark), Emacs (light) and Black/White.
   * Click any Id to go to Object (Class, Trigger, Validation Rule e.t.c).
   * Indent User Debug (sObject, List, XML or JSON)
   * Delete all logs (all of'em).
-  * Automatically start log tracking.
+  * Automatically start log tracking (a 24-hour trace flag for the current user).
   * Customizable keyboard shortcuts for Salesforce
 
 Keyboard Chortcuts

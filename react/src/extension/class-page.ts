@@ -1,7 +1,10 @@
 // Content script on the classic Apex class and trigger lists (/01p…,
 // allTriggers.apexp): "See All" buttons and a "Dont Log Class" checkbox per
-// class, which sets or removes a TraceFlag with every log category at NONE.
-import { API_PATH, sfRequest } from '../core/page-session'
+// class, which sets (for 24 hours) or removes a CLASS_TRACING flag whose debug
+// level has every log category at NONE.
+import { pageSalesforce } from '../core/page-session'
+
+const sf = pageSalesforce()
 
 function toArray(nodeList: ArrayLike<any>): any[] {
   return [].slice.call(nodeList)
@@ -110,56 +113,16 @@ function addCheckbox(row: any, cell: HTMLElement) {
 }
 
 function toggleTraceFlag() {
-  const noLog: Record<string, string> = {
-    Workflow: 'NONE',
-    Validation: 'NONE',
-    Callout: 'NONE',
-    ApexCode: 'NONE',
-    ApexProfiling: 'NONE',
-    Visualforce: 'NONE',
-    System: 'NONE',
-    Database: 'NONE'
-  }
   const checkbox = this
-  const classId = checkbox.dataset.classId
-  const dontLog = checkbox.checked
-  checkbox.parentNode.children[1].style.display = 'inline'
-  noLog.TracedEntityId = classId
-  if (dontLog) {
-    sfRequest(
-      API_PATH + '/tooling/sobjects/TraceFlag/',
-      'POST',
-      { 'Content-Type': 'application/json' },
-      JSON.stringify(noLog)
-    ).then(
-      function () {
-        checkbox.parentNode.children[1].style.display = 'none'
-      },
-      function () {
-        checkbox.parentNode.children[1].style.display = 'none'
-      }
-    )
-  } else {
-    sfRequest(
-      API_PATH +
-        '/tooling/query?q=' +
-        encodeURI(
-          "Select Id From TraceFlag Where TracedEntityId = '" + classId + "'"
-        )
-    )
-      .then(r => r.json())
-      .then(function (responseObj) {
-        if (responseObj.records.length > 0) {
-          const traceFlagId = responseObj.records[0].Id
-          sfRequest(
-            API_PATH + '/tooling/sobjects/TraceFlag/' + traceFlagId,
-            'DELETE'
-          ).then(function () {
-            checkbox.parentNode.children[1].style.display = 'none'
-          })
-        }
-      })
-  }
+  const loading = checkbox.parentNode.children[1]
+  loading.style.display = 'inline'
+  sf.setClassLogging(checkbox.dataset.classId, !checkbox.checked)
+    .catch(err => {
+      console.error('Apex Debugger: changing the class trace flag failed', err)
+    })
+    .then(() => {
+      loading.style.display = 'none'
+    })
 }
 
 addHeader()

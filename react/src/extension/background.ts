@@ -3,11 +3,25 @@
 // messages, keyed on request.command.
 import { apiHostFor, isOrgHost } from '../core/org-hosts'
 
-const appTabNames = ['options_tab', 'app_tab']
+// The tabs this worker opened, by name: 'options_tab', and 'app_<orgId>' for
+// each org's log viewer. Their ids live in chrome.storage.session, since the
+// worker's memory doesn't persist; session storage lasts as long as the
+// browser session, like tab ids (storage.sync kept them across restarts and
+// devices, where the same id can be another tab).
+const tabStorage = chrome.storage.session
+
+function isTabName(name: string) {
+  return name === 'options_tab' || name.startsWith('app_')
+}
+
+async function tabIdFor(name: string): Promise<number | undefined> {
+  const { [name]: tabId } = await tabStorage.get(name)
+  return typeof tabId === 'number' ? tabId : undefined
+}
 
 function focusTab(tabId: number) {
   return chrome.tabs.get(tabId).then(tab => {
-    if (tab) chrome.tabs.update(tab.id, { active: true })
+    chrome.tabs.update(tab.id, { active: true })
     chrome.windows.getCurrent({}).then(currentWindow => {
       if (tab.windowId != currentWindow.id) {
         chrome.windows.update(tab.windowId, { focused: true })
@@ -16,34 +30,41 @@ function focusTab(tabId: number) {
   })
 }
 
-// Tab ids live in chrome.storage.sync, since the worker's memory doesn't
-// persist.
-chrome.tabs.onRemoved.addListener(closedTabId => {
-  appTabNames.forEach(async name => {
-    const tabId: any = await chrome.storage.sync.get(name)
-    console.log('closedTabId', closedTabId)
-    console.log('tabId', tabId)
-    if (closedTabId == tabId) {
-      chrome.storage.sync.set({ [name]: undefined })
-    }
-  })
+chrome.tabs.onRemoved.addListener(async closedTabId => {
+  const stored = await tabStorage.get(null)
+  const names = Object.keys(stored).filter(
+    name => isTabName(name) && stored[name] === closedTabId
+  )
+  if (names.length) await tabStorage.remove(names)
 })
 
 async function openOrFocusTab(url: string, name: string) {
-  const ids = await chrome.storage.sync.get(name)
-  console.log('ids', ids)
-  console.log('name', name)
-  if (ids[name]) {
-    focusTab(ids[name] as number).catch(() => openTab(url, name))
+  const tabId = await tabIdFor(name)
+  if (tabId !== undefined) {
+    focusTab(tabId).catch(() => openTab(url, name))
   } else {
     openTab(url, name)
   }
 }
 
+// Focuses the log viewer tab already open for this org (name: 'app_<orgId>').
+// Resolves false if there is none, so the content script opens one.
+async function focusAppTab(name: string | undefined): Promise<boolean> {
+  if (!name || !name.startsWith('app_')) return false
+  const tabId = await tabIdFor(name)
+  if (tabId === undefined) return false
+  return focusTab(tabId).then(
+    () => true,
+    async () => {
+      await tabStorage.remove(name)
+      return false
+    }
+  )
+}
+
 function openTab(url: string, name: string) {
   chrome.tabs.create({ url, active: true }, tab => {
-    console.log('tab', tab)
-    chrome.storage.sync.set({ [name]: tab.id })
+    tabStorage.set({ [name]: tab.id })
   })
 }
 
@@ -100,9 +121,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       openOrFocusTab(request.url, request.name)
       break
     case 'focusAppTab':
-      // No app tab is tracked yet, so the content script opens one with
-      // openOrFocusTab. Returning false sends no response.
-      return false
+      focusAppTab(request.name).then(sendResponse)
+      break
   }
   return true
 })

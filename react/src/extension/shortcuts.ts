@@ -3,11 +3,10 @@
 import Mousetrap from 'mousetrap'
 import { defaultShortcuts, type Shortcut } from '../core/default-shortcuts'
 import {
-  API_PATH,
   getSession,
   openAppMessage,
-  parseDiscoCookie,
-  sfRequest
+  pageSalesforce,
+  parseDiscoCookie
 } from '../core/page-session'
 
 function initShortcuts({
@@ -53,17 +52,20 @@ async function openApp() {
   }
   const { orgId, userId } = parseDiscoCookie()
   const session = await getSession()
-  chrome.runtime.sendMessage({ command: 'focusAppTab' }).then(appOpened => {
-    if (!appOpened) {
-      if (document.location.hostname.includes('.salesforce')) {
-        chrome.runtime.sendMessage(openAppMessage(orgId, userId, session))
-      } else {
-        // *.force.com: open the classic log list, whose content script
-        // (debug-log-list.ts) opens the app for ?openApp=yes.
-        openInNewTab('/setup/ui/listApexTraces.apexp?openApp=yes')
+  // Focus the org's log viewer if it is already open.
+  chrome.runtime
+    .sendMessage({ command: 'focusAppTab', name: `app_${orgId}` })
+    .then(appOpened => {
+      if (!appOpened) {
+        if (document.location.hostname.includes('.salesforce')) {
+          chrome.runtime.sendMessage(openAppMessage(orgId, userId, session))
+        } else {
+          // *.force.com: open the classic log list, whose content script
+          // (debug-log-list.ts) opens the app for ?openApp=yes.
+          openInNewTab('/setup/ui/listApexTraces.apexp?openApp=yes')
+        }
       }
-    }
-  })
+    })
 }
 
 function shortcutMethod(char: string, method: (inNewTab?: boolean) => void) {
@@ -108,24 +110,17 @@ function saveObject() {
 }
 
 function openLastLog(inNewTab?: boolean) {
-  sfRequest(
-    API_PATH +
-      '/tooling/query/?q=' +
-      encodeURIComponent(
-        'SELECT Id,LastModifiedDate,StartTime,Status,SystemModstamp FROM ApexLog ORDER BY LastModifiedDate DESC Limit 1'
-      )
-  )
-    .then(result => result.json())
-    .then(responseObj => {
-      if (responseObj.records && responseObj.records.length > 0) {
-        const url =
-          '/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=' +
-          responseObj.records[0].Id
-        if (inNewTab) {
-          openInNewTab(url)
-        } else {
-          document.location.assign(url)
-        }
+  pageSalesforce()
+    .newestLog()
+    .then(log => {
+      if (!log) return
+      const url =
+        '/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=' +
+        encodeURIComponent(log.Id)
+      if (inNewTab) {
+        openInNewTab(url)
+      } else {
+        document.location.assign(url)
       }
     })
 }

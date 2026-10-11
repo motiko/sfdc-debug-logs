@@ -43,7 +43,7 @@ export function loadLogs() {
       maxLogs = 1
     }
     return sf
-      .requestLogs(maxLogs, filtersToWhereClause(filters))
+      .recentLogs(maxLogs, filtersToWhereClause(filters))
       .then(records => {
         return dispatch({ type: 'FETCH_LOGS_DONE', logs: normalize(records) })
       })
@@ -63,9 +63,14 @@ export function setMessage(message) {
 export function deleteAll() {
   return (dispatch, getState, sf) => {
     dispatch({ type: 'DELETE_LOGS_INIT' })
-    sf.deleteAll().then(() => {
-      dispatch({ type: 'DELETE_LOGS_DONE' })
-    })
+    sf.deleteAllLogs().then(
+      () => dispatch({ type: 'DELETE_LOGS_DONE' }),
+      err =>
+        dispatch({
+          type: 'FETCH_LOGS_ERROR',
+          message: `Deleting logs failed: ${err.message}`
+        })
+    )
   }
 }
 
@@ -115,20 +120,23 @@ export function search(searchTerm) {
 export function checkIsLogging() {
   return (dispatch, getState, sf) => {
     return sf
-      .isLogging()
+      .isTracing(sf.userId)
       .then(isLogging => dispatch({ type: 'SET_LOGGING', isLogging }))
   }
 }
 
 export function startLogging() {
   return (dispatch, getState, sf) => {
-    sf.startLogging().then(res => {
-      if (res && res.success) {
-        dispatch({ type: 'SET_LOGGING', isLogging: true })
-      } else {
-        dispatch(checkIsLogging())
-      }
-    })
+    sf.traceUser(sf.userId).then(
+      res => {
+        if (res && res.success) {
+          dispatch({ type: 'SET_LOGGING', isLogging: true })
+        } else {
+          dispatch(checkIsLogging())
+        }
+      },
+      () => dispatch(checkIsLogging())
+    )
   }
 }
 

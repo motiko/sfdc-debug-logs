@@ -5,15 +5,16 @@ import {
   eventTypeOf,
   filterEntries,
   eventCategory,
-  splitAtIds,
-  parseUserDebug,
+  splitIds,
+  splitUserDebug,
   indentUserDebug,
+  canBeautify,
   beautifyUserDebug,
   isJsonString,
   sfdcObjectBeautify,
   looksLikeSfdcObject,
   looksLikeHtml
-} from './log-parsing'
+} from './parsing'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -140,41 +141,47 @@ describe('eventCategory', () => {
   })
 })
 
-describe('splitAtIds', () => {
-  it('puts ids at the odd indexes and keeps the text after the last id', () => {
+describe('splitIds', () => {
+  it('splits out ids and keeps the text after the last id', () => {
     expect(
-      splitAtIds(
+      splitIds(
         '12:01:02.123 (1234567)|USER_INFO|[EXTERNAL]|005Hn00000ABCDEIA3|admin@example.com|GMT+02:00\n'
       )
     ).toEqual([
       '12:01:02.123 (1234567)|USER_INFO|[EXTERNAL]|',
-      '005Hn00000ABCDEIA3',
+      { id: '005Hn00000ABCDEIA3' },
       '|admin@example.com|GMT+02:00\n'
     ])
   })
 
   it('finds 15- and 18-character ids', () => {
-    const parts = splitAtIds('Id=001Hn00001XyZab, OwnerId=005Hn00000ABCDEIA3}')
-    expect(parts).toEqual([
-      'Id=',
-      '001Hn00001XyZab',
-      ', OwnerId=',
-      '005Hn00000ABCDEIA3',
-      '}'
+    expect(splitIds('Id=001Hn00001XyZab, OwnerId=005Hn00000ABCDEIA3}')).toEqual(
+      [
+        'Id=',
+        { id: '001Hn00001XyZab' },
+        ', OwnerId=',
+        { id: '005Hn00000ABCDEIA3' },
+        '}'
+      ]
+    )
+    expect(splitIds('005000000000001AAA and 001000000000001')).toEqual([
+      { id: '005000000000001AAA' },
+      ' and ',
+      { id: '001000000000001' }
     ])
   })
 
   it('returns the whole text when there is no id', () => {
-    expect(splitAtIds('12:01:02.123 (1245678)|EXECUTION_STARTED\n')).toEqual([
+    expect(splitIds('12:01:02.123 (1245678)|EXECUTION_STARTED\n')).toEqual([
       '12:01:02.123 (1245678)|EXECUTION_STARTED\n'
     ])
   })
 })
 
-describe('parseUserDebug', () => {
+describe('splitUserDebug', () => {
   it('splits a USER_DEBUG entry into header and message', () => {
     expect(
-      parseUserDebug(
+      splitUserDebug(
         '12:01:02.132 (9545678)|USER_DEBUG|[4]|INFO|first line\nsecond line\n'
       )
     ).toEqual({
@@ -183,9 +190,17 @@ describe('parseUserDebug', () => {
     })
   })
 
-  it('returns null for other events', () => {
+  it('splits a line shown without its timestamp, at the first level', () => {
+    expect(splitUserDebug('USER_DEBUG|[3]|DEBUG|a |DEBUG| b')).toEqual({
+      header: 'USER_DEBUG|[3]|DEBUG|',
+      message: 'a |DEBUG| b'
+    })
+  })
+
+  it('returns null for other text', () => {
+    expect(splitUserDebug('no level')).toBeNull()
     expect(
-      parseUserDebug(
+      splitUserDebug(
         '12:01:02.133 (9645678)|SYSTEM_METHOD_ENTRY|[5]|System.debug(ANY)'
       )
     ).toBeNull()
@@ -199,7 +214,7 @@ describe('indentUserDebug', () => {
         '12:01:02.131 (9445678)|USER_DEBUG|[3]|DEBUG|{"marker":"E2E_MARKER_1","ids":[1,2]}\n'
       )
     ).toBe(
-      '12:01:02.131 (9445678)|USER_DEBUG|[3]|DEBUG|{\n  "marker": "E2E_MARKER_1",\n  "ids": [\n    1,\n    2\n  ]\n}'
+      '12:01:02.131 (9445678)|USER_DEBUG|[3]|DEBUG|{\n  "marker": "E2E_MARKER_1",\n  "ids": [1, 2]\n}'
     )
   })
 
@@ -236,10 +251,27 @@ describe('beautifyUserDebug', () => {
     )
   })
 
+  it('keeps JSON numbers and keys exactly as logged', () => {
+    expect(beautifyUserDebug('{"id":12345678901234567890,"a":1,"a":2}')).toBe(
+      '{\n  "id": 12345678901234567890,\n  "a": 1,\n  "a": 2\n}'
+    )
+  })
+
   it('returns other text unchanged', () => {
     expect(beautifyUserDebug('E2E_MARKER_1700000000000')).toBe(
       'E2E_MARKER_1700000000000'
     )
+  })
+})
+
+describe('canBeautify', () => {
+  it.each([
+    ['<div>x</div>', true],
+    ['{"a":1}', true],
+    ['Account:{Id=001Hn00001XyZabIAF}', true],
+    ['first line', false]
+  ])('%s -> %s', (text, expected) => {
+    expect(canBeautify(text)).toBe(expected)
   })
 })
 
