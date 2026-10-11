@@ -20,15 +20,25 @@ import {
   stopLogging
 } from '../actions'
 import { formatClock } from '../utils'
+import TraceFlagsDialog from '../dialogs/trace-flags-dialog'
 
 // Whether the user's actions are logged (an active USER_DEBUG trace flag),
 // and until when: "Logging on · until 15:42" with Extend and Stop, or
 // "Logging off" with "Start logging". Checks when the app opens, but never
-// starts logging on its own (docs/ux/baseline-review.md M11).
-export default function LoggingControl() {
+// starts logging on its own (docs/ux/baseline-review.md M11). "Trace flags…"
+// opens the dialog for other debug levels, durations and targets.
+export default function LoggingControl({ host }) {
   const dispatch = useDispatch()
   const logging = useSelector(state => state.logsPage.logging)
   const [anchor, setAnchor] = useState(null)
+  const [traceOpen, setTraceOpen] = useState(false)
+  const traceDialog = (
+    <TraceFlagsDialog
+      open={traceOpen}
+      onClose={() => setTraceOpen(false)}
+      host={host}
+    />
+  )
 
   useEffect(() => {
     dispatch(checkLogging())
@@ -98,7 +108,16 @@ export default function LoggingControl() {
         >
           Start logging
         </Button>
+        <Button
+          variant="text"
+          color="inherit"
+          aria-haspopup="dialog"
+          onClick={() => setTraceOpen(true)}
+        >
+          Trace flags…
+        </Button>
         {logging.error ? <ErrorNote error={logging.error} /> : null}
+        {traceDialog}
       </Box>
     )
   }
@@ -141,6 +160,17 @@ export default function LoggingControl() {
             secondary="Removes your active trace flag"
           />
         </MenuItem>
+        <MenuItem
+          onClick={() => {
+            close()
+            setTraceOpen(true)
+          }}
+        >
+          <ListItemText
+            primary="Trace flags…"
+            secondary="Debug level, duration, other users and classes"
+          />
+        </MenuItem>
         <Divider />
         <MenuItem disabled sx={{ '&.Mui-disabled': { opacity: 1 } }}>
           <ListItemText
@@ -149,6 +179,7 @@ export default function LoggingControl() {
           />
         </MenuItem>
       </Menu>
+      {traceDialog}
     </>
   )
 }
