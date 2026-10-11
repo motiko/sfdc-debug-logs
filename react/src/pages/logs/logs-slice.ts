@@ -139,7 +139,8 @@ const logsSlice = createSlice({
     },
     // An auto-refresh poll's logs (only those not older than the newest
     // loaded one): the new ones go on top and are marked new; a poll with
-    // none leaves the earlier marks.
+    // none leaves the earlier marks. A good poll means Salesforce answers
+    // again, so the banner of an earlier failed refresh goes away.
     logsPolled(
       state,
       action: PayloadAction<{
@@ -155,6 +156,10 @@ const logsSlice = createSlice({
         state.newIds = Object.fromEntries(merged.added.map(id => [id, true]))
       }
       state.loadedAt = at
+      if (state.listStatus === 'error') {
+        state.listStatus = 'ready'
+        state.listError = null
+      }
     },
     logsFailed(state, action: PayloadAction<ExplainedError>) {
       state.listStatus = 'error'

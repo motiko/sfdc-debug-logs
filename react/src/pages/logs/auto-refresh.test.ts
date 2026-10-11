@@ -145,6 +145,24 @@ describe('logsPolled', () => {
     expect(same.newIds).toEqual({ b: true })
     expect(same.loadedAt).toBe(3)
   })
+
+  it('clears the error of an earlier failed refresh', () => {
+    const failed = {
+      ...initialLogsPageState,
+      logs: [log('a')],
+      loadedAt: 1,
+      listStatus: 'error' as const,
+      listError: {
+        kind: 'network' as const,
+        title: 'Salesforce could not be reached',
+        hint: '',
+        detail: ''
+      }
+    }
+    const state = logsPage(failed, logsPolled({ logs: [], at: 2 }))
+    expect(state.listStatus).toBe('ready')
+    expect(state.listError).toBeNull()
+  })
 })
 
 describe('pollNewLogs', () => {
