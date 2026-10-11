@@ -27,9 +27,9 @@ export default class Batch {
 
   pollJobStatus(jobId) {
     var that = this
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
       var intervalId = setInterval(() => {
-        that.checkJobStatus(jobId).then(function({ state }) {
+        that.checkJobStatus(jobId).then(function ({ state }) {
           if (state === 'JobComplete') {
             clearInterval(intervalId)
             resolve(state)

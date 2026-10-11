@@ -5,13 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import puppeteer from 'puppeteer-core'
-import {
-  Browser,
-  install,
-  resolveBuildId,
-  detectBrowserPlatform,
-  computeExecutablePath
-} from '@puppeteer/browsers'
+import { Browser, install, resolveBuildId, detectBrowserPlatform, computeExecutablePath } from '@puppeteer/browsers'
 import { ROOT } from '../../scripts/lib/sf-auth.mjs'
 
 const CACHE_DIR = join(ROOT, '.chrome-test')

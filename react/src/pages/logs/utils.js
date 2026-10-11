@@ -10,8 +10,10 @@ const escapeSingleQuotes = string => {
   return string.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
 }
 
-const byType = desiredType => ([name, { type: actualType }]) =>
-  actualType == desiredType
+const byType =
+  desiredType =>
+  ([name, { type: actualType }]) =>
+    actualType == desiredType
 
 function matchesByText(log, filters) {
   return filters

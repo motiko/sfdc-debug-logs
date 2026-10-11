@@ -43,9 +43,8 @@ function ParsedLog({ body, classes, logStyleConfig, visibleEvents }) {
     visibleEvents.length == 0
       ? allTheRest
       : allTheRest.filter(body => {
-          const eventTypeMatch = /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|([A-Z_]*)/.exec(
-            body
-          )
+          const eventTypeMatch =
+            /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|([A-Z_]*)/.exec(body)
           if (!eventTypeMatch) {
             console.error(`Didn't find event type for ${body} `)
             return false
@@ -199,13 +198,12 @@ function isJsonString(str) {
 
 function sfdcObjectBeautify(string) {
   string = string.replace(/={/g, ':{')
-  return string.replace(/([{| |\[]\w+)=(.+?)(?=, |},|}\)|:{|])/g, function(
-    match,
-    p1,
-    p2
-  ) {
-    return p1 + ":'" + p2 + "'"
-  })
+  return string.replace(
+    /([{| |\[]\w+)=(.+?)(?=, |},|}\)|:{|])/g,
+    function (match, p1, p2) {
+      return p1 + ":'" + p2 + "'"
+    }
+  )
 }
 
 function looksLikeSfdcObject(string) {
