@@ -71,6 +71,24 @@ export interface SaveResult {
   errors?: unknown[]
 }
 
+// The current user's logging (USER_DEBUG trace flag).
+export type TraceStatus =
+  | { active: false }
+  | {
+      active: true
+      flagId: string
+      // ISO date-time.
+      expiresAt: string
+      debugLevel: string | null
+    }
+
+// The steps of deleteLogs: finding the logs, uploading their ids to the
+// Bulk API job, and waiting for Salesforce to delete them.
+export interface DeleteProgress {
+  step: 'finding' | 'uploading' | 'deleting'
+  total: number | null
+}
+
 export interface ClientOptions {
   now?: () => Date
   sleep?: (ms: number) => Promise<void>
@@ -268,11 +286,99 @@ export function createSalesforceClient(
     await createTraceFlag(classId, 'CLASS_TRACING', debugLevelId, ownLevels)
   }
 
-  // Deletes every debug log of the org with one Bulk API 2.0 job, and
-  // resolves with the number of logs once the job completes.
-  async function deleteAllLogs(): Promise<number> {
-    const logs = await toolingQuery<{ Id: string }>('SELECT Id FROM ApexLog')
-    if (logs.length === 0) return 0
+  // The user's active USER_DEBUG trace flag that runs longest, if any:
+  // when it ends and its debug level.
+  async function traceStatus(userId: string): Promise<TraceStatus> {
+    const [flag] = await toolingQuery<{
+      Id: string
+      ExpirationDate: string
+      DebugLevel?: { DeveloperName: string } | null
+    }>(
+      `SELECT Id, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag ` +
+        `WHERE TracedEntityId = ${soqlId(userId)} AND LogType = 'USER_DEBUG' ` +
+        `AND ExpirationDate > ${now().toISOString()} ORDER BY ExpirationDate DESC`
+    )
+    if (!flag) return { active: false }
+    return {
+      active: true,
+      flagId: flag.Id,
+      expiresAt: flag.ExpirationDate,
+      debugLevel: (flag.DebugLevel && flag.DebugLevel.DeveloperName) || null
+    }
+  }
+
+  // Ends logging for the user: deletes their active USER_DEBUG trace flags.
+  // Resolves with the number of flags deleted.
+  async function stopTracing(userId: string): Promise<number> {
+    const flags = await toolingQuery<{ Id: string }>(
+      `SELECT Id FROM TraceFlag WHERE TracedEntityId = ${soqlId(userId)} ` +
+        `AND LogType = 'USER_DEBUG' AND ExpirationDate > ${now().toISOString()}`
+    )
+    await Promise.all(
+      flags.map(flag =>
+        request(`${TOOLING}/sobjects/TraceFlag/${flag.Id}`, {
+          method: 'DELETE'
+        })
+      )
+    )
+    return flags.length
+  }
+
+  // Moves the active flag's window to now .. now + 24 hours (Salesforce's
+  // maximum), or starts logging if there is none. Resolves with the new
+  // status.
+  async function extendTracing(userId: string): Promise<TraceStatus> {
+    const status = await traceStatus(userId)
+    const start = now()
+    if (status.active) {
+      try {
+        await request(`${TOOLING}/sobjects/TraceFlag/${status.flagId}`, {
+          method: 'PATCH',
+          body: {
+            StartDate: start.toISOString(),
+            ExpirationDate: new Date(start.getTime() + TRACE_MS).toISOString()
+          }
+        })
+        return traceStatus(userId)
+      } catch {
+        // Not editable (e.g. another tool's flag): create our own below.
+      }
+    }
+    await traceUser(userId)
+    return traceStatus(userId)
+  }
+
+  // The SOQL condition for a delete or count scope: one user's logs, or all.
+  const logScope = (userId?: string) =>
+    userId ? ` WHERE LogUserId = ${soqlId(userId)}` : ''
+
+  // How many logs there are, for one user or the whole org.
+  async function countLogs({ userId }: { userId?: string } = {}) {
+    const { totalSize } = await request(
+      `${TOOLING}/query?q=${encodeURIComponent(
+        `SELECT COUNT() FROM ApexLog${logScope(userId)}`
+      )}`
+    )
+    return Number(totalSize) || 0
+  }
+
+  // Deletes every debug log of the org, or only one user's, with one Bulk
+  // API 2.0 job, and resolves with the number of logs once the job
+  // completes. onProgress hears each step, with the number of logs.
+  async function deleteLogs({
+    userId,
+    onProgress = () => {}
+  }: {
+    userId?: string
+    onProgress?: (progress: DeleteProgress) => void
+  } = {}): Promise<number> {
+    onProgress({ step: 'finding', total: null })
+    const logs = await toolingQuery<{ Id: string }>(
+      `SELECT Id FROM ApexLog${logScope(userId)}`
+    )
+    const total = logs.length
+    if (total === 0) return 0
+    onProgress({ step: 'uploading', total })
     const csv = ['Id', ...logs.map(log => log.Id)].join('\n')
     const job = await request(`${API}/jobs/ingest`, {
       method: 'POST',
@@ -292,12 +398,13 @@ export function createSalesforceClient(
       method: 'PATCH',
       body: { state: 'UploadComplete' }
     })
+    onProgress({ step: 'deleting', total })
     const deadline = now().getTime() + pollTimeoutMs
     for (;;) {
       const { state, errorMessage } = await request(
         `${API}/jobs/ingest/${job.id}`
       )
-      if (state === 'JobComplete') return logs.length
+      if (state === 'JobComplete') return total
       if (state === 'Failed' || state === 'Aborted') {
         throw new Error(
           `Deleting logs failed: ${state}${errorMessage ? ` (${errorMessage})` : ''}`
@@ -308,6 +415,11 @@ export function createSalesforceClient(
       }
       await sleep(pollIntervalMs)
     }
+  }
+
+  // Deletes every debug log of the org (the classic list's "Delete all").
+  function deleteAllLogs(): Promise<number> {
+    return deleteLogs()
   }
 
   // The ids of the user the session belongs to. Used when the page's disco
@@ -327,9 +439,14 @@ export function createSalesforceClient(
     keyPrefixes,
     getOrCreateDebugLevel,
     isTracing,
+    traceStatus,
+    stopTracing,
+    extendTracing,
     removeTraceFlags,
     traceUser,
     setClassLogging,
+    countLogs,
+    deleteLogs,
     deleteAllLogs
   }
 }
