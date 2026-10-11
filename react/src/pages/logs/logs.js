@@ -32,6 +32,13 @@ import {
   toggleStyleDialog
 } from './actions'
 import { filterLogs } from './utils'
+import { MuiThemeProvider, createMuiTheme } from 'material-ui/styles'
+import teal from 'material-ui/colors/teal'
+import indigo from 'material-ui/colors/indigo'
+
+const toolbarTheme = createMuiTheme({
+  palette: { primary: teal, secondary: indigo, type: 'dark' }
+})
 
 @connect(
   state => state.logsPage,
@@ -102,92 +109,87 @@ class LogsPage extends React.Component {
         style={{ paddingTop: '64px', overflow: 'hidden' }}
       >
         <AppBar position="fixed" style={{ height: '64px' }}>
-          <Toolbar>
-            <Grid container direction="row" justify="space-between">
-              <Grid item xs={12} sm={6}>
-                <Grid container direction="row" justify="flex-start">
-                  <Grid item>
-                    <Tooltip title="Home">
-                      <Link to="/" style={{ color: 'inherit' }}>
-                        <IconButton color="inherit" aria-label="Home">
-                          <HomeIcon />
-                        </IconButton>
-                      </Link>
-                    </Tooltip>
-                  </Grid>
-                  <Grid item>
-                    <Search
-                      color="inherit"
-                      handleSearch={searchTerm => props.search(searchTerm)}
-                    />
-                  </Grid>
-                  <Grid item>
-                    <div>
-                      <Tooltip title="Load logs">
-                        <IconButton
-                          color="inherit"
-                          aria-label="Load logs"
-                          onClick={props.refresh}
-                        >
-                          <RefreshIcon />
-                        </IconButton>
+          {/* White text and inputs on the teal bar; the rest of the app is light. */}
+          <MuiThemeProvider theme={toolbarTheme}>
+            <Toolbar>
+              <Grid container direction="row" justify="space-between">
+                <Grid item xs={12} sm={6}>
+                  <Grid container direction="row" justify="flex-start">
+                    <Grid item>
+                      <Tooltip title="Home">
+                        <Link to="/" style={{ color: 'inherit' }}>
+                          <IconButton color="inherit" aria-label="Home">
+                            <HomeIcon />
+                          </IconButton>
+                        </Link>
                       </Tooltip>
-                      <Tooltip title="Filter logs">
-                        <IconButton
-                          color="inherit"
-                          aria-label="Filter logs"
-                          onClick={props.toggleFiltersDialog}
-                        >
-                          <FilterList />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete All">
-                        <IconButton
-                          color="inherit"
-                          aria-label="Delete all logs"
-                          onClick={props.deleteAll}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Style settings">
-                        <IconButton
-                          color="inherit"
-                          aria-label="Style settings"
-                          onClick={props.toggleStyleDialog}
-                        >
-                          <StyleIcon />
-                        </IconButton>
-                      </Tooltip>
-                      {props.loading ? (
-                        <CircularProgress style={{ color: 'white' }} />
-                      ) : null}
-                    </div>
+                    </Grid>
+                    <Grid item>
+                      <Search
+                        color="inherit"
+                        handleSearch={searchTerm => props.search(searchTerm)}
+                      />
+                    </Grid>
+                    <Grid item>
+                      <div>
+                        <Tooltip title="Load logs">
+                          <IconButton
+                            color="inherit"
+                            aria-label="Load logs"
+                            onClick={props.refresh}
+                          >
+                            <RefreshIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Filter logs">
+                          <IconButton
+                            color="inherit"
+                            aria-label="Filter logs"
+                            onClick={props.toggleFiltersDialog}
+                          >
+                            <FilterList />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete All">
+                          <IconButton
+                            color="inherit"
+                            aria-label="Delete all logs"
+                            onClick={props.deleteAll}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Style settings">
+                          <IconButton
+                            color="inherit"
+                            aria-label="Style settings"
+                            onClick={props.toggleStyleDialog}
+                          >
+                            <StyleIcon />
+                          </IconButton>
+                        </Tooltip>
+                        {props.loading ? (
+                          <CircularProgress style={{ color: 'white' }} />
+                        ) : null}
+                      </div>
+                    </Grid>
                   </Grid>
                 </Grid>
+                <Grid item>
+                  <TextField
+                    value={props.maxLogs}
+                    type="number"
+                    onChange={e => props.updateMaxLogs(e.target.value)}
+                    label="Max Logs"
+                    placeholder="1"
+                    style={{ width: '6em', marginBottom: 2 }}
+                    onBlur={props.refresh}
+                  />
+                  <TrackingLogs sf={props.sf} />
+                </Grid>
               </Grid>
-              <FilterDialog
-                open={props.filtersDialogOpen}
-                possibleFieldValues={this.possibleFieldValues()}
-              />
-              <StyleDialog
-                open={props.styleDialogOpen}
-                onClose={props.toggleStyleDialog}
-              />
-              <Grid item>
-                <TextField
-                  value={props.maxLogs}
-                  type="number"
-                  onChange={e => props.updateMaxLogs(e.target.value)}
-                  label="Max Logs"
-                  placeholder="1"
-                  style={{ width: '6em', marginBottom: 2 }}
-                  onBlur={props.refresh}
-                />
-                <TrackingLogs sf={props.sf} />
-              </Grid>
-            </Grid>
-          </Toolbar>
+            </Toolbar>
+          </MuiThemeProvider>
           <Snackbar
             open={props.message !== ''}
             autoHideDuration={1000}
@@ -195,6 +197,14 @@ class LogsPage extends React.Component {
             message={props.message}
           />
         </AppBar>
+        <FilterDialog
+          open={props.filtersDialogOpen}
+          possibleFieldValues={this.possibleFieldValues()}
+        />
+        <StyleDialog
+          open={props.styleDialogOpen}
+          onClose={props.toggleStyleDialog}
+        />
         <Switch>
           <Route
             path="/logs/:id"

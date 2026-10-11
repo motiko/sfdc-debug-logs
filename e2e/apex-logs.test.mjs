@@ -211,6 +211,29 @@ test('React log viewer', async t => {
     )
   })
 
+  await t.test('light theme: white background, dark text, teal toolbar', async () => {
+    const colors = await app.evaluate(() => {
+      const cell = document.querySelector('tbody td')
+      let bg = cell
+      while (bg && getComputedStyle(bg).backgroundColor === 'rgba(0, 0, 0, 0)') bg = bg.parentElement
+      const search = document.querySelector('#search')
+      return {
+        tableBackground: bg ? getComputedStyle(bg).backgroundColor : 'none',
+        cellText: getComputedStyle(cell).color,
+        toolbar: getComputedStyle(document.querySelector('header')).backgroundColor,
+        searchText: getComputedStyle(search).color
+      }
+    })
+    const luminance = rgb => {
+      const [r, g, b] = rgb.match(/\d+/g).map(Number)
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    }
+    assert.equal(colors.tableBackground, 'rgb(255, 255, 255)', 'log table background')
+    assert.ok(luminance(colors.cellText) < 0.3, `table text is dark (${colors.cellText})`)
+    assert.equal(colors.toolbar, toRgb('#009688'), 'toolbar is teal')
+    assert.ok(luminance(colors.searchText) > 0.9, `toolbar search text is white (${colors.searchText})`)
+  })
+
   await t.test('search finds the log and hides non-matching ones', async () => {
     await search(MARKER)
     assert.equal((await rows()).length, 1, 'only the log containing the marker remains')
