@@ -1195,6 +1195,33 @@ async function appView(ctx) {
     await delay(400)
   }
 
+  // A confirmation toast (extending logging, when it is on), alone and with
+  // the overflow menu open over it: it must not cover the header's controls.
+  {
+    const logging = await byName(app, [/^logging on/i])
+    let extend = null
+    if (logging) {
+      await safeClick(logging)
+      await delay(500)
+      extend = await byName(app, [/^extend/i], { roles: ['menuitem'] })
+    }
+    if (extend) {
+      await safeClick(extend)
+      await app.waitForSelector('[data-testid="toast"]', { visible: true, timeout: 15000 }).catch(() => {})
+      await delay(300)
+      await capture(ctx, app, V, 'toast')
+      if (await openMoreActions()) {
+        await capture(ctx, app, V, 'toast-with-menu')
+        await app.keyboard.press('Escape')
+        await delay(400)
+      }
+      await app.waitForSelector('[data-testid="toast"]', { hidden: true, timeout: 10000 }).catch(() => {})
+    } else {
+      if (logging) await app.keyboard.press('Escape')
+      summary.errors.push('app: logging is not on, no toast captured')
+    }
+  }
+
   // Search.
   const searchBox =
     (await app.$('input[type=search]')) ||
