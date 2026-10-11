@@ -1,163 +1,414 @@
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { Alert, Box, Button, LinearProgress, Link } from '@mui/material'
+import ListIcon from '@mui/icons-material/ViewList'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import InboxIcon from '@mui/icons-material/Inbox'
+import SearchOffIcon from '@mui/icons-material/SearchOff'
+import CloudOffIcon from '@mui/icons-material/CloudOff'
+import AppHeader from './components/app-header'
+import FilterBar from './components/filter-bar'
+import LogList, { LogListSkeleton } from './components/log-list'
+import LogViewer from './components/log-viewer'
+import AppearancePanel from './dialogs/appearance-panel'
+import DeleteLogsDialog from './dialogs/delete-logs-dialog'
+import ShortcutsDialog from './dialogs/shortcuts-dialog'
+import IconAction from '../../ui/components/icon-action'
+import StatePanel from '../../ui/components/state-panel'
+import Toast from '../../ui/components/toast'
+import { useResolvedColorMode } from '../../ui/color-mode'
+import { clearFilters, clearSearch, loadLogs, startLogging } from './actions'
+import { hideToast, toggleSideLogs } from './logs-slice'
 import {
-  AppBar,
-  Box,
-  CircularProgress,
-  IconButton,
-  Snackbar,
-  TextField,
-  Toolbar,
-  Tooltip
-} from '@mui/material'
-import { ThemeProvider } from '@mui/material/styles'
-import HomeIcon from '@mui/icons-material/Home'
-import RefreshIcon from '@mui/icons-material/Autorenew'
-import DeleteIcon from '@mui/icons-material/DeleteForever'
-import FilterList from '@mui/icons-material/FilterList'
-import StyleIcon from '@mui/icons-material/Style'
-import LogView from './components/log-view'
-import TrackingLogs from './components/tracking-logs'
-import Search from './components/search'
-import LogsTable from './components/logs-table'
-import FilterDialog from './dialogs/filter/filter-dialog'
-import StyleDialog from './dialogs/style/style'
-import { loadLogs, deleteAll, search } from './actions'
-import {
-  setMessage,
-  toggleFiltersDialog,
-  toggleStyleDialog,
-  updateMaxLogs
-} from './logs-slice'
-import { filterLogs } from './utils'
-import { logHash, useOpenLogId } from '../../hash-route'
-import { toolbarTheme } from '../../theme'
+  filterLogs,
+  formatClock,
+  formatRelative,
+  shortOperation,
+  sortLogs
+} from './utils'
+import { openLog, useOpenLogId } from '../../hash-route'
+import { useAppShortcuts } from './use-app-shortcuts'
+import globalSf from '../../global-sf'
+import { layout } from '../../ui/tokens'
 
-// The distinct operations, statuses and users of the loaded logs, for the
-// filter dialog's selects.
-function possibleFieldValues(logs) {
-  const unique = values => [...new Set(values)]
-  const all = Object.values(logs)
-  return {
-    operation: unique(all.map(log => log.Operation)),
-    status: unique(all.map(log => log.Status)),
-    user: unique(all.map(log => log.LogUser.Name))
-  }
-}
-
+// The app shell: header, search and filter bar, and the logs as a sortable
+// table, or (with a log open) a compact list next to the log viewer.
 export default function LogsPage() {
   const dispatch = useDispatch()
   const logId = useOpenLogId()
-  const logs = useSelector(state => state.logsPage.logs)
-  const filters = useSelector(state => state.logsPage.filters)
-  const notMatchingSearchLogs = useSelector(
-    state => state.logsPage.notMatchingSearchLogs
-  )
-  const loading = useSelector(state => state.logsPage.loading)
-  const message = useSelector(state => state.logsPage.message)
-  const maxLogs = useSelector(state => state.logsPage.maxLogs)
-  const filtersDialogOpen = useSelector(
-    state => state.logsPage.filtersDialogOpen
-  )
-  const styleDialogOpen = useSelector(state => state.logsPage.styleDialogOpen)
+  const page = useSelector(state => state.logsPage)
+  const {
+    logs,
+    listStatus,
+    listError,
+    filters,
+    search,
+    maxLogs,
+    sideLogsOpen,
+    newIds,
+    toast,
+    loadedAt
+  } = page
+  const colorMode = useResolvedColorMode(page.colorMode)
+  const [sort, setSort] = useState({ key: 'time', direction: 'desc' })
+  const [dialog, setDialog] = useState(null)
+  const searchRef = useRef(null)
+  const listRef = useRef(null)
+  const viewerRef = useRef(null)
+  const host = globalSf.hostname
 
-  const refresh = () => dispatch(loadLogs())
-
-  // Load the logs on start; "r" reloads them and "a" deletes all logs
-  // (outside text fields).
   useEffect(() => {
     dispatch(loadLogs())
-    const onKeyUp = e => {
-      if (e.target.nodeName === 'INPUT' || e.target.nodeName === 'TEXTAREA') {
-        return
-      }
-      if (e.key === 'r') dispatch(loadLogs())
-      if (e.key === 'a') dispatch(deleteAll())
-    }
-    document.body.addEventListener('keyup', onKeyUp)
-    return () => document.body.removeEventListener('keyup', onKeyUp)
   }, [dispatch])
 
-  const fieldValues = useMemo(() => possibleFieldValues(logs), [logs])
   const shownLogs = useMemo(
-    () => filterLogs(logs, filters, notMatchingSearchLogs),
-    [logs, filters, notMatchingSearchLogs]
+    () => sortLogs(filterLogs(logs, filters, search.matches), sort),
+    [logs, filters, search.matches, sort]
+  )
+  const openRecord = logs.find(log => log.Id === logId)
+  const showUser = useMemo(
+    () => new Set(logs.map(l => l.LogUser && l.LogUser.Name)).size > 1,
+    [logs]
   )
 
-  const toolbarButton = (title, label, Icon, onClick) => (
-    <Tooltip title={title}>
-      <IconButton color="inherit" aria-label={label} onClick={onClick}>
-        <Icon />
-      </IconButton>
-    </Tooltip>
+  useEffect(() => {
+    document.title = openRecord
+      ? `${shortOperation(openRecord.Operation)} · Apex Debugger`
+      : `Debug logs · ${host} · Apex Debugger`
+  }, [openRecord, host])
+
+  const refresh = useCallback(() => dispatch(loadLogs()), [dispatch])
+  const step = delta => {
+    const index = shownLogs.findIndex(l => l.Id === logId)
+    const next = shownLogs[index + delta]
+    if (next) openLog(next.Id)
+  }
+
+  useAppShortcuts({
+    enabled: dialog === null,
+    logOpen: Boolean(logId),
+    onHelp: () => setDialog('help'),
+    onSearch: () => searchRef.current && searchRef.current.focus(),
+    onRefresh: refresh,
+    onRow: delta => listRef.current && listRef.current.moveFocus(delta),
+    onLog: step,
+    onFind: () => viewerRef.current && viewerRef.current.focusFind(),
+    isFindFocused: () =>
+      Boolean(viewerRef.current && viewerRef.current.isFindFocused()),
+    onNextError: () => viewerRef.current && viewerRef.current.nextError(),
+    onNextDebug: () => viewerRef.current && viewerRef.current.nextDebug(),
+    onClose: () => openLog(null)
+  })
+
+  const loading = listStatus === 'loading'
+  const firstLoad = (listStatus === 'idle' || loading) && loadedAt === null
+  const filtered =
+    search.matches !== null || Object.values(filters).some(Boolean)
+
+  let listContent
+  if (listStatus === 'error' && logs.length === 0) {
+    listContent = <ListError error={listError} host={host} onRetry={refresh} />
+  } else if (firstLoad) {
+    listContent = (
+      <Box role="status" aria-label="Loading logs">
+        <LogListSkeleton compact={Boolean(logId)} />
+      </Box>
+    )
+  } else if (shownLogs.length === 0) {
+    listContent = filtered ? (
+      <StatePanel
+        icon={<SearchOffIcon />}
+        title={
+          search.matches !== null
+            ? `No logs contain “${search.term}”`
+            : 'No logs match the filters'
+        }
+        actions={
+          <>
+            {search.matches !== null ? (
+              <Button
+                variant="outlined"
+                onClick={() => dispatch(clearSearch())}
+              >
+                Clear search
+              </Button>
+            ) : null}
+            {Object.values(filters).some(Boolean) ? (
+              <Button
+                variant="outlined"
+                onClick={() => dispatch(clearFilters())}
+              >
+                Clear filters
+              </Button>
+            ) : null}
+          </>
+        }
+      >
+        The search covers the {logs.length} loaded logs.
+      </StatePanel>
+    ) : (
+      <EmptyList onRefresh={refresh} host={host} />
+    )
+  } else {
+    listContent = (
+      <LogList
+        ref={listRef}
+        logs={shownLogs}
+        openId={logId}
+        compact={Boolean(logId)}
+        sort={sort}
+        onSort={key =>
+          setSort(s => ({
+            key,
+            direction: s.key === key && s.direction === 'desc' ? 'asc' : 'desc'
+          }))
+        }
+        newIds={newIds}
+        matches={search.matches}
+        showUser={showUser}
+        loading={loading}
+      />
+    )
+  }
+
+  const listPane = (
+    <Box
+      component="section"
+      aria-label="Debug logs"
+      sx={{
+        width: logId ? `clamp(260px, 28vw, ${layout.listWidth}px)` : '100%',
+        flex: logId ? 'none' : 1,
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        borderRight: logId ? 1 : 0,
+        borderColor: 'divider',
+        bgcolor: 'background.paper'
+      }}
+    >
+      {logId ? (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            px: 1.5,
+            py: 0.5,
+            borderBottom: 1,
+            borderColor: 'divider',
+            minHeight: 40
+          }}
+        >
+          <Box
+            component="h2"
+            sx={{ m: 0, fontSize: 13, fontWeight: 600, flex: 1 }}
+          >
+            Logs
+          </Box>
+          <IconAction
+            label="Hide log list"
+            icon={<ChevronLeftIcon />}
+            onClick={() => dispatch(toggleSideLogs())}
+          />
+        </Box>
+      ) : null}
+      {listStatus === 'error' && logs.length > 0 ? (
+        <Alert
+          severity="error"
+          role="alert"
+          sx={{ m: 1 }}
+          action={
+            <Button color="inherit" size="small" onClick={refresh}>
+              Retry
+            </Button>
+          }
+        >
+          Refresh failed. {listError.title}
+        </Alert>
+      ) : null}
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>{listContent}</Box>
+      {logs.length > 0 ? (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 1,
+            px: 1.5,
+            py: 0.5,
+            borderTop: 1,
+            borderColor: 'divider',
+            fontSize: 12,
+            color: 'text.secondary'
+          }}
+        >
+          <span>
+            {logs.length < maxLogs
+              ? `All ${logs.length} logs loaded`
+              : `Newest ${logs.length} logs loaded`}
+            {loadedAt ? ` · updated ${formatRelative(loadedAt)}` : ''}
+          </span>
+          {logs.length >= maxLogs ? (
+            <Button
+              size="small"
+              onClick={() => dispatch(loadLogs({ more: true }))}
+              disabled={loading}
+            >
+              Load {50} more
+            </Button>
+          ) : null}
+        </Box>
+      ) : null}
+    </Box>
   )
 
   return (
-    <Box sx={{ pt: '64px', overflow: 'hidden' }}>
-      <AppBar position="fixed" sx={{ height: 64 }}>
-        {/* White text and inputs on the teal bar; the rest of the app is light. */}
-        <ThemeProvider theme={toolbarTheme}>
-          <Toolbar sx={{ justifyContent: 'space-between', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Tooltip title="Home">
-                <IconButton
-                  color="inherit"
-                  aria-label="Home"
-                  href={logHash(null)}
-                >
-                  <HomeIcon />
-                </IconButton>
-              </Tooltip>
-              <Search handleSearch={term => dispatch(search(term))} />
-              {toolbarButton('Load logs', 'Load logs', RefreshIcon, refresh)}
-              {toolbarButton('Filter logs', 'Filter logs', FilterList, () =>
-                dispatch(toggleFiltersDialog())
-              )}
-              {toolbarButton('Delete All', 'Delete all logs', DeleteIcon, () =>
-                dispatch(deleteAll())
-              )}
-              {toolbarButton(
-                'Style settings',
-                'Style settings',
-                StyleIcon,
-                () => dispatch(toggleStyleDialog())
-              )}
-              {loading ? (
-                <CircularProgress size={32} sx={{ color: 'white', ml: 1 }} />
-              ) : null}
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
-              <TextField
-                variant="standard"
-                value={maxLogs}
-                type="number"
-                onChange={e => dispatch(updateMaxLogs(e.target.value))}
-                label="Max Logs"
-                placeholder="1"
-                sx={{ width: '6em', mb: '2px' }}
-                onBlur={refresh}
-              />
-              <TrackingLogs />
-            </Box>
-          </Toolbar>
-        </ThemeProvider>
-      </AppBar>
-      <Snackbar
-        open={message !== ''}
-        autoHideDuration={1000}
-        disableWindowBlurListener
-        onClose={() => dispatch(setMessage(''))}
-        message={message}
+    <Box
+      sx={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.default'
+      }}
+    >
+      <AppHeader
+        host={host}
+        onRefresh={refresh}
+        refreshing={loading}
+        onHelp={() => setDialog('help')}
+        onAppearance={() => setDialog('appearance')}
+        onDelete={() => setDialog('delete')}
       />
-      <FilterDialog
-        open={filtersDialogOpen}
-        possibleFieldValues={fieldValues}
+      <Box sx={{ position: 'relative' }}>
+        <FilterBar ref={searchRef} shownCount={shownLogs.length} />
+        {loading && !firstLoad ? (
+          <LinearProgress
+            aria-label="Loading logs"
+            sx={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
+          />
+        ) : null}
+      </Box>
+      <Box component="main" sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
+        {logId && !sideLogsOpen ? (
+          <Box
+            sx={{
+              width: layout.listRailWidth,
+              flex: 'none',
+              borderRight: 1,
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+              pt: 0.5,
+              display: 'flex',
+              justifyContent: 'center'
+            }}
+          >
+            <IconAction
+              label="Show log list"
+              icon={<ListIcon />}
+              onClick={() => dispatch(toggleSideLogs())}
+              tooltipPlacement="right"
+            />
+          </Box>
+        ) : (
+          listPane
+        )}
+        {logId ? (
+          <LogViewer
+            key={logId}
+            ref={viewerRef}
+            logId={logId}
+            log={openRecord}
+            colorMode={colorMode}
+            initialFind={search.matches !== null ? search.term : ''}
+          />
+        ) : null}
+      </Box>
+      <AppearancePanel
+        open={dialog === 'appearance'}
+        onClose={() => setDialog(null)}
+        colorMode={colorMode}
       />
-      <StyleDialog
-        open={styleDialogOpen}
-        onClose={() => dispatch(toggleStyleDialog())}
+      <DeleteLogsDialog
+        open={dialog === 'delete'}
+        onClose={() => setDialog(null)}
+        host={host}
       />
-      {logId ? <LogView logId={logId} /> : <LogsTable logs={shownLogs} />}
+      <ShortcutsDialog
+        open={dialog === 'help'}
+        onClose={() => setDialog(null)}
+      />
+      <Toast toast={toast} onClose={() => dispatch(hideToast())} />
     </Box>
+  )
+}
+
+function ListError({ error, host, onRetry }) {
+  return (
+    <StatePanel
+      role="alert"
+      tone="error"
+      icon={<CloudOffIcon />}
+      title={error.title}
+      details={error.detail}
+      actions={
+        <>
+          <Button variant="contained" onClick={onRetry}>
+            Retry
+          </Button>
+          {error.kind === 'session' || error.kind === 'network' ? (
+            <Button
+              variant="outlined"
+              component="a"
+              href={`https://${host}/`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open Salesforce to sign in
+            </Button>
+          ) : null}
+        </>
+      }
+    >
+      {error.hint}
+    </StatePanel>
+  )
+}
+
+function EmptyList({ onRefresh, host }) {
+  const dispatch = useDispatch()
+  const logging = useSelector(state => state.logsPage.logging)
+  return (
+    <StatePanel
+      icon={<InboxIcon />}
+      title="No debug logs yet"
+      actions={
+        <>
+          {logging.status === 'off' ? (
+            <Button
+              variant="contained"
+              onClick={() => dispatch(startLogging())}
+              disabled={logging.busy}
+            >
+              Start logging
+            </Button>
+          ) : null}
+          <Button variant="outlined" onClick={onRefresh}>
+            Refresh
+          </Button>
+        </>
+      }
+    >
+      {logging.status === 'on'
+        ? `Logging is on for you until ${formatClock(logging.expiresAt)}. Run something in Salesforce, then refresh.`
+        : logging.status === 'off'
+          ? 'Logging is off for you. Start logging, run something in Salesforce, then refresh.'
+          : 'Run something in Salesforce while logging is on, then refresh.'}{' '}
+      <Link
+        href={`https://${host}/setup/ui/listApexTraces.apexp`}
+        target="_blank"
+        rel="noreferrer"
+      >
+        Debug logs in Salesforce
+      </Link>
+    </StatePanel>
   )
 }

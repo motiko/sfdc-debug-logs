@@ -20,7 +20,9 @@
 // view-specific functions (appView, classicViews, optionsView).
 //
 // Safety: the org may be shared with other runs. The script never deletes
-// logs: it never clicks a control named like delete/remove/clear all, never
+// logs: it never clicks a control named like delete/remove/clear all (except
+// the app's "Delete logs…" menu item, which only opens a confirmation dialog
+// that the script cancels with Escape), never
 // types outside a verified focused input (the app and the classic list bind
 // single-letter hotkeys such as "a" for delete all), dismisses every
 // confirm() and only sends Tab, Shift+Tab, Escape, arrows and Enter on
@@ -657,7 +659,9 @@ async function byName(page, patterns, { within = null, roles = null } = {}) {
         // A wrapping element's title (e.g. a tooltip) counts too.
         const titled = el.closest('[title]')
         if (titled) parts.push(titled.getAttribute('title'))
-        return parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()
+        // The same text twice (an aria-label and the tooltip's native title)
+        // counts once.
+        return [...new Set(parts.filter(Boolean).map(p => p.replace(/\s+/g, ' ').trim()))].join(' ')
       }
       const visible = el => {
         const r = el.getBoundingClientRect()
@@ -1102,7 +1106,6 @@ const waitForText = (page, text, timeout = 30000) =>
 async function appView(ctx) {
   const V = 'app'
   const { logs } = ctx
-  const operation = logs.main.Operation
 
   // Loading state: hold the API's query responses for a while.
   {
@@ -1127,7 +1130,9 @@ async function appView(ctx) {
   {
     const page = await newPage(ctx)
     await page.goto(appUrl(ctx, { host: 'ux-audit.invalid' }), { waitUntil: 'domcontentloaded' })
-    await page.waitForFunction(() => /error|fail/i.test(document.body.innerText), { timeout: 20000 }).catch(() => {})
+    await page
+      .waitForFunction(() => /error|fail|can.t reach|expired/i.test(document.body.innerText), { timeout: 20000 })
+      .catch(() => {})
     await delay(300)
     await capture(ctx, page, V, 'error-unreachable-org')
     await delay(2500)
@@ -1137,10 +1142,38 @@ async function appView(ctx) {
 
   const { app, via } = await openAppWithShortcut(ctx)
   summary.appOpenedVia = via
-  await waitForText(app, operation)
+  await app.bringToFront()
+  await app.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+  await app.waitForSelector(`[data-log-id="${logs.main.Id}"]`, { timeout: 30000 }).catch(() => {})
   await delay(1500)
   await capture(ctx, app, V, 'list')
   if (ctx.primary) saveKeyboard(`${V}-keyboard-list`, await tabThrough(app, 'app list'))
+
+  // The overflow menu, and items in it ("Appearance…", "Delete logs…").
+  const openMoreActions = async () => {
+    const more = await byName(app, [/^more actions$/i])
+    if (!more) return false
+    await safeClick(more)
+    await delay(500)
+    return true
+  }
+  const menuItem = async pattern => {
+    if (!(await openMoreActions())) return null
+    return byName(app, [pattern], { roles: ['menuitem'] })
+  }
+  const openAppearance = async () => {
+    const item = await menuItem(/^appearance/i)
+    if (!item) return false
+    await safeClick(item)
+    await delay(700)
+    return true
+  }
+
+  if (await openMoreActions()) {
+    await capture(ctx, app, V, 'more-actions-menu')
+    await app.keyboard.press('Escape')
+    await delay(400)
+  }
 
   // Search.
   const searchBox =
@@ -1151,7 +1184,7 @@ async function appView(ctx) {
     await typeInto(app, searchBox, MARKER)
     await app.keyboard.press('Enter')
     await app
-      .waitForFunction(() => /found|match|result/i.test(document.body.innerText), { timeout: 60000 })
+      .waitForFunction(() => /found|match|result/i.test(document.body.innerText), { timeout: 90000 })
       .catch(() => {})
     await delay(200)
     await capture(ctx, app, V, 'search-results')
@@ -1167,8 +1200,8 @@ async function appView(ctx) {
     await delay(1500)
   } else summary.errors.push('app: no search box found')
 
-  // Filter dialog.
-  const filterBtn = await byName(app, [/^filter logs$/i, /filter/i])
+  // Filters.
+  const filterBtn = await byName(app, [/^filters?( \(\d+\))?$/i, /filter/i])
   if (filterBtn) {
     await safeClick(filterBtn)
     await delay(800)
@@ -1184,22 +1217,60 @@ async function appView(ctx) {
     await closeDialog(app)
   } else summary.errors.push('app: no filter button found')
 
-  // Style dialog.
-  const styleBtn = await byName(app, [/style/i, /appearance/i, /theme/i, /settings/i])
-  if (styleBtn) {
-    await safeClick(styleBtn)
-    await delay(800)
+  // Appearance (style) panel.
+  if (await openAppearance()) {
     await capture(ctx, app, V, 'style-dialog')
     await scrollMain(app, 1)
     await capture(ctx, app, V, 'style-dialog-scrolled')
     await closeDialog(app)
-  } else summary.errors.push('app: no style button found')
+  } else summary.errors.push('app: no appearance panel found')
+
+  // Delete dialog: opened to check it, never confirmed (Escape cancels).
+  {
+    const item = await menuItem(/^delete logs…$/i)
+    if (item) {
+      // Opens a confirmation dialog; deleting needs its own button, which the
+      // script never clicks.
+      await item.click()
+      await delay(2500)
+      await capture(ctx, app, V, 'delete-dialog')
+      if (ctx.primary) {
+        const d = await openDialog(app)
+        summary.deleteDialog = d
+          ? await d.evaluate(el => ({
+              text: el.innerText.slice(0, 400),
+              focused: document.activeElement && document.activeElement.textContent
+            }))
+          : null
+        if (d) await d.dispose()
+      }
+      await app.keyboard.press('Escape')
+      await delay(600)
+      if (await openDialog(app)) {
+        const cancel = await byName(app, [/^cancel$/i])
+        if (cancel) await safeClick(cancel)
+        await delay(500)
+      }
+    } else summary.errors.push('app: no "Delete logs…" menu item found')
+  }
+
+  // Keyboard shortcuts overlay.
+  {
+    await app.evaluate(() => document.activeElement && document.activeElement.blur())
+    const help = await byName(app, [/keyboard shortcuts/i, /help/i])
+    if (help) {
+      await safeClick(help)
+      await delay(700)
+      await capture(ctx, app, V, 'help')
+      await closeDialog(app)
+    }
+  }
 
   if (ctx.primary) {
     const dialogs = []
     for (const [label, patterns] of [
-      ['filter', [/^filter logs$/i, /filter/i]],
-      ['style', [/style/i, /appearance/i, /theme/i]]
+      ['filter', [/^filters?( \(\d+\))?$/i]],
+      ['help', [/keyboard shortcuts/i]]
     ]) {
       const trigger = await byName(app, patterns)
       if (trigger) dialogs.push(await dialogKeyboard(app, trigger, label))
@@ -1208,36 +1279,34 @@ async function appView(ctx) {
     saveKeyboard(`${V}-keyboard-dialogs`, dialogs)
   }
 
+  // Dark mode list.
+  await app.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+  await delay(800)
+  await capture(ctx, app, V, 'list-dark')
+  await app.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+  await delay(500)
+
   // Open the log: click its row (fallback: the route).
-  const opened = await app.evaluate(op => {
-    const rows = [...document.querySelectorAll('[role=row], tr, li, [role=listitem]')].filter(r =>
-      r.innerText.includes(op)
-    )
-    if (!rows.length) return false
-    rows[0].click()
+  const opened = await app.evaluate(id => {
+    const row = document.querySelector(`[data-log-id="${id}"]`)
+    if (!row) return false
+    row.click()
     return true
-  }, operation)
+  }, logs.main.Id)
   await delay(500)
   if (!(await app.evaluate(id => location.hash.includes(id), logs.main.Id))) {
     if (!opened) summary.errors.push('app: could not open the log by clicking its row')
     await app.evaluate(id => (location.hash = `#/logs/${id}`), logs.main.Id)
   }
-  // The row clicked may be a newer log (Setup pages create logs); go to ours.
-  await app.evaluate(id => {
-    if (!location.hash.includes(id)) location.hash = `#/logs/${id}`
-  }, logs.main.Id)
   await waitForText(app, `Done ${MARKER}`, 60000)
   await delay(1000)
 
-  // Each theme, via the style dialog's theme control.
+  // Each palette, via the appearance panel's "Log colors" control.
   const themes = Object.values(logThemes)
   for (const theme of themes) {
-    const btn = await byName(app, [/style/i, /appearance/i, /theme/i])
     let applied = false
-    if (btn) {
-      await safeClick(btn)
-      await delay(700)
-      const themeControl = await controlByLabel(app, /theme/i)
+    if (await openAppearance()) {
+      const themeControl = await controlByLabel(app, /log colors|theme/i)
       if (themeControl) {
         await chooseOption(app, themeControl, theme.label).then(
           () => (applied = true),
@@ -1252,20 +1321,38 @@ async function appView(ctx) {
     await scrollMain(app, 0.5)
     await capture(ctx, app, V, `log-${theme.name}-scrolled`)
   }
-  // Back to the default theme for the remaining states.
-  {
-    const btn = await byName(app, [/style/i, /appearance/i, /theme/i])
-    if (btn) {
-      await safeClick(btn)
-      await delay(600)
-      const themeControl = await controlByLabel(app, /theme/i)
-      if (themeControl) await chooseOption(app, themeControl, themes[0].label).catch(() => {})
-      await closeDialog(app)
-    }
+  // Back to the default (light or dark with the color mode).
+  if (await openAppearance()) {
+    const themeControl = await controlByLabel(app, /log colors|theme/i)
+    if (themeControl) await chooseOption(app, themeControl, 'Match app (Light or Dark)').catch(() => {})
+    await closeDialog(app)
   }
   await scrollMain(app, 0)
 
+  // Dark mode log.
+  await app.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+  await delay(800)
+  await capture(ctx, app, V, 'log-dark-mode')
+  await app.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+  await delay(500)
+
+  // Find in the log.
+  {
+    const find = await controlByLabel(app, /^find in log$/i)
+    if (find) {
+      await typeInto(app, find, 'iteration')
+      await delay(600)
+      await app.keyboard.press('Enter')
+      await delay(400)
+      await capture(ctx, app, V, 'log-find')
+      await find.focus()
+      await app.keyboard.press('Escape')
+      await delay(300)
+    } else summary.errors.push('app: no find-in-log field found')
+  }
+
   // Expand the JSON debug line.
+  await scrollMain(app, 0)
   const expanded = await app.evaluate(marker => {
     const lines = [...document.querySelectorAll('div, li, [role=row]')].filter(
       d => d.innerText && d.innerText.includes('{"') && d.innerText.includes(marker) && d.innerText.length < 600
@@ -1285,46 +1372,27 @@ async function appView(ctx) {
 
   if (ctx.primary) saveKeyboard(`${V}-keyboard-log`, await tabThrough(app, 'app log view', { maxStops: 40 }))
 
-  // Log content (event type) filter.
-  const contentFilter =
-    (await byName(app, [/filter log content/i, /event/i, /content/i])) ||
-    (
-      await app.evaluateHandle(() => {
-        // material-ui beta: the floating button has only a tooltip.
-        const btns = [...document.querySelectorAll('button')].filter(b => {
-          const r = b.getBoundingClientRect()
-          return !b.disabled && r.right > innerWidth - 120 && r.top > 60 && r.top < 160 && r.width > 0
-        })
-        return btns[0] || null
-      })
-    ).asElement()
+  // Event types (log content filter).
+  const contentFilter = await byName(app, [/^events/i, /filter log content/i, /event/i])
   if (contentFilter) {
     await safeClick(contentFilter)
     await delay(800)
     await capture(ctx, app, V, 'content-filter-dialog')
     await closeDialog(app)
-  }
+  } else summary.errors.push('app: no event type control found')
 
-  // The side list of logs toggled.
-  const sideToggle =
-    (await byName(app, [/side ?list|sidebar|log list|panel/i])) ||
-    (
-      await app.evaluateHandle(() => {
-        const btns = [...document.querySelectorAll('button')].filter(b => {
-          const r = b.getBoundingClientRect()
-          return r.left < 60 && r.top > 60 && r.top < 140 && r.width > 0
-        })
-        return btns[0] || null
-      })
-    ).asElement()
+  // The log list collapsed to a rail.
+  const sideToggle = await byName(app, [/hide log list/i, /side ?list|sidebar|log list|panel/i])
   if (sideToggle) {
     await safeClick(sideToggle)
     await delay(800)
     await capture(ctx, app, V, 'log-side-list-toggled')
-    await safeClick(sideToggle)
+    const back = await byName(app, [/show log list/i])
+    if (back) await safeClick(back)
+    await delay(400)
   }
 
-  // A failed run's log.
+  // A failed run's log (opens at its first error).
   if (logs.failed) {
     await app.evaluate(id => (location.hash = `#/logs/${id}`), logs.failed.Id)
     await waitForText(app, 'failing run', 30000).catch(() => {})

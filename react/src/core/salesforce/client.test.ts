@@ -342,6 +342,151 @@ describe('deleteAllLogs', () => {
   })
 })
 
+describe('deleteLogs', () => {
+  const job = {
+    id: '750K',
+    contentUrl: 'services/data/v62.0/jobs/ingest/750K/batches'
+  }
+  const bulkRoutes = (logQuery: RegExp): [any, any][] => [
+    [isQuery(logQuery), () => records({ Id: '07L1' })],
+    [is('POST', `${API}/jobs/ingest`), () => job],
+    [is('PUT', `/${job.contentUrl}`), () => null],
+    [is('PATCH', `${API}/jobs/ingest/750K`), () => ({})],
+    [is('GET', `${API}/jobs/ingest/750K`), () => ({ state: 'JobComplete' })]
+  ]
+
+  it("deletes only the user's logs when given a user", async () => {
+    const { client, calls } = fakeSalesforce(
+      bulkRoutes(/^SELECT Id FROM ApexLog WHERE LogUserId = /)
+    )
+    const progress = []
+    expect(
+      await client.deleteLogs({
+        userId: USER,
+        onProgress: p => progress.push(p)
+      })
+    ).toBe(1)
+    expect(soqlOf(calls[0])).toBe(
+      `SELECT Id FROM ApexLog WHERE LogUserId = '${USER}'`
+    )
+    expect(calls[2].init.body).toBe('Id\n07L1')
+    expect(progress).toEqual([
+      { step: 'finding', total: null },
+      { step: 'uploading', total: 1 },
+      { step: 'deleting', total: 1 }
+    ])
+  })
+
+  it('deletes every log of the org without a user', async () => {
+    const { client, calls } = fakeSalesforce(
+      bulkRoutes(/^SELECT Id FROM ApexLog$/)
+    )
+    expect(await client.deleteLogs()).toBe(1)
+    expect(soqlOf(calls[0])).toBe('SELECT Id FROM ApexLog')
+  })
+
+  it('refuses a user id that is not an id', async () => {
+    const { client, calls } = fakeSalesforce([])
+    await expect(
+      client.deleteLogs({ userId: "x' OR Id != '" })
+    ).rejects.toThrow(/Not a Salesforce id/)
+    expect(calls).toHaveLength(0)
+  })
+})
+
+describe('countLogs', () => {
+  it("counts the org's or one user's logs", async () => {
+    const { client, calls } = fakeSalesforce([
+      [
+        isQuery(/^SELECT COUNT\(\) FROM ApexLog/),
+        call => ({ totalSize: soqlOf(call).includes('LogUserId') ? 3 : 40 })
+      ]
+    ])
+    expect(await client.countLogs()).toBe(40)
+    expect(await client.countLogs({ userId: USER })).toBe(3)
+    expect(soqlOf(calls[1])).toBe(
+      `SELECT COUNT() FROM ApexLog WHERE LogUserId = '${USER}'`
+    )
+  })
+})
+
+describe('logging status', () => {
+  const flag = {
+    Id: '7tf1',
+    ExpirationDate: '2026-01-02T05:00:00.000+0000',
+    DebugLevel: { DeveloperName: DEBUG_LEVEL_NAME }
+  }
+
+  it("reports the user's longest-running active flag", async () => {
+    const { client, calls } = fakeSalesforce([
+      [isQuery(/FROM TraceFlag/), () => records(flag)]
+    ])
+    expect(await client.traceStatus(USER)).toEqual({
+      active: true,
+      flagId: '7tf1',
+      expiresAt: flag.ExpirationDate,
+      debugLevel: DEBUG_LEVEL_NAME
+    })
+    expect(soqlOf(calls[0])).toBe(
+      `SELECT Id, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag ` +
+        `WHERE TracedEntityId = '${USER}' AND LogType = 'USER_DEBUG' ` +
+        `AND ExpirationDate > 2026-01-02T03:04:05.000Z ORDER BY ExpirationDate DESC`
+    )
+  })
+
+  it('reports no logging without an active flag', async () => {
+    const { client } = fakeSalesforce([
+      [isQuery(/FROM TraceFlag/), () => records()]
+    ])
+    expect(await client.traceStatus(USER)).toEqual({ active: false })
+  })
+
+  it("stops logging by deleting the user's active flags", async () => {
+    const { client, calls } = fakeSalesforce([
+      [
+        isQuery(/FROM TraceFlag/),
+        () => records({ Id: '7tf1' }, { Id: '7tf2' })
+      ],
+      [is('DELETE', /TraceFlag\/7tf[12]$/), () => null]
+    ])
+    expect(await client.stopTracing(USER)).toBe(2)
+    expect(soqlOf(calls[0])).toContain(
+      `LogType = 'USER_DEBUG' AND ExpirationDate > `
+    )
+    expect(calls.filter(c => c.init.method === 'DELETE')).toHaveLength(2)
+  })
+
+  it('extends the active flag to 24 hours from now', async () => {
+    const { client, calls } = fakeSalesforce([
+      [isQuery(/FROM TraceFlag/), () => records(flag)],
+      [is('PATCH', `${API}/tooling/sobjects/TraceFlag/7tf1`), () => null]
+    ])
+    const status = await client.extendTracing(USER)
+    expect(status.active).toBe(true)
+    expect(calls[1].init.body).toEqual({
+      StartDate: '2026-01-02T03:04:05.000Z',
+      ExpirationDate: '2026-01-03T03:04:05.000Z'
+    })
+  })
+
+  it('starts logging when extending without an active flag', async () => {
+    let flags = []
+    const { client, calls } = fakeSalesforce([
+      [isQuery(/FROM TraceFlag/), () => records(...flags)],
+      [isQuery(/FROM DebugLevel/), () => records({ Id: '7dl1' })],
+      [
+        is('POST', `${API}/tooling/sobjects/TraceFlag`),
+        () => {
+          flags = [flag]
+          return { id: '7tf1', success: true }
+        }
+      ]
+    ])
+    expect((await client.extendTracing(USER)).active).toBe(true)
+    expect(calls.some(c => c.init.method === 'POST')).toBe(true)
+  })
+})
+
 describe('currentUser', () => {
   it('reads the user and org ids from userinfo', async () => {
     const { client } = fakeSalesforce([

@@ -7,6 +7,8 @@
 import { logThemes, CLASSIC_CATEGORY_CLASS } from '../../react/src/core/log/themes.ts'
 
 export { logThemes, CLASSIC_CATEGORY_CLASS }
+// The app's design tokens (react/src/ui/tokens.ts, also import-free).
+export { colors as uiColors } from '../../react/src/ui/tokens.ts'
 export { eventCategory, LOG_CATEGORIES } from '../../react/src/core/log/categories.ts'
 
 // '#abc' / '#aabbcc' / '#000' -> 'rgb(r, g, b)' as returned by getComputedStyle.

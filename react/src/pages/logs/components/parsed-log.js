@@ -1,177 +1,330 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { useSelector } from 'react-redux'
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState
+} from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { IconButton } from '@mui/material'
-import AddIcon from '@mui/icons-material/AddCircle'
-import RemoveIcon from '@mui/icons-material/RemoveCircle'
+import { Box } from '@mui/material'
+import ErrorIcon from '@mui/icons-material/Error'
+import ExpandIcon from '@mui/icons-material/ChevronRight'
 import globalSf from '../../../global-sf'
 import {
-  splitLog,
-  filterEntries,
-  eventTypeOf,
-  eventCategory,
-  splitIds,
-  indentUserDebug
+  canBeautify,
+  indentUserDebug,
+  splitUserDebug
 } from '../../../core/log/parsing'
-import { themeByName } from '../../../core/log/themes'
+import { segments } from '../../../core/log/log-lines'
+import { LOG_CATEGORIES } from '../../../core/log/categories'
+import { fontFamily } from '../../../ui/tokens'
 
-// Logs with up to this many entries are rendered whole, so the browser's
-// find (Ctrl+F) sees every line. Longer ones (a log can have 20 MB) render
-// only the lines near the visible part, plus OVERSCAN lines around it.
+// Logs with up to this many lines are rendered whole, so the browser's find
+// (Ctrl+F) sees every line. Longer ones (a log can have 20 MB) render only
+// the lines near the visible part, plus OVERSCAN lines around it.
 export const RENDER_ALL_UP_TO = 2000
 const OVERSCAN = 30
 
-// A category's style: the color from the (possibly user-edited) theme, the
-// font weight and style from the theme's definition.
-function categoryStyle(logTheme, category) {
-  const { fontWeight, fontStyle } =
-    themeByName(logTheme.themeName).categories[category] || {}
-  return {
-    color: logTheme[category],
-    fontWeight: fontWeight || 'normal',
-    fontStyle: fontStyle || 'normal'
-  }
-}
+// Each line's colors and fonts come from the palette's CSS custom properties
+// (themeCssVariables, set on the <pre> by the viewer), per category class.
+const categoryRules = Object.fromEntries(
+  LOG_CATEGORIES.map(c => [
+    `& .cat-${c}`,
+    {
+      color: `var(--log-${c}-color)`,
+      fontWeight: `var(--log-${c}-weight)`,
+      fontStyle: `var(--log-${c}-style)`
+    }
+  ])
+)
 
-const lineStyle = { marginLeft: '0.6em', paddingTop: '0.6em' }
-
-// The log body: the header lines, then one line per entry (of the event
-// types picked in the contents filter, if any), colored by category.
-// scrollElement is the element that scrolls the log.
-export default function ParsedLog({ body, styleConfig, scrollElement }) {
-  const visibleEvents = useSelector(state => state.logsPage.visibleEvents)
-  const lines = useMemo(() => {
-    if (!body) return []
-    const { intro, entries } = splitLog(body)
-    return [intro || '', ...filterEntries(entries, visibleEvents)]
-  }, [body, visibleEvents])
-  // Indexes of the USER_DEBUG lines shown beautified; kept here rather than
-  // in the lines, which unmount when scrolled away.
-  const [expanded, setExpanded] = useState(() => ({ lines, set: new Set() }))
-  const expandedSet = expanded.lines === lines ? expanded.set : null
+// The log body: the header, then one line per entry, each with a gutter
+// (line number, error marker), a muted time, the event type and the message
+// in its category's color. Salesforce ids are links; find matches are
+// marked. `lines` are the visible lines (core/log/log-lines.ts).
+// The ref offers scrollToRow(row) (centered).
+const ParsedLog = forwardRef(function ParsedLog(
+  {
+    lines,
+    fontSize,
+    textWrap,
+    scrollElement,
+    term,
+    matchRows,
+    currentMatch,
+    activeRow,
+    expandAll
+  },
+  ref
+) {
+  // Rows the user toggled (relative to expandAll); kept here rather than in
+  // the lines, which unmount when scrolled away.
+  const [toggled, setToggled] = useState(() => ({
+    lines,
+    expandAll,
+    set: new Set()
+  }))
+  const toggledSet =
+    toggled.lines === lines && toggled.expandAll === expandAll
+      ? toggled.set
+      : null
   const toggle = useCallback(
-    index =>
-      setExpanded(prev => {
-        const set = new Set(prev.lines === lines ? prev.set : [])
-        if (set.has(index)) set.delete(index)
-        else set.add(index)
-        return { lines, set }
+    row =>
+      setToggled(prev => {
+        const set = new Set(
+          prev.lines === lines && prev.expandAll === expandAll ? prev.set : []
+        )
+        if (set.has(row)) set.delete(row)
+        else set.add(row)
+        return { lines, expandAll, set }
       }),
-    [lines]
+    [lines, expandAll]
   )
 
-  const { fontSize, textWrap, theme } = styleConfig
   const virtualizer = useVirtualizer({
     count: lines.length,
     getScrollElement: () => scrollElement,
-    estimateSize: () => Math.ceil(fontSize * 2),
-    overscan: lines.length <= RENDER_ALL_UP_TO ? lines.length : OVERSCAN
+    estimateSize: () => Math.ceil(fontSize * 1.45) + 2,
+    overscan: lines.length <= RENDER_ALL_UP_TO ? lines.length : OVERSCAN,
+    getItemKey: index => lines[index].number
   })
   // Line heights change with the font size and wrapping.
   useEffect(() => {
     virtualizer.measure()
   }, [virtualizer, fontSize, textWrap])
 
-  if (lines.length === 0) return <div />
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToRow: row => {
+        if (row >= 0 && row < lines.length)
+          virtualizer.scrollToIndex(row, { align: 'center' })
+      }
+    }),
+    [virtualizer, lines.length]
+  )
+
+  // Marker or toggle, then the line number.
+  const digits = String(
+    lines.length ? lines[lines.length - 1].number : 0
+  ).length
+  const gutterWidth = `calc(${digits + 2}ch + 1.3em)`
+  const sx = useMemo(
+    () => ({
+      m: 0,
+      fontFamily: fontFamily.mono,
+      fontVariantLigatures: 'none',
+      lineHeight: 1.45,
+      tabSize: 4,
+      minWidth: textWrap ? 0 : 'max-content',
+      '& > div': {
+        display: 'grid',
+        gridTemplateColumns: `${gutterWidth} 1fr`,
+        whiteSpace: textWrap ? 'pre-wrap' : 'pre',
+        overflowWrap: textWrap ? 'anywhere' : 'normal',
+        pr: 2
+      },
+      '& .gutter': {
+        position: 'sticky',
+        left: 0,
+        zIndex: 1,
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        whiteSpace: 'nowrap',
+        fontWeight: 400,
+        fontStyle: 'normal',
+        pr: '1ch',
+        mr: '1ch',
+        color: 'var(--log-muted)',
+        backgroundColor: 'var(--log-background)',
+        userSelect: 'none',
+        borderRight:
+          '1px solid color-mix(in srgb, var(--log-muted) 35%, transparent)'
+      },
+      '& .gutter::after': {
+        content: 'attr(data-line)',
+        fontVariantNumeric: 'tabular-nums'
+      },
+      '& .slot': {
+        display: 'inline-flex',
+        width: '1.3em',
+        height: '1.45em',
+        alignItems: 'center',
+        justifyContent: 'center'
+      },
+      '& .marker': { fontSize: '1.05em', color: 'var(--log-error-color)' },
+      '& .t': {
+        color: 'var(--log-muted)',
+        fontWeight: 400,
+        fontStyle: 'normal'
+      },
+      '& a': {
+        color: 'inherit',
+        textDecorationThickness: '1px',
+        textUnderlineOffset: '2px'
+      },
+      '& mark': {
+        backgroundColor: '#fff0a8',
+        color: '#1b1f24',
+        borderRadius: '2px'
+      },
+      '& mark.current': {
+        backgroundColor: '#ffb84d',
+        outline: '2px solid #1b1f24',
+        outlineOffset: '0'
+      },
+      '& .is-active .gutter': {
+        color: 'var(--log-rest-color)',
+        fontWeight: 700,
+        boxShadow: 'inset 3px 0 0 var(--log-rest-color)'
+      },
+      '& .toggle': {
+        all: 'unset',
+        cursor: 'pointer',
+        display: 'inline-flex',
+        verticalAlign: 'top',
+        width: '1.2em',
+        height: '1.45em',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--log-rest-color)',
+        borderRadius: '3px',
+        '& svg': { fontSize: '1.1em', transition: 'transform 120ms' },
+        '&[aria-expanded="true"] svg': { transform: 'rotate(90deg)' },
+        '&:focus-visible': { outline: '2px solid var(--ad-focus)' },
+        '&:hover': {
+          backgroundColor: 'color-mix(in srgb, currentColor 15%, transparent)'
+        }
+      },
+      ...categoryRules
+    }),
+    [gutterWidth, textWrap]
+  )
+
+  if (lines.length === 0) return null
   const items = virtualizer.getVirtualItems()
   const first = items.length ? items[0].start : 0
   const last = items.length ? items[items.length - 1].end : 0
   return (
-    <pre
+    <Box
+      component="pre"
+      sx={sx}
       style={{
-        margin: 0,
-        marginLeft: '20px',
-        paddingTop: first,
-        paddingBottom: Math.max(0, virtualizer.getTotalSize() - last),
-        lineHeight: '140%',
-        fontFamily: "'Courier New', 'Courier', mono",
         fontSize,
-        whiteSpace: textWrap ? 'pre-wrap' : 'pre',
-        overflowWrap: textWrap ? 'break-word' : 'normal'
+        paddingTop: first + 4,
+        paddingBottom: Math.max(0, virtualizer.getTotalSize() - last) + 16
       }}
     >
-      {items.map(item => (
-        <LogLine
-          key={item.index}
-          index={item.index}
-          measureRef={virtualizer.measureElement}
-          text={lines[item.index]}
-          isIntro={item.index === 0}
-          logTheme={theme}
-          indented={Boolean(expandedSet && expandedSet.has(item.index))}
-          onToggle={toggle}
-        />
-      ))}
-    </pre>
+      {items.map(item => {
+        const row = item.index
+        const expanded =
+          expandAll !== Boolean(toggledSet && toggledSet.has(row))
+        const hasMatch = matchRows.has(row)
+        return (
+          <LogLine
+            key={item.key}
+            row={row}
+            line={lines[row]}
+            measureRef={virtualizer.measureElement}
+            expanded={expanded}
+            onToggle={toggle}
+            term={hasMatch ? term : ''}
+            currentNth={
+              currentMatch && currentMatch.row === row ? currentMatch.nth : -1
+            }
+            active={activeRow === row}
+          />
+        )
+      })}
+    </Box>
   )
-}
+})
 
-// Turns Salesforce ids into links and keeps all text around them.
-function withLinks(text, color) {
-  const parts = splitIds(text)
-  if (parts.every(part => typeof part === 'string')) return text
-  return parts.map((part, index) =>
-    typeof part === 'string' ? (
-      part
-    ) : (
-      <a
-        href={`https://${globalSf.hostname}/${part.id}`}
-        style={{ color }}
-        key={index}
-      >
-        {part.id}
-      </a>
+export default ParsedLog
+
+function LineText({ text, term, currentNth }) {
+  return segments(text, term).map((segment, i) => {
+    let content = segment.text
+    if (segment.match !== undefined) {
+      content = (
+        <mark
+          className={segment.match === currentNth ? 'current' : undefined}
+          data-match={segment.match}
+        >
+          {content}
+        </mark>
+      )
+    }
+    if (segment.id) {
+      content = (
+        <a
+          href={`https://${globalSf.hostname}/${segment.id}`}
+          target="_blank"
+          rel="noreferrer"
+          tabIndex={-1}
+        >
+          {content}
+        </a>
+      )
+    }
+    const className =
+      segment.part === 'time' ? 't' : segment.part === 'event' ? 'ev' : 'msg'
+    return (
+      <span className={className} key={i}>
+        {content}
+      </span>
     )
-  )
+  })
 }
 
 const LogLine = memo(function LogLine({
-  index,
+  row,
+  line,
   measureRef,
-  text,
-  isIntro,
-  logTheme,
-  indented,
-  onToggle
+  expanded,
+  onToggle,
+  term,
+  currentNth,
+  active
 }) {
-  if (isIntro) {
-    return (
-      <div
-        ref={measureRef}
-        data-index={index}
-        style={{ ...lineStyle, ...categoryStyle(logTheme, 'system') }}
-      >
-        {text}
-      </div>
-    )
-  }
-  const eventType = eventTypeOf(text)
-  if (eventType === null) {
-    console.error(`Didn't find event type for ${text} `)
-    return <div ref={measureRef} data-index={index} />
-  }
-  const category = eventCategory(eventType)
-  const isUserDebug = eventType === 'USER_DEBUG'
-  const shown = isUserDebug && indented ? indentUserDebug(text) : text
+  const isDebug = line.eventType === 'USER_DEBUG'
+  const parsed = isDebug ? splitUserDebug(line.text) : null
+  const expandable = Boolean(parsed && canBeautify(parsed.message))
+  const shown = expandable && expanded ? indentUserDebug(line.text) : line.text
+  const isError = line.category === 'error'
+  const className = `cat-${line.category}${active ? ' is-active' : ''}`
   return (
     <div
       ref={measureRef}
-      data-index={index}
-      style={{ ...lineStyle, ...categoryStyle(logTheme, category) }}
+      data-index={row}
+      data-line={line.number}
+      data-category={line.category}
+      className={className}
     >
-      {isUserDebug ? (
-        <IconButton
-          color="inherit"
-          aria-label={indented ? 'Collapse' : 'Expand'}
-          aria-expanded={indented}
-          onClick={() => onToggle(index)}
-          sx={{ m: 0, p: '0 12px', height: '1.5em', top: '0.2em' }}
-          style={{ color: logTheme.rest }}
-        >
-          {indented ? <RemoveIcon /> : <AddIcon />}
-        </IconButton>
-      ) : null}
-      {withLinks(shown, logTheme[category])}
+      <span className="gutter" data-line={line.number || ''}>
+        <span className="slot">
+          {isError ? (
+            <ErrorIcon className="marker" role="img" aria-label="Error" />
+          ) : null}
+          {expandable ? (
+            <button
+              type="button"
+              className="toggle"
+              aria-expanded={expanded}
+              aria-label={expanded ? 'Collapse value' : 'Expand value'}
+              onClick={() => onToggle(row)}
+            >
+              <ExpandIcon aria-hidden />
+            </button>
+          ) : null}
+        </span>
+      </span>
+      <span>
+        <LineText text={shown} term={term} currentNth={currentNth} />
+      </span>
     </div>
   )
 })

@@ -2,21 +2,34 @@
 // (global-sf.ts) as its third argument: (dispatch, getState, sf).
 import type { AppSalesforce } from '../../global-sf'
 import type { AppDispatch, RootState } from '../../store'
+import { explainError } from '../../core/salesforce/errors'
+import type { DeleteProgress } from '../../core/salesforce/client'
 import {
-  deleteLogsDone,
-  deleteLogsInit,
-  fetchLogBodyDone,
-  fetchLogBodyInit,
-  fetchLogsDone,
-  fetchLogsInit,
-  requestFailed,
-  resetSearch,
-  searchDone,
-  searchInit,
-  setLogging,
-  updateMaxLogs
+  bodyFailed,
+  bodyLoaded,
+  bodyRequested,
+  loggingBusy,
+  loggingFailed,
+  loggingStatus,
+  logsFailed,
+  logsLoaded,
+  logsRequested,
+  PAGE_SIZE,
+  searchCleared,
+  searchFinished,
+  searchProgress,
+  searchStarted,
+  setFilter,
+  clearFilters as clearFiltersAction,
+  setMaxLogs,
+  showToast
 } from './logs-slice'
-import { filtersToWhereClause, type ApexLog } from './utils'
+import {
+  filtersToWhereClause,
+  formatClock,
+  type ApexLog,
+  type ListFilters
+} from './utils'
 
 type Thunk<R = unknown> = (
   dispatch: AppDispatch,
@@ -24,118 +37,227 @@ type Thunk<R = unknown> = (
   sf: AppSalesforce
 ) => R
 
-// Every queried log has LogUser (client.ts recentLogs).
-const byId = (logs: { Id: string }[]) =>
-  Object.fromEntries(logs.map(log => [log.Id, log])) as Record<string, ApexLog>
+const explain = (err: unknown, sf: AppSalesforce) =>
+  explainError(err, sf.hostname)
 
-export function fetchLogBody(logId: string): Thunk<Promise<void>> {
+// Loads the newest logs that pass the filters (maxLogs of them; `more`
+// loads another page).
+export function loadLogs({ more = false } = {}): Thunk<Promise<void>> {
   return async (dispatch, getState, sf) => {
-    if (getState().logsPage.logBodies[logId]) return
-    dispatch(fetchLogBodyInit())
-    try {
-      const logBody = await sf.logBody(logId)
-      dispatch(fetchLogBodyDone({ logId, logBody }))
-    } catch (err) {
-      dispatch(requestFailed(`Error occured: ${err.message}`))
-    }
-  }
-}
-
-export function loadLogs(): Thunk<Promise<void>> {
-  return async (dispatch, getState, sf) => {
-    dispatch(fetchLogsInit())
-    dispatch(resetSearch())
-    const { filters } = getState().logsPage
-    let maxLogs = Number(getState().logsPage.maxLogs)
-    if (!maxLogs || maxLogs < 1) {
-      dispatch(updateMaxLogs(1))
-      maxLogs = 1
-    }
+    if (more) dispatch(setMaxLogs(getState().logsPage.maxLogs + PAGE_SIZE))
+    const { filters, maxLogs } = getState().logsPage
+    dispatch(logsRequested())
     try {
       const records = await sf.recentLogs(
         maxLogs,
         filtersToWhereClause(filters)
       )
-      dispatch(fetchLogsDone(byId(records)))
+      dispatch(logsLoaded({ logs: records as ApexLog[], at: Date.now() }))
+      const { search } = getState().logsPage
+      if (search.term) await dispatch(searchLogs(search.term))
     } catch (err) {
-      dispatch(requestFailed(`Error occured: ${err.message}`))
+      dispatch(logsFailed(explain(err, sf)))
     }
   }
 }
 
-export function deleteAll(): Thunk<Promise<void>> {
-  return async (dispatch, getState, sf) => {
-    dispatch(deleteLogsInit())
-    try {
-      await sf.deleteAllLogs()
-      dispatch(deleteLogsDone())
-    } catch (err) {
-      dispatch(requestFailed(`Deleting logs failed: ${err.message}`))
-    }
-  }
-}
-
-// Searches the bodies of the loaded logs (up to Max Logs), ignoring case.
-// Bodies are downloaded once and cached in state; a log whose body can't be
-// downloaded is counted as not searched instead of failing the search.
-export function search(searchTerm: string): Thunk<Promise<void>> {
-  return async (dispatch, getState, sf) => {
-    dispatch(searchInit())
-    const { logs } = getState().logsPage
-    const logBodies = { ...getState().logsPage.logBodies }
-    const missing = Object.keys(logs).filter(id => !(id in logBodies))
-    const downloads = await Promise.allSettled(
-      missing.map(async id => (logBodies[id] = await sf.logBody(id)))
-    )
-    const failed = downloads.filter(d => d.status === 'rejected').length
-    const term = searchTerm.toLowerCase()
-    const notMatchingSearchLogs: Record<string, boolean> = {}
-    let found = 0
-    Object.keys(logs).forEach(id => {
-      const matches =
-        typeof logBodies[id] === 'string' &&
-        logBodies[id].toLowerCase().includes(term)
-      notMatchingSearchLogs[id] = !matches
-      if (matches) found++
-    })
-    dispatch(
-      searchDone({
-        found,
-        searched: Object.keys(logs).length - failed,
-        failed,
-        notMatchingSearchLogs,
-        logBodies
-      })
-    )
-  }
-}
-
-export function checkIsLogging(): Thunk<Promise<boolean>> {
-  return async (dispatch, getState, sf) => {
-    const isLogging = await sf.isTracing(await sf.getUserId())
-    dispatch(setLogging(isLogging))
-    return isLogging
-  }
-}
-
-export function startLogging(): Thunk<Promise<void>> {
-  return async (dispatch, getState, sf) => {
-    try {
-      const res = await sf.traceUser(await sf.getUserId())
-      if (res && res.success) {
-        dispatch(setLogging(true))
-        return
-      }
-    } catch {
-      // Whether a flag exists anyway is checked below.
-    }
-    await dispatch(checkIsLogging())
-  }
-}
-
-// On start: makes sure the current user's actions are logged.
-export function checkIsLoggingAndStart(): Thunk<Promise<void>> {
+// Sets one list filter and reloads the list from Salesforce with it.
+export function applyFilter(
+  key: keyof ListFilters,
+  value: string | number
+): Thunk<Promise<void>> {
   return async dispatch => {
-    if (!(await dispatch(checkIsLogging()))) await dispatch(startLogging())
+    dispatch(setFilter({ key, value }))
+    await dispatch(loadLogs())
+  }
+}
+
+export function clearFilters(): Thunk<Promise<void>> {
+  return async dispatch => {
+    dispatch(clearFiltersAction())
+    await dispatch(loadLogs())
+  }
+}
+
+export function fetchLogBody(
+  logId: string,
+  { retry = false } = {}
+): Thunk<Promise<void>> {
+  return async (dispatch, getState, sf) => {
+    const { logBodies, bodyLoading, bodyErrors } = getState().logsPage
+    if (logId in logBodies || bodyLoading[logId]) return
+    if (bodyErrors[logId] && !retry) return
+    dispatch(bodyRequested(logId))
+    try {
+      dispatch(bodyLoaded({ logId, body: await sf.logBody(logId) }))
+    } catch (err) {
+      dispatch(bodyFailed({ logId, error: explain(err, sf) }))
+    }
+  }
+}
+
+// Occurrences of `term` (already lower case) in `body`, ignoring case.
+export function countOccurrences(body: string, term: string): number {
+  if (!term) return 0
+  const text = body.toLowerCase()
+  let count = 0
+  for (
+    let at = text.indexOf(term);
+    at >= 0;
+    at = text.indexOf(term, at + term.length)
+  )
+    count++
+  return count
+}
+
+// How many bodies are downloaded at the same time while searching.
+const SEARCH_CONCURRENCY = 4
+let searchRun = 0
+
+// Searches the loaded logs' bodies for `term`, ignoring case. Downloads the
+// bodies not cached yet (a few at a time, reporting progress) and keeps
+// them; a body that can't be downloaded counts as failed, not as a miss.
+// A newer search (or clearing it) makes an older one stop reporting.
+export function searchLogs(term: string): Thunk<Promise<void>> {
+  return async (dispatch, getState, sf) => {
+    const run = ++searchRun
+    const needle = term.trim().toLowerCase()
+    if (!needle) {
+      dispatch(searchCleared())
+      return
+    }
+    const { logs } = getState().logsPage
+    dispatch(searchStarted({ term: term.trim(), total: logs.length }))
+    const queue = logs.map(log => log.Id)
+    let done = 0
+    let failed = 0
+    const failedIds = new Set<string>()
+    const worker = async () => {
+      while (queue.length && run === searchRun) {
+        const id = queue.shift()
+        if (!(id in getState().logsPage.logBodies)) {
+          try {
+            const body = await sf.logBody(id)
+            dispatch(bodyLoaded({ logId: id, body }))
+          } catch {
+            failed++
+            failedIds.add(id)
+          }
+        }
+        done++
+        if (run === searchRun) dispatch(searchProgress({ done, failed }))
+      }
+    }
+    await Promise.all(Array.from({ length: SEARCH_CONCURRENCY }, worker))
+    if (run !== searchRun) return
+    const bodies = getState().logsPage.logBodies
+    const matches: Record<string, number> = {}
+    for (const log of logs) {
+      matches[log.Id] = failedIds.has(log.Id)
+        ? 0
+        : countOccurrences(bodies[log.Id] || '', needle)
+    }
+    dispatch(searchFinished({ matches, failed }))
+  }
+}
+
+export function clearSearch(): Thunk<void> {
+  return dispatch => {
+    searchRun++
+    dispatch(searchCleared())
+  }
+}
+
+// Reads whether the current user's actions are logged, and until when. Never
+// starts logging by itself (docs/ux/baseline-review.md M11).
+export function checkLogging(): Thunk<Promise<void>> {
+  return async (dispatch, getState, sf) => {
+    try {
+      dispatch(loggingStatus(await sf.traceStatus(await sf.getUserId())))
+    } catch (err) {
+      dispatch(loggingFailed(explain(err, sf)))
+    }
+  }
+}
+
+function changeLogging(
+  change: (sf: AppSalesforce, userId: string) => Promise<unknown>,
+  message: (status: { active: boolean; expiresAt?: string }) => string
+): Thunk<Promise<void>> {
+  return async (dispatch, getState, sf) => {
+    dispatch(loggingBusy())
+    try {
+      const userId = await sf.getUserId()
+      await change(sf, userId)
+      const status = await sf.traceStatus(userId)
+      dispatch(loggingStatus(status))
+      dispatch(
+        showToast(message(status as { active: boolean; expiresAt?: string }))
+      )
+    } catch (err) {
+      dispatch(loggingFailed(explain(err, sf)))
+    }
+  }
+}
+
+export const startLogging = () =>
+  changeLogging(
+    (sf, userId) => sf.traceUser(userId),
+    s =>
+      s.active
+        ? `Logging started, until ${formatClock(s.expiresAt)}`
+        : 'Salesforce did not start logging'
+  )
+
+export const extendLogging = () =>
+  changeLogging(
+    (sf, userId) => sf.extendTracing(userId),
+    s =>
+      s.active
+        ? `Logging extended until ${formatClock(s.expiresAt)}`
+        : 'Logging is off'
+  )
+
+export const stopLogging = () =>
+  changeLogging(
+    (sf, userId) => sf.stopTracing(userId),
+    s =>
+      s.active
+        ? 'Logging is still on (another trace flag is active)'
+        : 'Logging stopped'
+  )
+
+export type DeleteScope = 'mine' | 'all'
+
+// How many logs each delete scope covers.
+export function countLogs(): Thunk<Promise<{ mine: number; all: number }>> {
+  return async (dispatch, getState, sf) => {
+    const userId = await sf.getUserId()
+    const [mine, all] = await Promise.all([
+      sf.countLogs({ userId }),
+      sf.countLogs()
+    ])
+    return { mine, all }
+  }
+}
+
+// Deletes the current user's logs or every log of the org, then confirms
+// and reloads the list. Rejects (for the dialog to show) when it fails.
+export function deleteLogs(
+  scope: DeleteScope,
+  onProgress: (progress: DeleteProgress) => void
+): Thunk<Promise<number>> {
+  return async (dispatch, getState, sf) => {
+    const userId = scope === 'mine' ? await sf.getUserId() : undefined
+    const deleted = await sf.deleteLogs({ userId, onProgress })
+    dispatch(
+      showToast(
+        deleted === 1
+          ? 'Deleted 1 log'
+          : `Deleted ${deleted.toLocaleString()} logs`
+      )
+    )
+    await dispatch(loadLogs())
+    return deleted
   }
 }

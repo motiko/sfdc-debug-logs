@@ -1,223 +1,324 @@
-// The log viewer's state (state.logsPage): loaded logs and bodies, search
-// results, dialogs, and the user's settings (log style, list filters, visible
-// event types). Thunks that call Salesforce are in actions.ts.
+// The log viewer's state (state.logsPage): the loaded logs and their bodies,
+// search, list filters, the user's logging status, the confirmation toast,
+// and the user's settings (appearance, hidden event categories, list size).
+// Thunks that call Salesforce are in actions.ts.
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { appTheme, DEFAULT_THEME, type AppTheme } from '../../core/log/themes'
-import type { ApexLog, Filters } from './utils'
+import { AUTO_THEME, type CustomColors } from '../../core/log/themes'
+import type { LogCategory } from '../../core/log/categories'
+import type { ExplainedError } from '../../core/salesforce/errors'
+import type { ColorModePreference } from '../../ui/tokens'
+import { NO_FILTERS, type ApexLog, type ListFilters } from './utils'
+
+export const DEFAULT_FONT_SIZE = 13
+export const MIN_FONT_SIZE = 10
+export const MAX_FONT_SIZE = 24
+export const PAGE_SIZE = 50
 
 export interface StyleConfig {
-  theme: AppTheme
+  // A palette of core/log/themes.ts, or AUTO_THEME (light or dark, following
+  // the app's color mode).
+  theme: string
+  // The user's own colors on top of the palette.
+  colors: CustomColors
   fontSize: number
   textWrap: boolean
 }
 
 export const defaultStyleConfig: StyleConfig = {
-  theme: appTheme(DEFAULT_THEME),
-  fontSize: 19,
+  theme: AUTO_THEME,
+  colors: {},
+  fontSize: DEFAULT_FONT_SIZE,
   textWrap: true
 }
 
-export const defaultFilters: Filters = {
-  user: { type: 'text', value: '' },
-  operation: { type: 'text', value: '' },
-  status: { type: 'text', value: '' },
-  length: { type: 'number', value: [0, 2.5 * Math.pow(10, 6)] },
-  duration: { type: 'number', value: [0, 2 * 6 * Math.pow(10, 3)] }
+export interface LoggingState {
+  // unknown: not checked yet (or being checked).
+  status: 'unknown' | 'on' | 'off' | 'error'
+  expiresAt: string | null
+  debugLevel: string | null
+  // A start, stop or extend request is running.
+  busy: boolean
+  error: ExplainedError | null
+}
+
+export interface SearchState {
+  term: string
+  status: 'idle' | 'searching' | 'done'
+  // Bodies downloaded (or failed) so far, of `total` to search.
+  done: number
+  total: number
+  failed: number
+  // Log id -> occurrences of the term; null while no search is active.
+  matches: Record<string, number> | null
+}
+
+export const idleSearch: SearchState = {
+  term: '',
+  status: 'idle',
+  done: 0,
+  total: 0,
+  failed: 0,
+  matches: null
 }
 
 export interface LogsPageState {
-  logs: Record<string, ApexLog>
+  // Newest first, as Salesforce returned them.
+  logs: ApexLog[]
+  listStatus: 'idle' | 'loading' | 'ready' | 'error'
+  listError: ExplainedError | null
+  loadedAt: number | null
+  // Logs that weren't in the list before the last refresh.
+  newIds: Record<string, true>
   logBodies: Record<string, string>
-  // Log id -> true when the last search didn't find the term in its body.
-  notMatchingSearchLogs: Record<string, boolean>
-  loading: boolean
-  // Shown in the snackbar; '' hides it.
-  message: string
-  isLogging?: boolean
-  filtersDialogOpen: boolean
-  styleDialogOpen: boolean
-  contentsFilterOpen: boolean
-  filters: Filters
-  // Persisted to sessionStorage (see persisted-settings.ts):
+  bodyLoading: Record<string, true>
+  bodyErrors: Record<string, ExplainedError>
+  search: SearchState
+  filters: ListFilters
+  logging: LoggingState
+  // A confirmation ("Deleted 36 logs"); key changes for each new one.
+  toast: { key: number; message: string } | null
+  // Persisted (see persisted-settings.ts):
   maxLogs: number
   sideLogsOpen: boolean
   styleConfig: StyleConfig
-  visibleEvents: string[]
+  hiddenCategories: LogCategory[]
+  colorMode: ColorModePreference
 }
 
 export const initialLogsPageState: LogsPageState = {
-  logs: {},
+  logs: [],
+  listStatus: 'idle',
+  listError: null,
+  loadedAt: null,
+  newIds: {},
   logBodies: {},
-  notMatchingSearchLogs: {},
-  loading: false,
-  message: '',
-  filtersDialogOpen: false,
-  styleDialogOpen: false,
-  contentsFilterOpen: false,
-  filters: defaultFilters,
-  maxLogs: 50,
+  bodyLoading: {},
+  bodyErrors: {},
+  search: idleSearch,
+  filters: NO_FILTERS,
+  logging: {
+    status: 'unknown',
+    expiresAt: null,
+    debugLevel: null,
+    busy: false,
+    error: null
+  },
+  toast: null,
+  maxLogs: PAGE_SIZE,
   sideLogsOpen: true,
   styleConfig: defaultStyleConfig,
-  visibleEvents: []
-}
-
-export interface SearchResult {
-  found: number
-  searched: number
-  failed: number
-  notMatchingSearchLogs: Record<string, boolean>
-  logBodies: Record<string, string>
+  hiddenCategories: [],
+  colorMode: 'system'
 }
 
 const logsSlice = createSlice({
   name: 'logsPage',
   initialState: initialLogsPageState,
   reducers: {
-    resetSearch(state) {
-      state.notMatchingSearchLogs = {}
+    // The list.
+    logsRequested(state) {
+      state.listStatus = 'loading'
+      state.listError = null
     },
-    updateMaxLogs(state, action: PayloadAction<number | string>) {
-      state.maxLogs = action.payload as number
+    logsLoaded(state, action: PayloadAction<{ logs: ApexLog[]; at: number }>) {
+      const before = new Set(state.logs.map(log => log.Id))
+      const { logs, at } = action.payload
+      state.newIds =
+        state.loadedAt === null
+          ? {}
+          : Object.fromEntries(
+              logs.filter(log => !before.has(log.Id)).map(log => [log.Id, true])
+            )
+      state.logs = logs
+      state.listStatus = 'ready'
+      state.loadedAt = at
     },
+    logsFailed(state, action: PayloadAction<ExplainedError>) {
+      state.listStatus = 'error'
+      state.listError = action.payload
+    },
+    setMaxLogs(state, action: PayloadAction<number>) {
+      state.maxLogs = Math.max(1, Math.floor(action.payload) || PAGE_SIZE)
+    },
+
+    // Log bodies.
+    bodyRequested(state, action: PayloadAction<string>) {
+      state.bodyLoading[action.payload] = true
+      delete state.bodyErrors[action.payload]
+    },
+    bodyLoaded(state, action: PayloadAction<{ logId: string; body: string }>) {
+      delete state.bodyLoading[action.payload.logId]
+      state.logBodies[action.payload.logId] = action.payload.body
+    },
+    bodyFailed(
+      state,
+      action: PayloadAction<{ logId: string; error: ExplainedError }>
+    ) {
+      delete state.bodyLoading[action.payload.logId]
+      state.bodyErrors[action.payload.logId] = action.payload.error
+    },
+
+    // Search in the loaded logs' bodies.
+    searchStarted(
+      state,
+      action: PayloadAction<{ term: string; total: number }>
+    ) {
+      state.search = {
+        ...idleSearch,
+        ...action.payload,
+        status: 'searching',
+        matches: state.search.matches
+      }
+    },
+    searchProgress(
+      state,
+      action: PayloadAction<{ done: number; failed: number }>
+    ) {
+      Object.assign(state.search, action.payload)
+    },
+    searchFinished(
+      state,
+      action: PayloadAction<{ matches: Record<string, number>; failed: number }>
+    ) {
+      state.search.status = 'done'
+      state.search.done = state.search.total
+      state.search.matches = action.payload.matches
+      state.search.failed = action.payload.failed
+    },
+    searchCleared(state) {
+      state.search = idleSearch
+    },
+
+    // List filters.
+    setFilter(
+      state,
+      action: PayloadAction<{ key: keyof ListFilters; value: string | number }>
+    ) {
+      ;(state.filters as unknown as Record<string, string | number>)[
+        action.payload.key
+      ] = action.payload.value
+    },
+    clearFilters(state) {
+      state.filters = NO_FILTERS
+    },
+
+    // Logging (the user's trace flag).
+    loggingBusy(state) {
+      state.logging.busy = true
+      state.logging.error = null
+    },
+    loggingStatus(
+      state,
+      action: PayloadAction<{
+        active: boolean
+        expiresAt?: string
+        debugLevel?: string | null
+      }>
+    ) {
+      const { active, expiresAt = null, debugLevel = null } = action.payload
+      state.logging = {
+        status: active ? 'on' : 'off',
+        expiresAt,
+        debugLevel,
+        busy: false,
+        error: null
+      }
+    },
+    loggingFailed(state, action: PayloadAction<ExplainedError>) {
+      state.logging.busy = false
+      state.logging.error = action.payload
+      if (state.logging.status === 'unknown') state.logging.status = 'error'
+    },
+
+    // Confirmations.
+    showToast(state, action: PayloadAction<string>) {
+      state.toast = {
+        key: (state.toast ? state.toast.key : 0) + 1,
+        message: action.payload
+      }
+    },
+    hideToast(state) {
+      state.toast = null
+    },
+
+    // Layout.
     toggleSideLogs(state) {
       state.sideLogsOpen = !state.sideLogsOpen
     },
-    fetchLogsInit(state) {
-      state.loading = true
-    },
-    fetchLogsDone(state, action: PayloadAction<Record<string, ApexLog>>) {
-      state.loading = false
-      state.logs = action.payload
-      state.message = `Loaded ${Object.keys(action.payload).length} logs`
-    },
-    // Any failed Salesforce call: stop the spinner and show the error.
-    requestFailed(state, action: PayloadAction<string>) {
-      state.loading = false
-      state.message = action.payload
-    },
-    setMessage(state, action: PayloadAction<string>) {
-      state.message = action.payload
-    },
-    deleteLogsInit(state) {
-      state.loading = true
-      state.logs = {}
-    },
-    deleteLogsDone(state) {
-      state.loading = false
-      state.message = 'Removed logs from salesforce'
-    },
-    searchInit(state) {
-      state.loading = true
-    },
-    searchDone(state, action: PayloadAction<SearchResult>) {
-      const { found, searched, failed, notMatchingSearchLogs, logBodies } =
-        action.payload
-      state.loading = false
-      state.message =
-        `Found ${found} matching logs in ${searched} searched` +
-        (failed ? ` (${failed} could not be downloaded)` : '')
-      state.notMatchingSearchLogs = notMatchingSearchLogs
-      state.logBodies = logBodies
-    },
-    setLogging(state, action: PayloadAction<boolean>) {
-      state.isLogging = action.payload
-    },
-    fetchLogBodyInit(state) {
-      state.loading = true
-    },
-    fetchLogBodyDone(
-      state,
-      action: PayloadAction<{ logId: string; logBody: string }>
-    ) {
-      state.loading = false
-      state.logBodies[action.payload.logId] = action.payload.logBody
-    },
-    toggleFiltersDialog(state) {
-      state.filtersDialogOpen = !state.filtersDialogOpen
-    },
-    toggleStyleDialog(state) {
-      state.styleDialogOpen = !state.styleDialogOpen
-    },
-    toggleContentsFilter(state) {
-      state.contentsFilterOpen = !state.contentsFilterOpen
-    },
 
-    // Log style (style dialog).
-    updateTheme(state, action: PayloadAction<AppTheme>) {
+    // Appearance.
+    setColorMode(state, action: PayloadAction<ColorModePreference>) {
+      state.colorMode = action.payload
+    },
+    setTheme(state, action: PayloadAction<string>) {
       state.styleConfig.theme = action.payload
     },
-    updateColor(
+    setCustomColor(
       state,
-      action: PayloadAction<{ propName: string; newColor: string }>
+      action: PayloadAction<{ key: keyof CustomColors; color: string }>
     ) {
-      state.styleConfig.theme[action.payload.propName] = action.payload.newColor
+      state.styleConfig.colors = {
+        ...state.styleConfig.colors,
+        [action.payload.key]: action.payload.color
+      }
     },
-    toggleTextWrap(state) {
-      state.styleConfig.textWrap = !state.styleConfig.textWrap
+    resetColors(state) {
+      state.styleConfig.colors = {}
     },
-    updateFontSize(state, action: PayloadAction<number | string>) {
-      state.styleConfig.fontSize = parseInt(String(action.payload))
+    restoreColors(state, action: PayloadAction<CustomColors>) {
+      state.styleConfig.colors = action.payload
+    },
+    setFontSize(state, action: PayloadAction<number>) {
+      const size = Math.round(Number(action.payload))
+      if (size >= MIN_FONT_SIZE && size <= MAX_FONT_SIZE)
+        state.styleConfig.fontSize = size
+    },
+    setTextWrap(state, action: PayloadAction<boolean>) {
+      state.styleConfig.textWrap = action.payload
     },
 
-    // Log list filters (filter dialog).
-    updateFilter(
-      state,
-      action: PayloadAction<{
-        filterName: string
-        newValue: Filters[string]['value']
-      }>
-    ) {
-      const { filterName, newValue } = action.payload
-      state.filters[filterName].value = newValue
+    // Event categories shown in the log body.
+    toggleCategory(state, action: PayloadAction<LogCategory>) {
+      const hidden = new Set(state.hiddenCategories)
+      if (hidden.has(action.payload)) hidden.delete(action.payload)
+      else hidden.add(action.payload)
+      state.hiddenCategories = [...hidden]
     },
-    clearFilters(state) {
-      state.filters = defaultFilters
-    },
-
-    // Event types shown in the log body (contents filter); all when empty.
-    addVisibleEvents(state, action: PayloadAction<string[]>) {
-      state.visibleEvents = [
-        ...new Set([...state.visibleEvents, ...action.payload])
-      ]
-    },
-    removeVisibleEvent(state, action: PayloadAction<string>) {
-      state.visibleEvents = state.visibleEvents.filter(
-        event => event !== action.payload
-      )
-    },
-    clearVisibleEvents(state) {
-      state.visibleEvents = []
+    showAllCategories(state) {
+      state.hiddenCategories = []
     }
   }
 })
 
 export const {
-  resetSearch,
-  updateMaxLogs,
-  toggleSideLogs,
-  fetchLogsInit,
-  fetchLogsDone,
-  requestFailed,
-  setMessage,
-  deleteLogsInit,
-  deleteLogsDone,
-  searchInit,
-  searchDone,
-  setLogging,
-  fetchLogBodyInit,
-  fetchLogBodyDone,
-  toggleFiltersDialog,
-  toggleStyleDialog,
-  toggleContentsFilter,
-  updateTheme,
-  updateColor,
-  toggleTextWrap,
-  updateFontSize,
-  updateFilter,
+  logsRequested,
+  logsLoaded,
+  logsFailed,
+  setMaxLogs,
+  bodyRequested,
+  bodyLoaded,
+  bodyFailed,
+  searchStarted,
+  searchProgress,
+  searchFinished,
+  searchCleared,
+  setFilter,
   clearFilters,
-  addVisibleEvents,
-  removeVisibleEvent,
-  clearVisibleEvents
+  loggingBusy,
+  loggingStatus,
+  loggingFailed,
+  showToast,
+  hideToast,
+  toggleSideLogs,
+  setColorMode,
+  setTheme,
+  setCustomColor,
+  resetColors,
+  restoreColors,
+  setFontSize,
+  setTextWrap,
+  toggleCategory,
+  showAllCategories
 } = logsSlice.actions
 
 export default logsSlice.reducer

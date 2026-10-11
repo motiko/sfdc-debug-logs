@@ -41,3 +41,26 @@ export function eventCategory(eventType: string): LogCategory {
   )
   return found ? found[1] : 'rest'
 }
+
+// The categories as users see them (appearance panel, event toggles), in the
+// order the app lists them.
+export const CATEGORY_LABELS: Record<LogCategory, string> = {
+  error: 'Errors',
+  debug: 'Debug output',
+  soql: 'Database (SOQL)',
+  method: 'Code units and methods',
+  callout: 'Callouts',
+  system: 'System',
+  rest: 'Other'
+}
+
+// A sample line per category, for the appearance panel's preview.
+export const CATEGORY_SAMPLES: Record<LogCategory, string> = {
+  error: 'FATAL_ERROR|System.MathException: Divide by 0',
+  debug: 'USER_DEBUG|[2]|DEBUG|Hello from Apex',
+  soql: 'SOQL_EXECUTE_BEGIN|[4]|SELECT Id FROM Account LIMIT 5',
+  method: 'METHOD_ENTRY|[1]|MyClass.run()',
+  callout: 'CALLOUT_REQUEST|[9]|System.HttpRequest[Endpoint=…]',
+  system: 'SYSTEM_METHOD_ENTRY|[7]|String.valueOf(Object)',
+  rest: 'VARIABLE_ASSIGNMENT|[3]|total|42'
+}
