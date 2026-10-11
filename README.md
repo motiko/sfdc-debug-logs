@@ -18,6 +18,7 @@ Key Features
   * Indent User Debug (sObject, List, XML or JSON)
   * Delete logs: only yours, or all users', always confirmed with the count.
   * Start, extend or stop logging (a 24-hour trace flag for the current user).
+  * Auto-refresh the log list (off, every 10, 30 or 60 s): new logs appear on top, marked as new, while your logging is on and the log viewer's tab is in front. Each check is one small query for the logs newer than the newest one listed.
   * Customizable keyboard shortcuts for Salesforce
 
 Keyboard Shortcuts
