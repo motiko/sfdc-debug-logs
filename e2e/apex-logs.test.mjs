@@ -192,7 +192,10 @@ test('React log viewer', async t => {
 
   const rows = () => app.$$eval('tbody tr', trs => trs.map(tr => tr.innerText))
   const search = async term => {
-    await app.click('#search', { clickCount: 3 })
+    // Select the previous term so typing replaces it (a triple click doesn't
+    // always select the whole field).
+    await app.click('#search')
+    await app.$eval('#search', el => el.select())
     await app.type('#search', term)
     await app.keyboard.press('Enter')
     await app.waitForFunction(
@@ -248,6 +251,12 @@ test('React log viewer', async t => {
   await t.test('search finds the log and hides non-matching ones', async () => {
     await search(MARKER)
     assert.equal((await rows()).length, 1, 'only the log containing the marker remains')
+    // Let the previous result message close so the next wait sees the new one.
+    await app.waitForFunction(() => !/Found \d+ matching logs/.test(document.body.innerText))
+    await search(MARKER.toLowerCase())
+    assert.equal((await rows()).length, 1, 'search ignores case')
+    const message = await app.evaluate(() => document.body.innerText.match(/Found \d+ matching logs[^\n]*/)[0])
+    assert.match(message, /^Found 1 matching logs in \d+ searched$/, 'reports how many logs were searched')
     await search(`NO_SUCH_TEXT_${Date.now()}`)
     assert.equal((await rows()).length, 0, 'an unknown term matches no logs')
     await app.click('#search', { clickCount: 3 })

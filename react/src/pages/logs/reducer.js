@@ -90,7 +90,9 @@ function innerLogsReducer(state = defaultInnerLogsState, action) {
       return {
         ...state,
         loading: false,
-        message: `Found ${action.foundIds} matching logs`,
+        message:
+          `Found ${action.found} matching logs in ${action.searched} searched` +
+          (action.failed ? ` (${action.failed} could not be downloaded)` : ''),
         notMatchingSearchLogs: action.notMatchingSearchLogs,
         logBodies: action.logBodies
       }

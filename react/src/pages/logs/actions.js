@@ -70,34 +70,43 @@ export function deleteAll() {
   }
 }
 
+// Searches the bodies of the loaded logs (up to Max Logs), ignoring case.
+// Bodies are downloaded once and cached in state; a log whose body can't be
+// downloaded is counted as not searched instead of failing the search.
 export function search(searchTerm) {
   return async (dispatch, getState, sf) => {
     dispatch({ type: 'SEARCH_INIT' })
-    let { logs, logBodies } = getState().logsPage
-    const fillbodiesFrom = fillingMethod => {
-      const logIdsWithoutBodies = Object.keys(logs).filter(
-        id => Object.keys(logBodies).indexOf(id) == -1
+    const { logs } = getState().logsPage
+    const logBodies = { ...getState().logsPage.logBodies }
+    const missing = Object.keys(logs).filter(id => !(id in logBodies))
+    // Promise.allSettled isn't in the bundled core-js 2 Promise.
+    const downloaded = await Promise.all(
+      missing.map(id =>
+        sf
+          .logBody(id)
+          .then(body => (logBodies[id] = body))
+          .then(
+            () => true,
+            () => false
+          )
       )
-      let promises = logIdsWithoutBodies.map(fillingMethod)
-      return Promise.all(promises)
-    }
-
-    await fillbodiesFrom(id =>
-      sf.logBody(id).then(body => {
-        logBodies[id] = body
-      })
     )
-    const notMatchingSearchLogs = Object.values(logs).reduce(
-      (acc, cur) => ({
-        ...acc,
-        [cur.Id]: !logBodies[cur.Id].includes(searchTerm)
-      }),
-      {}
-    )
-    const foundIds = Object.values(notMatchingSearchLogs).filter(x => !x)
+    const failed = downloaded.filter(ok => !ok).length
+    const term = searchTerm.toLowerCase()
+    const notMatchingSearchLogs = {}
+    let found = 0
+    Object.keys(logs).forEach(id => {
+      const matches =
+        typeof logBodies[id] === 'string' &&
+        logBodies[id].toLowerCase().includes(term)
+      notMatchingSearchLogs[id] = !matches
+      if (matches) found++
+    })
     dispatch({
       type: 'SEARCH_DONE',
-      foundIds: foundIds.length,
+      found,
+      searched: Object.keys(logs).length - failed,
+      failed,
       notMatchingSearchLogs,
       logBodies
     })
