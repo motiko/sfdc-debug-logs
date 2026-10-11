@@ -1,7 +1,15 @@
-// Content script on every Salesforce page: binds the keyboard shortcuts saved
-// on the options page (or the defaults). Shift+W opens the log viewer.
+// Content script on every Salesforce page: binds the user's page shortcuts
+// (core/page-shortcuts.ts; edited on the options page, fetched through the
+// service worker). Shift+W opens the log viewer. Rebinds when the user saves
+// other shortcuts.
 import Mousetrap from 'mousetrap'
-import { defaultShortcuts, type Shortcut } from '../core/default-shortcuts'
+import {
+  activeShortcuts,
+  bindingsFor,
+  SHORTCUTS_STORAGE_KEY,
+  type PageShortcut,
+  type PageShortcutSettings
+} from '../core/page-shortcuts'
 import {
   getSession,
   openAppMessage,
@@ -9,47 +17,68 @@ import {
   parseDiscoCookie
 } from '../core/page-session'
 
-function initShortcuts({
-  shortcuts = defaultShortcuts
-}: {
-  shortcuts?: Shortcut[]
-}) {
-  shortcuts.filter(s => s.path).forEach(shortcutUrl)
-  shortcuts
-    .filter(s => s.app)
-    .forEach(shortcut => {
-      shortcutMethod(shortcut.key, openApp)
-    })
-  Mousetrap.bind('shift+w', () => {
-    openApp()
-  })
+// Combinations that also work while a field has focus (they have Ctrl/Cmd,
+// so they never type a character): Save.
+const inFields = new Set<string>()
+const stopCallback = Mousetrap.prototype.stopCallback
+Mousetrap.prototype.stopCallback = function (event, element, combo) {
+  if (inFields.has(combo)) return false
+  return stopCallback.call(this, event, element, combo)
 }
 
-async function sendMessage(message: any): Promise<any> {
-  try {
-    const response = await chrome.runtime.sendMessage(message)
-    return response
-  } catch (error) {
-    console.error('Error:', error)
-    throw error
+function bindShortcuts(settings: PageShortcutSettings) {
+  Mousetrap.reset()
+  inFields.clear()
+  for (const shortcut of activeShortcuts(settings)) {
+    for (const binding of bindingsFor(shortcut)) {
+      if (binding.combo.startsWith('mod+')) inFields.add(binding.combo)
+      Mousetrap.bind(binding.combo, () =>
+        run(shortcut, binding.effect !== 'sameTab')
+      )
+    }
   }
 }
 
-async function getShortcuts() {
-  const response = await sendMessage({ command: 'getShortcuts' })
-  initShortcuts({ shortcuts: response.shortcuts })
+// Runs a shortcut. Returns false (Mousetrap then prevents the browser's
+// default) only when it did something.
+function run(shortcut: PageShortcut, inNewTab: boolean): boolean | void {
+  if (inFlashObject()) return
+  switch (shortcut.action) {
+    case 'openApp':
+      openApp()
+      return false
+    case 'openLastLog':
+      openLastLog(inNewTab)
+      return false
+    case 'edit':
+      return clickButton('edit')
+    case 'save':
+      return clickButton('save')
+    default:
+      if (inNewTab) openInNewTab(shortcut.path)
+      else document.location.assign(shortcut.path)
+      return false
+  }
+}
+
+async function loadShortcuts() {
+  const response = await chrome.runtime.sendMessage({
+    command: 'getShortcuts'
+  })
+  if (response && response.settings) bindShortcuts(response.settings)
 }
 
 // The focused element is a Flash movie, which handles keys itself.
 function inFlashObject(): boolean {
   const active: any = document.activeElement
-  return active.nodeName == 'OBJECT' && active.data.indexOf('.swf') > -1
+  return (
+    Boolean(active) &&
+    active.nodeName == 'OBJECT' &&
+    String(active.data || '').indexOf('.swf') > -1
+  )
 }
 
 async function openApp() {
-  if (inFlashObject()) {
-    return
-  }
   const { orgId, userId } = parseDiscoCookie()
   const session = await getSession()
   // Focus the org's log viewer if it is already open.
@@ -68,45 +97,18 @@ async function openApp() {
     })
 }
 
-function shortcutMethod(char: string, method: (inNewTab?: boolean) => void) {
-  Mousetrap.bind(['alt+shift+' + char], function () {
-    method()
-  })
-  Mousetrap.bind(['shift+' + char], function () {
-    method(true)
-  })
-}
-
-function shortcutUrl({ key, path }: Shortcut) {
-  Mousetrap.bind(['alt+shift+' + key], function () {
-    document.location.assign(path)
-  })
-  Mousetrap.bind(['shift+' + key], function () {
-    if (inFlashObject()) {
-      return
-    }
-    openInNewTab(path)
-  })
-}
-
 function openInNewTab(path: string) {
   window.open(path, '_blank')
 }
 
-function editObject() {
-  const editBtn: HTMLInputElement | null =
-    document.querySelector("input[name='edit']")
-  if (editBtn) {
-    editBtn.click()
-  }
-}
-
-function saveObject() {
-  const saveBtn: HTMLInputElement | null =
-    document.querySelector("input[name='save']")
-  if (saveBtn) {
-    saveBtn.click()
-  }
+// Clicks a classic page's Edit or Save button, if it has one.
+function clickButton(name: 'edit' | 'save'): boolean | void {
+  const button = document.querySelector<HTMLInputElement>(
+    `input[name='${name}']`
+  )
+  if (!button) return
+  button.click()
+  return false
 }
 
 function openLastLog(inNewTab?: boolean) {
@@ -125,8 +127,8 @@ function openLastLog(inNewTab?: boolean) {
     })
 }
 
-getShortcuts()
+loadShortcuts()
 
-shortcutMethod('l', openLastLog)
-Mousetrap.bind('e', editObject)
-Mousetrap.bind('s', saveObject)
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'sync' && changes[SHORTCUTS_STORAGE_KEY]) loadShortcuts()
+})

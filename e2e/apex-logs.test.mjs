@@ -8,15 +8,17 @@
 // font rules to every event type in the log.
 //
 // Credentials: .env.local (see scripts/lib/sf-auth.mjs). Run: npm test (in e2e/)
+// Offline, against the mock org (e2e/mock/): npm run test:mock (SF_MOCK=1).
+// At the end it prints how many Salesforce API requests the run made.
 
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { login, frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
-import { Salesforce } from './lib/salesforce.mjs'
-import { launchWithExtension } from './lib/browser.mjs'
+import { frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
+import { startRun, MOCK } from './lib/run.mjs'
+import { gotoLightning } from './lib/lightning.mjs'
 import {
   logThemes,
   CLASSIC_CATEGORY_CLASS,
@@ -58,26 +60,34 @@ for (Integer i = 0; i < 2800; i++) { System.debug(filler); }
 
 const ARTIFACTS = join(dirname(fileURLToPath(import.meta.url)), 'artifacts')
 
-let session, sf, log, longLog, bigLog, ext
+let run, session, sf, log, longLog, bigLog, ext
 
 before(async () => {
-  session = await login()
-  sf = new Salesforce(session)
+  run = await startRun()
+  sf = run.sf
   await sf.ensureLogging()
+  // A reused session that had expired was renewed by ensureLogging.
+  session = run.session
   const since = new Date(Date.now() - 60000)
   await sf.executeAnonymous(BIG_APEX)
   await sf.executeAnonymous(LONG_APEX)
   await sf.executeAnonymous(APEX)
-  log = await sf.findLog(MARKER, { since })
-  longLog = await sf.findLog(LONG_MARKER, { since })
-  bigLog = await sf.findLog(BIG_MARKER, { since })
+  // One search for the three logs: each body is downloaded once.
+  const found = await sf.findLogs([MARKER, LONG_MARKER, BIG_MARKER], { since })
+  log = found[MARKER]
+  longLog = found[LONG_MARKER]
+  bigLog = found[BIG_MARKER]
   // No token is saved on the options page: the extension has to find the
   // session itself, from the HttpOnly sid cookie that frontdoor.jsp sets.
-  ext = await launchWithExtension()
+  ext = await run.launch()
   await recordWorkerMessages()
 })
 
-after(() => ext && ext.close())
+after(async () => {
+  if (!run) return
+  run.report(run.mock ? 'Salesforce requests of this run (mock org)' : 'Salesforce requests of this run')
+  await run.close()
+})
 
 // Saves a screenshot and console log for debugging failures (uploaded by CI).
 async function saveArtifacts(page, name, lines) {
@@ -928,12 +938,11 @@ test('Lightning Experience: Shift+W opens the app with the org session', async t
         for (const p of await ext.browser.pages()) {
           if (p.url().includes('/html/app.html')) await p.close()
         }
-        await page.goto(frontdoorUrl(session, path), { waitUntil: 'networkidle2', timeout: 60000 })
-        await page.waitForFunction(
-          domain => location.hostname.endsWith(domain) && document.readyState === 'complete',
-          { timeout: 60000 },
-          domain
-        )
+        // The redirect to Lightning can take over a minute; wait for the
+        // domain and Lightning's shell, and navigate once more if needed.
+        await gotoLightning(page, frontdoorUrl(session, path), domain, {
+          log: line => consoleLog.push(`lightning: ${line}`)
+        })
         const app = await openAppWithShiftW(page, consoleLog, `lightning-${label.toLowerCase()}`)
         const appUrl = new URL(app.url())
         assert.equal(
@@ -992,3 +1001,238 @@ test('pages without readable ids', async t => {
     }
   })
 })
+
+test('classic log page toolbar', async t => {
+  const page = await ext.browser.newPage()
+  const errors = collectPageErrors(page)
+  await page.setViewport({ width: 1200, height: 800 })
+  await page.goto(frontdoorUrl(session, classicUrl(log.Id)), { waitUntil: 'networkidle2' })
+  await page.waitForSelector('#adToolbar', { timeout: 20000 })
+
+  await t.test('every control has a label', async () => {
+    const unlabeled = await page.$$eval('#adToolbar select, #adToolbar input', els =>
+      els.filter(el => !(el.labels && el.labels.length && el.labels[0].textContent.trim())).map(el => el.id)
+    )
+    assert.deepEqual(unlabeled, [])
+  })
+
+  await t.test('the toolbar stays in view while the log scrolls', async () => {
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2))
+    await delay(200)
+    const top = await page.$eval('#adToolbar', el => el.getBoundingClientRect().top)
+    assert.ok(top >= -1 && top < 5, `toolbar top at ${top}px`)
+    await page.evaluate(() => window.scrollTo(0, 0))
+  })
+
+  await t.test('timestamps toggle without reloading the page', async () => {
+    await page.evaluate(() => (window.__noReload = true))
+    const marker = () =>
+      page.$$eval(
+        '#debugText .debug',
+        (els, m) => (els.find(e => e.textContent.includes(m)) || {}).textContent || '',
+        MARKER
+      )
+    assert.ok(!/^\d\d:\d\d:\d\d/.test(await marker()), 'no timestamp by default')
+    await page.click('#showTimestamps')
+    await page.waitForFunction(() => document.querySelector('#showTimestamps').checked)
+    assert.match(await marker(), /^\d\d:\d\d:\d\d/, 'timestamps shown')
+    assert.equal(await page.evaluate(() => window.__noReload), true, 'same page')
+    await page.click('#showTimestamps')
+  })
+
+  await t.test('expand buttons say what they do', async () => {
+    const button = await page.waitForSelector('#debugText .expandUserDebugBtn', { timeout: 10000 })
+    const before = await button.evaluate(b => [b.getAttribute('aria-label'), b.getAttribute('aria-expanded')])
+    assert.deepEqual(before, ['Expand value', 'false'])
+    await button.click()
+    const after = await button.evaluate(b => [b.getAttribute('aria-label'), b.getAttribute('aria-expanded')])
+    assert.deepEqual(after, ['Collapse value', 'true'])
+  })
+
+  await t.test('"Match color mode" follows dark mode', async () => {
+    await page.select('#styleSelection', 'auto')
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await page.waitForFunction(() => document.querySelector('#debugText').className === 'dark')
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await page.waitForFunction(() => document.querySelector('#debugText').className === 'light')
+  })
+
+  if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
+  await page.close()
+})
+
+test('classic log list: delete asks with scope and count; search reports results', async t => {
+  const page = await ext.browser.newPage()
+  const errors = collectPageErrors(page)
+  // Never confirm anything the page might ask.
+  page.on('dialog', d => d.dismiss().catch(() => {}))
+  await page.goto(frontdoorUrl(session, '/setup/ui/listApexTraces.apexp'), { waitUntil: 'networkidle2' })
+  await page.waitForSelector('#real_delete_all', { timeout: 30000 })
+
+  await t.test('no single-key delete: "a" opens nothing', async () => {
+    await page.evaluate(() => document.activeElement && document.activeElement.blur())
+    await page.keyboard.press('KeyA')
+    await delay(300)
+    assert.equal(await page.$('#adDeleteDialog'), null)
+  })
+
+  await t.test('the dialog defaults to my logs, shows counts, and Cancel deletes nothing', async () => {
+    const before = (await sf.query('SELECT Id FROM ApexLog')).length
+    await page.click('#real_delete_all')
+    await page.waitForFunction(
+      () => /Only my logs \(\d[\d,]*\)/.test((document.querySelector('#adDeleteDialog') || {}).innerText || ''),
+      { timeout: 30000 }
+    )
+    const state = await page.$eval('#adDeleteDialog', d => ({
+      open: d.open,
+      mine: d.querySelector('#adDeleteMine').checked,
+      confirm: [...d.querySelectorAll('button')].map(b => b.textContent).find(t => /^Delete/.test(t))
+    }))
+    assert.equal(state.open, true)
+    assert.equal(state.mine, true, 'only my logs by default')
+    assert.match(state.confirm, /^Delete [\d,]+ logs?$/)
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('#adDeleteDialog'))
+    assert.equal((await sf.query('SELECT Id FROM ApexLog')).length, before, 'nothing deleted')
+  })
+
+  await t.test('search says how many logs contain the text', async () => {
+    await page.$eval(
+      '#FilterByText',
+      (el, m) => {
+        el.value = m
+        el.form.requestSubmit()
+      },
+      MARKER
+    )
+    await page.waitForFunction(() => /contain/.test(document.querySelector('#adSearchStatus').textContent), {
+      timeout: 60000
+    })
+    const status = await page.$eval('#adSearchStatus', el => el.textContent)
+    assert.match(status, /^\d+ of \d+ logs contain/)
+    assert.ok((await page.$$('tr.ad-match')).length >= 1, 'matching rows are marked')
+  })
+
+  if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
+  await page.close()
+})
+
+test('options page', async t => {
+  const page = await ext.browser.newPage()
+  const errors = collectPageErrors(page)
+  await page.goto(`chrome-extension://${ext.extensionId}/html/options.html`, { waitUntil: 'networkidle0' })
+  await page.waitForSelector('::-p-aria(Key for Debug Logs)', { timeout: 10000 })
+  const setKey = async (label, key) => {
+    const input = await page.$(`::-p-aria(${label})`)
+    await input.click({ clickCount: 3 })
+    await page.keyboard.type(key)
+  }
+  const stored = () => ext.background.evaluate(() => chrome.storage.sync.get('pageShortcuts'))
+  const debugLogsKey = async () => {
+    const { pageShortcuts } = await stored()
+    const shortcut = pageShortcuts && pageShortcuts.shortcuts.find(s => s.id === 'debug-logs')
+    return shortcut && shortcut.key
+  }
+
+  await t.test('a key used twice is reported and not saved', async () => {
+    await setKey('Key for Debug Logs', 'u') // Manage Users is on U
+    await page.waitForSelector('::-p-text(is also used by)')
+    await page.click('::-p-xpath(//button[normalize-space()="Save shortcuts"])')
+    await page.waitForSelector('::-p-text(needs a fix before saving)')
+    assert.notEqual(await debugLogsKey(), 'u')
+  })
+
+  await t.test('a valid change is saved, with a confirmation', async () => {
+    await setKey('Key for Debug Logs', 'g')
+    await page.click('::-p-xpath(//button[normalize-space()="Save shortcuts"])')
+    await page.waitForSelector('::-p-text(Shortcuts saved)')
+    assert.equal(await debugLogsKey(), 'g')
+  })
+
+  await t.test('restore defaults asks first, and can be undone', async () => {
+    await page.click('::-p-xpath(//button[normalize-space()="Restore defaults…"])')
+    await page.waitForSelector('::-p-text(Restore the default shortcuts?)')
+    await page.keyboard.press('Escape')
+    await delay(500)
+    assert.equal(await debugLogsKey(), 'g', 'Escape keeps the shortcuts')
+    await page.click('::-p-xpath(//button[normalize-space()="Restore defaults…"])')
+    await page.waitForSelector('::-p-text(Restore the default shortcuts?)')
+    await page.click('::-p-xpath(//div[@role="dialog"]//button[normalize-space()="Restore defaults"])')
+    await page.waitForSelector('::-p-text(Default shortcuts restored)')
+    // The confirmation's backdrop fades out first.
+    await page.waitForSelector('[role="dialog"]', { hidden: true })
+    assert.equal(await debugLogsKey(), 'd')
+    await page.click('::-p-xpath(//button[normalize-space()="Undo"])')
+    await page.waitForSelector('::-p-text(Your shortcuts are back)')
+    assert.equal(await debugLogsKey(), 'g')
+    // Leave the defaults for the other tests.
+    await ext.background.evaluate(() => chrome.storage.sync.remove('pageShortcuts'))
+  })
+
+  await t.test('color mode is shared with the classic pages', async () => {
+    await page.click('::-p-xpath(//button[normalize-space()="Dark"])')
+    await page.waitForFunction(() => document.documentElement.dataset.adColorMode === 'dark')
+    const { appearance } = await ext.background.evaluate(() => chrome.storage.local.get('appearance'))
+    assert.deepEqual(appearance, { colorMode: 'dark' })
+    await page.click('::-p-xpath(//button[normalize-space()="System"])')
+  })
+
+  if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
+  await page.close()
+})
+
+// Uses the mock org's record page, whose Edit and Save buttons only record the
+// click; on a real org's page Save would really save.
+test(
+  'page shortcuts: Save needs Ctrl/Cmd, and shortcuts can be turned off',
+  { skip: !MOCK && 'mock org only' },
+  async () => {
+    const page = await ext.browser.newPage()
+    const path = '/001MK0000000001AAA'
+    try {
+      const since = Date.now()
+      await page.goto(frontdoorUrl(session, path), { waitUntil: 'networkidle2' })
+      while (!(await workerMessages()).some(m => m.command === 'getShortcuts' && m.path === path && m.time >= since)) {
+        await delay(200)
+      }
+      await delay(300)
+      const clicked = () => page.evaluate(() => document.body.dataset.clicked || null)
+      const modS = async () => {
+        const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
+        await page.keyboard.down(mod)
+        await page.keyboard.press('KeyS')
+        await page.keyboard.up(mod)
+      }
+      await page.evaluate(() => document.activeElement && document.activeElement.blur())
+      await page.keyboard.press('KeyS')
+      await delay(200)
+      assert.equal(await clicked(), null, 'a bare s saves nothing')
+      // In a field too: Ctrl/Cmd+S never types.
+      await page.focus('#accountName')
+      await modS()
+      await page.waitForFunction(() => document.body.dataset.clicked === 'save', { timeout: 5000 })
+      await page.evaluate(() => delete document.body.dataset.clicked)
+      // Turned off on the options page: open pages rebind at once.
+      await ext.background.evaluate(() =>
+        chrome.storage.sync.set({
+          pageShortcuts: {
+            version: 2,
+            enabled: false,
+            shortcuts: [
+              { id: 'app', name: 'Open Apex Debugger', key: 'w', action: 'openApp' },
+              { id: 'save', name: 'Save', key: 's', action: 'save' }
+            ]
+          }
+        })
+      )
+      await delay(800)
+      await page.focus('#accountName')
+      await modS()
+      await delay(300)
+      assert.equal(await clicked(), null, 'off: Ctrl/Cmd+S does nothing')
+    } finally {
+      await ext.background.evaluate(() => chrome.storage.sync.remove('pageShortcuts'))
+      await page.close()
+    }
+  }
+)

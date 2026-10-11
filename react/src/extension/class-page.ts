@@ -1,135 +1,162 @@
 // Content script on the classic Apex class and trigger lists (/01p…,
-// allTriggers.apexp): "See All" buttons and a "Dont Log Class" checkbox per
-// class, which sets (for 24 hours) or removes a CLASS_TRACING flag whose debug
-// level has every log category at NONE.
+// allTriggers.apexp): "See all" buttons and a "Don't log" checkbox per class,
+// which silences the class for 24 hours (a CLASS_TRACING flag whose debug
+// level has every log category at NONE) or lets it log again. Each checkbox
+// is labeled with its class (docs/ux/baseline-review.md B6, m14).
 import { pageSalesforce } from '../core/page-session'
+import { explainError } from '../core/salesforce/errors'
+import { h, injectDesignTokens } from './classic-ui'
 
 const sf = pageSalesforce()
 
-function toArray(nodeList: ArrayLike<any>): any[] {
-  return [].slice.call(nodeList)
-}
+const EXPLANATION =
+  'Checked: the class writes nothing to debug logs for 24 hours (a CLASS_TRACING trace flag at level NONE). Uncheck to log it again.'
 
-function addButton() {
-  const classesRowsPerPageParameter =
-      'all_classes_page:theTemplate:classList:rowsperpage',
-    triggersRowsPerPageParameter =
-      'all_triggers_page:theTemplate:j_id41:rowsperpage'
-
-  if (document.getElementById('all_classes_page:theTemplate:theForm')) {
-    const seeAllClasses = document.createElement('input')
-    seeAllClasses.value = 'See All Classes'
-    seeAllClasses.className = 'btn'
-    seeAllClasses.type = 'button'
-    seeAllClasses.onclick = function () {
+function seeAllButton(label: string, parameter: string) {
+  return h('button', {
+    type: 'button',
+    className: 'ad-button',
+    text: label,
+    onclick: () => {
       if (location.search.indexOf('rowsperpage=') > -1) {
         window.location.search =
-          'setupid=ApexClasses&' +
-          encodeURIComponent(classesRowsPerPageParameter) +
-          '=3500'
+          'setupid=ApexClasses&' + encodeURIComponent(parameter) + '=3500'
       } else {
-        window.location.search +=
-          '&' + encodeURIComponent(classesRowsPerPageParameter) + '=3500'
+        window.location.search += '&' + encodeURIComponent(parameter) + '=3500'
       }
     }
-    document
-      .getElementById('all_classes_page:theTemplate:theForm')
-      .querySelector('td')
-      .appendChild(seeAllClasses)
-  }
-  if (document.querySelector('input[value="Developer Console"]')) {
-    const seeAllTriggers = document.createElement('input')
-    seeAllTriggers.value = 'See All Trigger'
-    seeAllTriggers.className = 'btn'
-    seeAllTriggers.type = 'button'
-    seeAllTriggers.onclick = function () {
-      if (location.search.indexOf('rowsperpage=') > -1) {
-        window.location.search =
-          'setupid=ApexClasses&' +
-          encodeURIComponent(triggersRowsPerPageParameter) +
-          '=3500'
-      } else {
-        window.location.search +=
-          '&' + encodeURIComponent(triggersRowsPerPageParameter) + '=3500'
-      }
-    }
-    document
-      .querySelector('input[value="Developer Console"]')
-      .parentNode.appendChild(seeAllTriggers)
-  }
-}
-
-function addHeader() {
-  const header = document.createElement('th')
-  header.textContent = 'Dont Log Class'
-  const selectAll = document.createElement('input')
-  selectAll.type = 'checkbox'
-  selectAll.onclick = function () {
-    const checkedStatus = selectAll.checked
-    toArray(document.querySelectorAll('.dontLog')).forEach(cbDontLog => {
-      if (cbDontLog.checked != checkedStatus) {
-        cbDontLog.checked = checkedStatus
-        cbDontLog.onclick()
-      }
-    })
-  }
-  header.appendChild(selectAll)
-  header.appendChild(createLoadingImage())
-  document.querySelector('.headerRow').appendChild(header)
-}
-
-function createLoadingImage() {
-  const loadingImage = document.createElement('img')
-  loadingImage.src = '/img/loading.gif'
-  loadingImage.style.display = 'none'
-  loadingImage.className = 'LoadinImage'
-  return loadingImage
-}
-
-function addCheckboxes() {
-  const cell = document.createElement('td')
-  const checkbox = document.createElement('input')
-  checkbox.type = 'checkbox'
-  checkbox.className = 'dontLog'
-  cell.appendChild(checkbox)
-  cell.appendChild(createLoadingImage())
-  const dataRows = toArray(document.querySelectorAll('.dataRow'))
-  dataRows.forEach(row => {
-    setTimeout(function () {
-      addCheckbox(row, cell)
-    }, 0)
   })
 }
 
-function addCheckbox(row: any, cell: HTMLElement) {
-  const link = row.querySelector('th>a')
+const toolsSpan = (...children: Node[]) =>
+  h(
+    'span',
+    {
+      className: 'ad-root ad-inline-tools',
+      dataset: { adColorMode: 'light' }
+    },
+    ...children
+  )
+
+function addButtons() {
+  const classesForm = document.getElementById(
+    'all_classes_page:theTemplate:theForm'
+  )
+  const classesCell = classesForm && classesForm.querySelector('td')
+  if (classesCell) {
+    classesCell.appendChild(
+      toolsSpan(
+        seeAllButton(
+          'See all classes',
+          'all_classes_page:theTemplate:classList:rowsperpage'
+        )
+      )
+    )
+  }
+  const developerConsole = document.querySelector(
+    'input[value="Developer Console"]'
+  )
+  if (developerConsole) {
+    developerConsole.parentNode.appendChild(
+      toolsSpan(
+        seeAllButton(
+          'See all triggers',
+          'all_triggers_page:theTemplate:j_id41:rowsperpage'
+        )
+      )
+    )
+  }
+}
+
+const status = () => document.getElementById('adDontLogStatus')
+
+function addHeader() {
+  const headerRow = document.querySelector('.headerRow')
+  if (!headerRow) return false
+  const selectAll = h('input', {
+    type: 'checkbox',
+    id: 'adDontLogAll',
+    title: EXPLANATION
+  })
+  selectAll.setAttribute('aria-label', 'Don’t log any class on this page')
+  selectAll.addEventListener('click', () => {
+    document.querySelectorAll<HTMLInputElement>('.dontLog').forEach(box => {
+      if (box.checked !== selectAll.checked) box.click()
+    })
+  })
+  const header = h(
+    'th',
+    { className: 'ad-root ad-dont-log', dataset: { adColorMode: 'light' } },
+    h(
+      'span',
+      { className: 'ad-check' },
+      selectAll,
+      h('span', { text: 'Don’t log (24 h)', title: EXPLANATION })
+    ),
+    h('span', {
+      id: 'adDontLogStatus',
+      className: 'ad-status-line',
+      attrs: { role: 'status' }
+    })
+  )
+  headerRow.appendChild(header)
+  return true
+}
+
+function addCheckbox(row: HTMLElement) {
+  const link = row.querySelector<HTMLAnchorElement>('th>a')
   // Rows without a class link (e.g. on the "all classes" view) get no toggle.
   if (!link) return
-  const clone: any = cell.cloneNode(true)
   const classLink = link.href
   const classId = classLink.slice(classLink.lastIndexOf('/01') + 1)
+  const className = link.textContent.trim()
   // Not every class list layout has the checkbox image column.
-  const image = row.querySelector('td>img')
-  const isChecked = !!image && image.title === 'Checked'
-  clone.firstChild.dataset.classId = classId
-  clone.firstChild.onclick = toggleTraceFlag
-  clone.firstChild.checked = isChecked
-  row.appendChild(clone)
+  const image = row.querySelector<HTMLImageElement>('td>img')
+  const checkbox = h('input', {
+    type: 'checkbox',
+    className: 'dontLog',
+    checked: !!image && image.title === 'Checked',
+    title: EXPLANATION,
+    dataset: { classId }
+  })
+  checkbox.setAttribute('aria-label', `Don’t log ${className}`)
+  checkbox.addEventListener('click', () => toggleTraceFlag(checkbox, className))
+  row.appendChild(
+    h(
+      'td',
+      { className: 'ad-root ad-dont-log', dataset: { adColorMode: 'light' } },
+      checkbox
+    )
+  )
 }
 
-function toggleTraceFlag() {
-  const checkbox = this
-  const loading = checkbox.parentNode.children[1]
-  loading.style.display = 'inline'
-  sf.setClassLogging(checkbox.dataset.classId, !checkbox.checked)
+function toggleTraceFlag(checkbox: HTMLInputElement, className: string) {
+  const silence = checkbox.checked
+  checkbox.disabled = true
+  checkbox.setAttribute('aria-busy', 'true')
+  sf.setClassLogging(checkbox.dataset.classId, !silence)
+    .then(() => {
+      status().textContent = silence
+        ? `${className} won’t be logged for 24 hours.`
+        : `${className} is logged again.`
+    })
     .catch(err => {
       console.error('Apex Debugger: changing the class trace flag failed', err)
+      checkbox.checked = !silence
+      const explained = explainError(err, location.hostname)
+      status().textContent = `Couldn’t change logging for ${className}. ${explained.title}`
+      checkbox.title = status().textContent
     })
     .then(() => {
-      loading.style.display = 'none'
+      checkbox.disabled = false
+      checkbox.removeAttribute('aria-busy')
     })
 }
 
-addHeader()
-addCheckboxes()
-addButton()
+injectDesignTokens()
+if (addHeader()) {
+  document
+    .querySelectorAll<HTMLElement>('.dataRow')
+    .forEach(row => addCheckbox(row))
+}
+addButtons()

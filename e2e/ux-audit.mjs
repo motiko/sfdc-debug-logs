@@ -1,5 +1,6 @@
 // UX/UI audit: captures screenshots of every view of the extension in a real
-// browser against the org from .env.local, and runs automated checks on each
+// browser against the org from .env.local (or, with --mock, the offline mock
+// org of e2e/mock/), and runs automated checks on each
 // captured state (axe-core, WCAG contrast, control names, clickable but not
 // focusable elements, small and clipped text, keyboard focus order and focus
 // indicators, dialog focus return). Used by the ux-ui-review agent
@@ -7,12 +8,14 @@
 //
 //   node ux-audit.mjs [--out <dir>] [--views app,classic,options]
 //                     [--sizes 1440x900,1024x768] [--compare <previous out dir>]
+//                     [--mock]
 //
 // Output (default e2e/ux-artifacts/, gitignored):
 //   <view>-<state>@<W>x<H>.png   screenshot of each state
 //   <view>-<state>@<W>x<H>.json  checks for that state
 //   <view>-keyboard*.json        Tab order, focus indicators, dialog focus return
-//   summary.json                 counts per state (input for --compare)
+//   summary.json                 counts per state (input for --compare), and
+//                                the Salesforce API requests of the run
 //
 // Finding things on the page: views are found by role, accessible name and
 // visible text (helpers below), so the script survives a redesign. The few
@@ -33,9 +36,8 @@ import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { parseArgs } from 'node:util'
-import { login, frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
-import { Salesforce } from './lib/salesforce.mjs'
-import { launchWithExtension } from './lib/browser.mjs'
+import { frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
+import { startRun } from './lib/run.mjs'
 import { logThemes } from './lib/styles.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -46,7 +48,8 @@ const { values: args } = parseArgs({
     out: { type: 'string', default: join(HERE, 'ux-artifacts') },
     views: { type: 'string', default: 'app,classic,options' },
     sizes: { type: 'string', default: '1440x900,1024x768' },
-    compare: { type: 'string' }
+    compare: { type: 'string' },
+    mock: { type: 'boolean', default: process.env.SF_MOCK === '1' }
   }
 })
 const OUT = resolve(args.out)
@@ -108,8 +111,11 @@ async function produceLogs(sf) {
   const since = new Date(Date.now() - 60000)
   await sf.executeAnonymous(APEX)
   await sf.executeAnonymous(FAILING_APEX).catch(() => {}) // fails on purpose
-  const main = await sf.findLog(`Done ${MARKER}`, { since })
-  const failed = await sf.findLog(`failing run ${MARKER}`, { since }).catch(() => null)
+  // Both logs in one search (each body downloaded once); the failed run is
+  // optional.
+  const both = await sf.findLogs([`Done ${MARKER}`, `failing run ${MARKER}`], { since }).catch(() => null)
+  const main = both ? both[`Done ${MARKER}`] : await sf.findLog(`Done ${MARKER}`, { since })
+  const failed = both ? both[`failing run ${MARKER}`] : null
   log(`log ${main.Id}: ${main.body.split('\n').length} lines`)
   return { main, failed }
 }
@@ -287,7 +293,9 @@ function pageChecks(scope) {
     }
     // Cut off: the element overflows itself with overflow hidden/ellipsis,
     // or sticks out of a non-scrolling ancestor that clips.
-    if (clipped.length < 40) {
+    // Visually hidden text for screen readers (1 px, clipped) isn't cut off.
+    const srOnly = el.offsetWidth <= 1 && el.offsetHeight <= 1 && /hidden|clip/.test(cs.overflowX)
+    if (clipped.length < 40 && !srOnly) {
       let cut = null
       const ov = cs.overflowX + ' ' + cs.overflowY
       if (/hidden|clip/.test(ov) && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1))
@@ -362,6 +370,16 @@ function pageChecks(scope) {
         boundary = cs.borderBottomColor
         break
       }
+      // An outline drawn by a sibling (MUI's outlined inputs: a <fieldset>
+      // next to the input, inside the same wrapper).
+      const outline = n !== input && n.querySelector(':scope > fieldset')
+      if (outline) {
+        const ocs = getComputedStyle(outline)
+        if (parseFloat(ocs.borderBottomWidth) > 0 && ocs.borderBottomStyle !== 'none') {
+          boundary = ocs.borderBottomColor
+          break
+        }
+      }
       // Underlines drawn by a pseudo-element: a bottom border, or a thin bar
       // with a background (material-ui's Input).
       for (const pseudo of ['::before', '::after']) {
@@ -418,7 +436,9 @@ function pageChecks(scope) {
       cs.cursor === 'pointer' && el.parentElement && getComputedStyle(el.parentElement).cursor !== 'pointer'
     if (!(reactClick(el) || typeof el.onclick === 'function' || pointer)) continue
     if (!visible(el) || isFocusable(el)) continue
-    // Another clickable inside makes this one a container: report the inner.
+    // A wrapper that passes clicks to a control inside it (React's root,
+    // MUI's input wrappers) is reachable through that control.
+    if (el.querySelector(focusableSel)) continue
     clickableTotal++
     if (clickable.length < 30)
       clickable.push({
@@ -1406,6 +1426,8 @@ async function appView(ctx) {
 // --- Classic Salesforce pages enhanced by content scripts -----------------
 
 const CLASSIC_LOG_SCOPE = [
+  '#adToolbar',
+  'pre.ad-log',
   '#debugText',
   '#controllersContainer',
   '#selectStyleContainer',
@@ -1415,6 +1437,11 @@ const CLASSIC_LOG_SCOPE = [
   '#hintContainer'
 ]
 const CLASSIC_LIST_SCOPE = [
+  '.ad-list-tools',
+  '.ad-search',
+  '.ad-inline-tools',
+  '#adDeleteDialog',
+  'tr.ad-match',
   '#real_delete_all',
   '#load_new_logs',
   '#add_current_user',
@@ -1424,7 +1451,13 @@ const CLASSIC_LIST_SCOPE = [
   'tr[data-id]',
   'tr[style*="104, 170, 87"]' // rows the search highlights
 ]
-const CLASS_PAGE_SCOPE = ['.dontLog', '.headerRow th:last-child', 'input[value^="See All"]']
+const CLASS_PAGE_SCOPE = [
+  '.ad-dont-log',
+  '.ad-inline-tools',
+  '.dontLog',
+  '.headerRow th:last-child',
+  'input[value^="See All"]'
+]
 
 async function classicViews(ctx) {
   const V = 'classic'
@@ -1436,7 +1469,7 @@ async function classicViews(ctx) {
     await gotoSalesforce(ctx, page, `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${logs.main.Id}`)
     await page.waitForFunction(m => document.body.innerText.includes(m), { timeout: 30000 }, `Done ${MARKER}`)
     await delay(1500)
-    const themeSelect = await controlByLabel(page, /style|theme/i)
+    const themeSelect = await controlByLabel(page, /log colors|style|theme/i)
     for (const theme of Object.values(logThemes)) {
       if (themeSelect)
         await chooseOption(page, themeSelect, theme.label).catch(e =>
@@ -1450,6 +1483,23 @@ async function classicViews(ctx) {
     }
     if (themeSelect) await chooseOption(page, themeSelect, Object.values(logThemes)[0].label).catch(() => {})
     await page.evaluate(() => window.scrollTo(0, 0))
+    // The page in dark mode (the toolbar and "Match color mode" follow it).
+    if (themeSelect) await chooseOption(page, themeSelect, 'Match color mode').catch(() => {})
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await delay(500)
+    await capture(ctx, page, V, 'log-dark-mode', { scope: CLASSIC_LOG_SCOPE })
+    await scrollMain(page, 0.5)
+    await capture(ctx, page, V, 'log-dark-mode-scrolled', { scope: CLASSIC_LOG_SCOPE })
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await page.evaluate(() => window.scrollTo(0, 0))
+    // The page's shortcuts list.
+    const shortcuts = await byName(page, [/^shortcuts$/i])
+    if (shortcuts) {
+      await safeClick(shortcuts)
+      await delay(300)
+      await capture(ctx, page, V, 'log-shortcuts', { scope: CLASSIC_LOG_SCOPE })
+      await page.keyboard.press('Escape')
+    }
     const expandAll = await byName(page, [/expand all/i])
     if (expandAll) {
       await safeClick(expandAll)
@@ -1484,8 +1534,23 @@ async function classicViews(ctx) {
         if (form && form.requestSubmit) form.requestSubmit()
         else if (form) form.dispatchEvent(new Event('submit', { cancelable: true }))
       }, MARKER)
-      await delay(8000)
+      await page
+        .waitForFunction(() => /contain/.test((document.getElementById('adSearchStatus') || {}).textContent || ''), {
+          timeout: 60000
+        })
+        .catch(() => delay(8000))
       await capture(ctx, page, V, 'list-search', { scope: CLASSIC_LIST_SCOPE })
+    }
+    // Delete dialog: opened to check it, never confirmed (Escape cancels).
+    const deleteButton = await page.$('#real_delete_all')
+    if (deleteButton) {
+      await deleteButton.click()
+      await page
+        .waitForFunction(() => /Only my logs \(\d/.test(document.body.innerText), { timeout: 30000 })
+        .catch(() => {})
+      await capture(ctx, page, V, 'list-delete-dialog', { scope: CLASSIC_LIST_SCOPE })
+      await page.keyboard.press('Escape')
+      await delay(400)
     }
     if (ctx.primary) saveKeyboard(`${V}-keyboard-list`, await tabThrough(page, 'classic log list', { maxStops: 60 }))
     await page.close()
@@ -1510,13 +1575,26 @@ async function optionsView(ctx) {
   await delay(800)
   await capture(ctx, page, V, 'default', { fullPage: true })
   if (ctx.primary) saveKeyboard(`${V}-keyboard`, await tabThrough(page, 'options', { maxStops: 80 }))
+  // Restore defaults asks first; the script cancels.
+  const restore = await byName(page, [/^restore defaults/i])
+  if (restore) {
+    await safeClick(restore)
+    await delay(500)
+    await capture(ctx, page, V, 'restore-confirm')
+    await page.keyboard.press('Escape')
+    await delay(400)
+  }
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+  await delay(400)
+  await capture(ctx, page, V, 'dark', { fullPage: true })
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
   const add = await byName(page, [/add new/i, /add shortcut/i, /^add$/i])
   if (add) {
     await safeClick(add)
     await delay(500)
     await capture(ctx, page, V, 'new-row', { fullPage: true })
     // Save with the new row still empty: the validation feedback.
-    const save = await byName(page, [/^save$/i, /save/i])
+    const save = await byName(page, [/^save$/i, /^save shortcuts$/i, /save/i])
     if (save) {
       const before = page.url()
       await safeClick(save)
@@ -1555,11 +1633,15 @@ function compareWith(previousDir) {
 
 async function main() {
   mkdirSync(OUT, { recursive: true })
-  const session = await login()
-  SESSION_ID = session.sessionId
-  const sf = new Salesforce(session)
+  const run = await startRun({ mock: args.mock })
+  summary.mock = Boolean(run.mock)
+  const sf = run.sf
+  SESSION_ID = run.session.sessionId
   const logs = await produceLogs(sf)
-  const ext = await launchWithExtension()
+  // produceLogs renews a reused session that had expired.
+  const session = run.session
+  SESSION_ID = session.sessionId
+  const ext = await run.launch()
   try {
     for (const [i, size] of SIZES.entries()) {
       const ctx = { ext, session, sf, logs, size, primary: i === 0 }
@@ -1581,7 +1663,8 @@ async function main() {
       }
     }
   } finally {
-    await ext.close()
+    summary.requests = run.report('Salesforce requests of this audit')
+    await run.close()
   }
   summary.finishedAt = new Date().toISOString()
   if (args.compare) compareWith(args.compare)

@@ -2,6 +2,10 @@
 // the options and app tabs, and answers the content scripts' and the app's
 // messages, keyed on request.command.
 import { apiHostFor, isOrgHost } from '../core/org-hosts'
+import {
+  loadPageShortcuts,
+  SHORTCUTS_STORAGE_KEY
+} from '../core/page-shortcuts'
 
 // The tabs this worker opened, by name: 'options_tab', and 'app_<orgId>' for
 // each org's log viewer. Their ids live in chrome.storage.session, since the
@@ -68,6 +72,19 @@ function openTab(url: string, name: string) {
   })
 }
 
+// Saves the page shortcuts in this version's format once, migrated from the
+// list 0.8.x saved (which stays, for a downgrade). Until then (or if this
+// fails), loadPageShortcuts migrates on every read, with the same result.
+chrome.runtime.onInstalled.addListener(async () => {
+  const { [SHORTCUTS_STORAGE_KEY]: saved } = await chrome.storage.sync.get(
+    SHORTCUTS_STORAGE_KEY
+  )
+  if (saved) return
+  await chrome.storage.sync.set({
+    [SHORTCUTS_STORAGE_KEY]: await loadPageShortcuts(chrome.storage.sync)
+  })
+})
+
 chrome.action.onClicked.addListener(() =>
   openOrFocusTab(chrome.runtime.getURL('html/options.html'), 'options_tab')
 )
@@ -110,9 +127,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       )
       break
     case 'getShortcuts':
-      chrome.storage.sync.get('shortcuts').then(({ shortcuts }) => {
-        sendResponse({ shortcuts })
-      })
+      loadPageShortcuts(chrome.storage.sync).then(settings =>
+        sendResponse({ settings })
+      )
       break
     case 'openTab':
       chrome.tabs.create({ url: request.url })

@@ -13,27 +13,38 @@ Key Features
 ------------
 
   * Search in logs
-  * Improved view of logs, with the same color themes in the log viewer and on Salesforce's log page: Monokai (dark), Emacs (light) and Black/White.
+  * Improved view of logs, with the same color palettes in the log viewer and on Salesforce's log page: Light, Dark, Monokai and High contrast, following your light or dark mode.
   * Click any Id to go to Object (Class, Trigger, Validation Rule e.t.c).
   * Indent User Debug (sObject, List, XML or JSON)
-  * Delete all logs (all of'em).
-  * Automatically start log tracking (a 24-hour trace flag for the current user).
+  * Delete logs: only yours, or all users', always confirmed with the count.
+  * Start, extend or stop logging (a 24-hour trace flag for the current user).
   * Customizable keyboard shortcuts for Salesforce
 
-Keyboard Chortcuts
+Keyboard Shortcuts
 ------------------
 
-* _Shift+d_ - Open Debug Logs + Add current user
-* _Shift+w_ - Open New logs view
-* _Shift+l_ - Open last debug log
-* _Shift+o_ - Custom objects page
-* _Shift+u_ - Manage Users
-* _Shift+p_ - Manage Profiles
-* _Shift+c_ - Apex Classes
-* _Shift+i_ - Company Information
-* _Shift+s_ - Data Schema
+On Salesforce pages (while no field has focus):
 
-Hold Alt key to open in same tab. (e.g _Alt+Shift+d_)
+* _Shift+W_ - Open the Apex Debugger log viewer
+* _Shift+L_ - Open the newest debug log
+* _Shift+D_ - Debug Logs
+* _Shift+O_ - Custom Objects
+* _Shift+U_ - Manage Users
+* _Shift+P_ - Profiles
+* _Shift+C_ - Apex Classes (see all)
+* _Shift+T_ - Triggers (see all)
+* _Shift+Q_ / _Shift+Z_ - Outbound / Inbound Change Sets
+* _Shift+S_ - Schema Builder
+* _Shift+E_ - Edit (clicks the page's Edit button)
+* _Ctrl+S_ (_Cmd+S_ on macOS) - Save (clicks the page's Save button; works in a field too)
+
+Hold Alt to open a page in the same tab (e.g. _Alt+Shift+D_).
+
+Since 0.9, Edit and Save need a modifier: earlier versions used the bare _e_ and _s_ keys, which a stray key press could trigger. The classic debug log list has no delete key any more; "Delete logs…" always asks, with the scope (only your logs, or all users') and the count.
+
+Change, add or remove shortcuts, or turn them off, on the extension's options page (click the toolbar icon, or press _?_ in the log viewer for the full list). Shortcuts you customized in earlier versions are kept; if one of yours used L or E, it keeps the key and the new built-in shortcut starts turned off.
+
+The log viewer has its own keys (press _?_ there), and the classic debug log pages have a few single-letter keys that only change the view (listed under "Shortcuts" on the page).
 
 Quick Demo
 -----------------
@@ -64,6 +75,8 @@ Before a pull request, run the checks that CI runs (Node 24, see `.nvmrc`):
 cd react
 npm run lint && npm run format:check && npm run typecheck && npm test
 ```
+
+The end-to-end flow also runs offline, against a mock Salesforce org (no credentials, no API requests): `cd e2e && npm install && npm run test:mock`. Against a real org (`.env.local`), `npm test`.
 
 `scripts/chrome-dev.sh` builds the app if needed and starts a test Chrome with the extension loaded.
 

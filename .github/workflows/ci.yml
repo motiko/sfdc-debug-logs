@@ -41,3 +41,45 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # The end-to-end flow against the offline mock org (e2e/mock/): no
+  # Salesforce secrets and no API requests, so it runs on every pull request,
+  # forks included. The real-org flow is e2e.yml.
+  e2e-mock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            react/package-lock.json
+            e2e/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix react
+          npm ci --prefix e2e
+
+      - uses: actions/cache@v6
+        with:
+          path: .chrome-test
+          key: chrome-for-testing-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
+
+      - name: Check the mock harness
+        working-directory: e2e
+        run: npm run test:harness
+
+      - name: Run end-to-end flow against the mock org
+        working-directory: e2e
+        run: npm run test:mock
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-mock-artifacts
+          path: e2e/artifacts/
+          if-no-files-found: ignore

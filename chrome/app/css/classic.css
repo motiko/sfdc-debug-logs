@@ -1,0 +1,192 @@
+/* Apex Debugger's controls on classic Salesforce pages (content scripts:
+   debug-log-page.ts, debug-log-list.ts, class-page.ts). Colors, fonts and
+   the focus ring come from the design tokens (react/src/ui/tokens.ts), which
+   the scripts insert as --ad-* custom properties on .ad-root
+   (designTokensCss). Every rule is scoped to .ad-root, so Salesforce's own
+   controls keep their look. */
+
+.ad-root {
+  font-family: var(--ad-font-ui);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ad-text);
+  color-scheme: light;
+}
+.ad-root[data-ad-color-mode='dark'] { color-scheme: dark }
+@media (prefers-color-scheme: dark) {
+  .ad-root:not([data-ad-color-mode='light']) { color-scheme: dark }
+}
+
+.ad-root label { font: inherit; color: inherit; margin: 0 }
+
+.ad-root .ad-button {
+  box-sizing: border-box;
+  min-height: 28px;
+  margin: 0;
+  padding: 3px 10px;
+  font: inherit;
+  font-weight: 500;
+  color: var(--ad-text);
+  background: var(--ad-surface);
+  border: 1px solid var(--ad-border);
+  border-radius: var(--ad-radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ad-root .ad-button:hover { background: var(--ad-surface-hover) }
+.ad-root .ad-button-primary {
+  color: var(--ad-on-accent);
+  background: var(--ad-accent);
+  border-color: var(--ad-accent);
+}
+.ad-root .ad-button-primary:hover { background: var(--ad-accent-hover) }
+.ad-root .ad-button-danger {
+  color: var(--ad-danger);
+  border-color: var(--ad-danger);
+}
+.ad-root .ad-button-danger-solid,
+.ad-root .ad-button-danger-solid:hover {
+  color: var(--ad-on-danger);
+  background: var(--ad-danger);
+  border-color: var(--ad-danger);
+}
+.ad-root .ad-button:disabled {
+  cursor: default;
+  color: var(--ad-text-muted);
+  background: var(--ad-surface-hover);
+  border-color: var(--ad-border);
+}
+
+.ad-root .ad-field,
+.ad-root .ad-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ad-root select,
+.ad-root input[type='text'],
+.ad-root input[type='search'],
+.ad-root input[type='number'] {
+  box-sizing: border-box;
+  min-height: 28px;
+  margin: 0;
+  padding: 3px 6px;
+  font: inherit;
+  color: var(--ad-text);
+  background: var(--ad-surface);
+  border: 1px solid var(--ad-border);
+  border-radius: var(--ad-radius-sm);
+}
+.ad-root input::placeholder { color: var(--ad-text-muted); opacity: 1 }
+
+.ad-root input[type='checkbox'],
+.ad-root input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ad-accent);
+}
+
+.ad-root kbd {
+  font-family: var(--ad-font-mono);
+  font-size: 12px;
+  padding: 0 5px;
+  border: 1px solid var(--ad-border);
+  border-radius: var(--ad-radius-sm);
+  background: var(--ad-surface-hover);
+  color: var(--ad-text);
+}
+.ad-root .ad-keys { display: inline-flex; gap: 3px }
+
+.ad-root .ad-muted { color: var(--ad-text-muted) }
+.ad-root .ad-status-line {
+  display: block;
+  max-width: 220px;
+  font-size: 12px;
+  font-weight: normal;
+  white-space: normal;
+}
+
+.ad-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* A small panel under a button (the shortcuts list). */
+.ad-root .ad-popover-anchor { position: relative }
+.ad-root .ad-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 10;
+  width: 320px;
+  padding: 12px;
+  background: var(--ad-surface);
+  color: var(--ad-text);
+  border: 1px solid var(--ad-border);
+  border-radius: var(--ad-radius-md);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+.ad-root .ad-popover[hidden] { display: none }
+.ad-root .ad-popover p { margin: 0 0 8px }
+.ad-root .ad-popover .ad-popover-title { font-weight: 600 }
+.ad-root .ad-popover dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0 0 8px;
+}
+.ad-root .ad-popover dd { margin: 0 }
+
+/* Dialogs (native <dialog>, opened with showModal). */
+dialog.ad-dialog {
+  box-sizing: border-box;
+  width: min(460px, calc(100vw - 32px));
+  padding: 20px 24px;
+  background: var(--ad-surface);
+  color: var(--ad-text);
+  border: 1px solid var(--ad-border);
+  border-radius: var(--ad-radius-lg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+dialog.ad-dialog::backdrop { background: rgba(0, 0, 0, 0.45) }
+dialog.ad-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ad-text);
+}
+dialog.ad-dialog p { margin: 0 0 12px }
+dialog.ad-dialog fieldset {
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+}
+dialog.ad-dialog legend { padding: 0; margin-bottom: 6px; font-weight: 600 }
+dialog.ad-dialog .ad-choice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+dialog.ad-dialog .ad-warning { color: var(--ad-warning) }
+dialog.ad-dialog .ad-error { color: var(--ad-danger) }
+dialog.ad-dialog .ad-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+dialog.ad-dialog progress { width: 100%; accent-color: var(--ad-accent) }
+
+/* Salesforce sets 11 px on list headers. */
+th.ad-root.ad-dont-log { font-size: 12px }
