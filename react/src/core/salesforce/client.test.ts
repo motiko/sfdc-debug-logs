@@ -531,3 +531,85 @@ describe('currentUser', () => {
     })
   })
 })
+
+describe('deleteLogsById', () => {
+  const logId = (n: number) => `07L${String(n).padStart(12, '0')}AAA`
+  const idsOf = (call: Call) =>
+    new URL(call.path, 'https://x').searchParams.get('ids').split(',')
+
+  it('deletes exactly the given logs, 200 per request', async () => {
+    const ids = Array.from({ length: 450 }, (_, i) => logId(i))
+    const progress = []
+    const { client, calls } = fakeSalesforce([
+      [
+        is('DELETE', /\/composite\/sobjects\?/),
+        call => idsOf(call).map(id => ({ id, success: true, errors: [] }))
+      ]
+    ])
+    const result = await client.deleteLogsById([...ids, ids[0]], {
+      onProgress: p => progress.push(p)
+    })
+    expect(result).toEqual({ deleted: ids, failed: [] })
+    expect(calls.map(c => idsOf(c).length)).toEqual([200, 200, 50])
+    expect(calls.flatMap(idsOf)).toEqual(ids)
+    expect(calls[0].path).toMatch(
+      new RegExp(`^${API}/composite/sobjects\\?ids=.*&allOrNone=false$`)
+    )
+    expect(progress).toEqual([
+      { done: 0, total: 450 },
+      { done: 200, total: 450 },
+      { done: 400, total: 450 },
+      { done: 450, total: 450 }
+    ])
+  })
+
+  it('reports the logs Salesforce refused, and counts gone ones as deleted', async () => {
+    const { client } = fakeSalesforce([
+      [
+        is('DELETE', /\/composite\/sobjects\?/),
+        () => [
+          { id: logId(1), success: true, errors: [] },
+          {
+            success: false,
+            errors: [{ statusCode: 'ENTITY_IS_DELETED', message: 'deleted' }]
+          },
+          {
+            success: false,
+            errors: [
+              {
+                statusCode: 'INSUFFICIENT_ACCESS_OR_READONLY',
+                message: 'insufficient access rights on object id'
+              }
+            ]
+          }
+        ]
+      ]
+    ])
+    expect(
+      await client.deleteLogsById([logId(1), logId(2), logId(3)])
+    ).toEqual({
+      deleted: [logId(1), logId(2)],
+      failed: [
+        { id: logId(3), message: 'insufficient access rights on object id' }
+      ]
+    })
+  })
+
+  it('refuses anything that is not an id before any request', async () => {
+    const { client, calls } = fakeSalesforce([])
+    await expect(
+      client.deleteLogsById([logId(1), "x' OR Id != '"])
+    ).rejects.toThrow(/Not a Salesforce id/)
+    await expect(client.deleteLogsById(undefined as never)).rejects.toThrow()
+    expect(calls).toEqual([])
+  })
+
+  it('sends nothing for an empty list', async () => {
+    const { client, calls } = fakeSalesforce([])
+    expect(await client.deleteLogsById([])).toEqual({
+      deleted: [],
+      failed: []
+    })
+    expect(calls).toEqual([])
+  })
+})

@@ -93,6 +93,22 @@ export interface DeleteProgress {
 // user id must never widen "one user's logs" to every user's (fail closed).
 export type LogScope = { scope: 'all' } | { scope: 'user'; userId: string }
 
+// The progress of deleteLogsById: how many of the ids have been sent.
+export interface DeleteByIdProgress {
+  done: number
+  total: number
+}
+
+// What deleteLogsById did with each id: deleted (or already gone), or
+// refused with Salesforce's message.
+export interface DeleteByIdResult {
+  deleted: string[]
+  failed: { id: string; message: string }[]
+}
+
+// sObject Collections take at most 200 ids per request.
+export const DELETE_BATCH_SIZE = 200
+
 export interface ClientOptions {
   now?: () => Date
   sleep?: (ms: number) => Promise<void>
@@ -429,6 +445,50 @@ export function createSalesforceClient(
     }
   }
 
+  // Deletes exactly these logs (the app's "Delete selected" and the open
+  // log's delete), with sObject Collections delete requests of at most
+  // DELETE_BATCH_SIZE ids, one after another. allOrNone=false: a log that
+  // can't be deleted doesn't keep the others. A log that is already gone
+  // counts as deleted. Every id is checked before any request, so a bad id
+  // deletes nothing.
+  async function deleteLogsById(
+    ids: string[],
+    {
+      onProgress = () => {}
+    }: { onProgress?: (progress: DeleteByIdProgress) => void } = {}
+  ): Promise<DeleteByIdResult> {
+    if (!Array.isArray(ids)) throw new Error('Choose the logs to delete')
+    const unique = [...new Set(ids)]
+    unique.forEach(soqlId)
+    const result: DeleteByIdResult = { deleted: [], failed: [] }
+    const total = unique.length
+    for (let at = 0; at < total; at += DELETE_BATCH_SIZE) {
+      onProgress({ done: at, total })
+      const batch = unique.slice(at, at + DELETE_BATCH_SIZE)
+      const saved: (SaveResult & {
+        errors?: { statusCode?: string; message?: string }[]
+      })[] = await request(
+        `${API}/composite/sobjects?ids=${batch.join(',')}&allOrNone=false`,
+        { method: 'DELETE' }
+      )
+      // Results come in the order of the ids; a failed one may have no id.
+      batch.forEach((id, i) => {
+        const item = Array.isArray(saved) ? saved[i] : undefined
+        const errors = (item && item.errors) || []
+        const gone = errors.some(e => e && e.statusCode === 'ENTITY_IS_DELETED')
+        if ((item && item.success) || gone) result.deleted.push(id)
+        else
+          result.failed.push({
+            id,
+            message:
+              (errors[0] && errors[0].message) || 'Salesforce did not delete it'
+          })
+      })
+    }
+    onProgress({ done: total, total })
+    return result
+  }
+
   // Deletes every debug log of the org (the classic list's "Delete all").
   function deleteAllLogs(): Promise<number> {
     return deleteLogs({ scope: 'all' })
@@ -459,6 +519,7 @@ export function createSalesforceClient(
     setClassLogging,
     countLogs,
     deleteLogs,
+    deleteLogsById,
     deleteAllLogs
   }
 }
