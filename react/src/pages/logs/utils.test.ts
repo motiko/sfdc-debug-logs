@@ -1,15 +1,25 @@
 import { describe, it, expect } from 'vitest'
-import { filterLogs, filtersToWhereClause, type ApexLog } from './utils'
-import { defaultFilters as defaultFiltersState } from './logs-slice'
+import {
+  activeFilterChips,
+  FAILED,
+  filterLogs,
+  filtersToWhereClause,
+  formatBytes,
+  formatClock,
+  formatDuration,
+  formatRelative,
+  formatStartTime,
+  NO_FILTERS,
+  shortOperation,
+  sortLogs,
+  type ApexLog
+} from './utils'
 
-// Tooling API ApexLog records, as returned by sf.requestLogs().
+// Tooling API ApexLog records, as returned by sf.recentLogs().
 function apexLog(fields: Partial<ApexLog> & { Id: string }): ApexLog {
   return {
     LogUser: { Name: 'Ada Admin' },
-    Application: 'Unknown',
-    Location: 'Monitoring',
     Operation: '/services/data/v62.0/tooling/executeAnonymous/',
-    Request: 'API',
     Status: 'Success',
     LogLength: 4210,
     DurationMilliseconds: 85,
@@ -18,158 +28,168 @@ function apexLog(fields: Partial<ApexLog> & { Id: string }): ApexLog {
   }
 }
 
-const logs = {
-  '07L000000000001AAA': apexLog({ Id: '07L000000000001AAA' }),
-  '07L000000000002AAA': apexLog({
+const logs = [
+  apexLog({ Id: '07L000000000001AAA' }),
+  apexLog({
     Id: '07L000000000002AAA',
     LogUser: { Name: "Pat O'Brien" },
     Operation: 'Batch Apex',
     Status: 'Attempt to de-reference a null object',
-    LogLength: 1641509,
-    DurationMilliseconds: 9366
+    LogLength: 19_525_305,
+    DurationMilliseconds: 93_660,
+    StartTime: '2026-10-11T10:00:00.000+0000'
   }),
-  '07L000000000003AAA': apexLog({
+  apexLog({
     Id: '07L000000000003AAA',
     Operation: 'VF Remoting',
     LogLength: 120000,
-    DurationMilliseconds: 366
+    DurationMilliseconds: 366,
+    StartTime: '2026-10-11T10:05:00.000+0000'
   })
-}
+]
 
-const ids = (list: ApexLog[]) => list.map(log => log.Id)
+const ids = (list: ApexLog[]) => list.map(log => log.Id.slice(-4, -3))
+
+describe('no hidden default filters (B1)', () => {
+  it('queries nothing extra and keeps every log, however large or slow', () => {
+    expect(filtersToWhereClause(NO_FILTERS)).toBe('')
+    expect(ids(filterLogs(logs, NO_FILTERS))).toEqual(['1', '2', '3'])
+    expect(activeFilterChips(NO_FILTERS)).toEqual([])
+  })
+})
 
 describe('filtersToWhereClause', () => {
-  it('returns an empty string when no filter is set', () => {
-    expect(filtersToWhereClause({})).toBe('')
+  it('maps each filter to its SOQL condition, escaping text', () => {
     expect(
       filtersToWhereClause({
-        user: { type: 'text', value: '' },
-        status: { type: 'text', value: '' }
+        user: "Pat O'Brien",
+        operation: 'Batch Apex',
+        status: 'Success',
+        minLength: 1_000_000,
+        minDuration: 5000
       })
+    ).toBe(
+      "WHERE LogUser.Name = 'Pat O\\'Brien' AND Operation = 'Batch Apex' AND Status = 'Success' " +
+        'AND LogLength >= 1000000 AND DurationMilliseconds >= 5000'
+    )
+  })
+
+  it('asks for failed logs as status other than Success', () => {
+    expect(filtersToWhereClause({ ...NO_FILTERS, status: FAILED })).toBe(
+      "WHERE Status != 'Success'"
+    )
+  })
+
+  it('only puts whole numbers into the query', () => {
+    expect(
+      filtersToWhereClause({ ...NO_FILTERS, minLength: '5 OR 1=1' as never })
     ).toBe('')
-  })
-
-  it('maps text filters to their SOQL fields', () => {
-    expect(
-      filtersToWhereClause({
-        user: { type: 'text', value: 'Ada Admin' },
-        operation: { type: 'text', value: 'Batch Apex' },
-        status: { type: 'text', value: 'Success' }
-      })
-    ).toBe(
-      "WHERE LogUser.Name = 'Ada Admin' AND Operation = 'Batch Apex' AND Status = 'Success' "
+    expect(filtersToWhereClause({ ...NO_FILTERS, minDuration: 12.7 })).toBe(
+      'WHERE DurationMilliseconds >= 12'
     )
-  })
-
-  it('escapes quotes and backslashes in text filters', () => {
-    expect(
-      filtersToWhereClause({ user: { type: 'text', value: "Pat O'Brien" } })
-    ).toBe("WHERE LogUser.Name = 'Pat O\\'Brien' ")
-    expect(
-      filtersToWhereClause({
-        operation: { type: 'text', value: "a\\' OR Id != null OR '" }
-      })
-    ).toBe("WHERE Operation = 'a\\\\\\' OR Id != null OR \\'' ")
-  })
-
-  it('turns number filters into inclusive whole-number ranges', () => {
-    expect(
-      filtersToWhereClause({
-        length: { type: 'number', value: [1024.7, 2048] },
-        duration: { type: 'number', value: [0, 12000] }
-      })
-    ).toBe(
-      'WHERE LogLength >= 1024 AND LogLength <= 2048 AND DurationMilliseconds >= 0 AND DurationMilliseconds <= 12000 '
-    )
-  })
-
-  it('includes the default ranges of the filter dialog', () => {
-    expect(filtersToWhereClause(defaultFiltersState as any)).toBe(
-      'WHERE LogLength >= 0 AND LogLength <= 2500000 AND DurationMilliseconds >= 0 AND DurationMilliseconds <= 12000 '
-    )
-  })
-
-  it('ignores unknown filters', () => {
-    expect(
-      filtersToWhereClause({
-        application: { type: 'text', value: 'Unknown' },
-        status: { type: 'text', value: 'Success' }
-      })
-    ).toBe("WHERE Status = 'Success' ")
   })
 })
 
 describe('filterLogs', () => {
-  it('returns all logs with the default filters', () => {
-    expect(ids(filterLogs(logs, defaultFiltersState as any, {}))).toEqual([
-      '07L000000000001AAA',
-      '07L000000000002AAA',
-      '07L000000000003AAA'
+  it('applies every set filter to the loaded logs', () => {
+    expect(ids(filterLogs(logs, { ...NO_FILTERS, user: 'Ada Admin' }))).toEqual(
+      ['1', '3']
+    )
+    expect(ids(filterLogs(logs, { ...NO_FILTERS, status: FAILED }))).toEqual([
+      '2'
+    ])
+    expect(
+      ids(filterLogs(logs, { ...NO_FILTERS, minLength: 100_000 }))
+    ).toEqual(['2', '3'])
+    expect(ids(filterLogs(logs, { ...NO_FILTERS, minDuration: 1000 }))).toEqual(
+      ['2']
+    )
+  })
+
+  it('keeps only logs that contain the search term while searching', () => {
+    const matches = { '07L000000000003AAA': 2, '07L000000000001AAA': 0 }
+    expect(ids(filterLogs(logs, NO_FILTERS, matches))).toEqual(['3'])
+    expect(ids(filterLogs(logs, NO_FILTERS, {}))).toEqual([])
+  })
+})
+
+describe('activeFilterChips', () => {
+  it('describes each active filter in words', () => {
+    expect(
+      activeFilterChips({
+        user: 'Ada Admin',
+        operation: '/services/data/v62.0/tooling/executeAnonymous/',
+        status: FAILED,
+        minLength: 1_000_000,
+        minDuration: 5000
+      }).map(c => c.label)
+    ).toEqual([
+      'User: Ada Admin',
+      'Operation: executeAnonymous',
+      'Failed only',
+      'Larger than 1 MB',
+      'Longer than 5 s'
     ])
   })
+})
 
-  it('leaves out logs that did not match the search', () => {
+describe('sortLogs', () => {
+  it('sorts by time, duration or size, keeping ties in order', () => {
+    expect(ids(sortLogs(logs, { key: 'time', direction: 'desc' }))).toEqual([
+      '3',
+      '1',
+      '2'
+    ])
+    expect(ids(sortLogs(logs, { key: 'size', direction: 'desc' }))).toEqual([
+      '2',
+      '3',
+      '1'
+    ])
+    expect(ids(sortLogs(logs, { key: 'duration', direction: 'asc' }))).toEqual([
+      '1',
+      '3',
+      '2'
+    ])
+  })
+})
+
+describe('formats', () => {
+  it('shortens API paths to their last part', () => {
     expect(
-      ids(
-        filterLogs(
-          logs,
-          {},
-          { '07L000000000001AAA': true, '07L000000000003AAA': false }
-        )
-      )
-    ).toEqual(['07L000000000002AAA', '07L000000000003AAA'])
+      shortOperation('/services/data/v62.0/tooling/executeAnonymous/')
+    ).toBe('executeAnonymous')
+    expect(shortOperation('/apex/MyPage')).toBe('MyPage')
+    expect(shortOperation('Batch Apex')).toBe('Batch Apex')
+    expect(shortOperation(undefined)).toBe('')
   })
 
-  it('filters by user name', () => {
-    expect(
-      ids(
-        filterLogs(logs, { user: { type: 'text', value: "Pat O'Brien" } }, {})
-      )
-    ).toEqual(['07L000000000002AAA'])
+  it('formats sizes and durations with units and a space', () => {
+    expect(formatBytes(512)).toBe('512 B')
+    expect(formatBytes(16918)).toBe('16.9 KB')
+    expect(formatBytes(192_865)).toBe('193 KB')
+    expect(formatBytes(19_525_305)).toBe('19.5 MB')
+    expect(formatDuration(63)).toBe('63 ms')
+    expect(formatDuration(1234)).toBe('1.2 s')
+    expect(formatDuration(125_000)).toBe('2 min 5 s')
   })
 
-  it('filters by operation and status (exact match)', () => {
-    expect(
-      ids(
-        filterLogs(
-          logs,
-          { operation: { type: 'text', value: 'VF Remoting' } },
-          {}
-        )
-      )
-    ).toEqual(['07L000000000003AAA'])
-    expect(
-      ids(filterLogs(logs, { status: { type: 'text', value: 'success' } }, {}))
-    ).toEqual([])
+  it('shows the date only for logs from another day', () => {
+    const now = new Date('2026-10-11T12:00:00')
+    expect(formatStartTime('2026-10-11T10:01:02', now)).toMatch(/^10:01:02$/)
+    expect(formatStartTime('2026-10-10T10:01:02', now)).toMatch(/10.*10:01:02$/)
+    expect(formatStartTime(undefined, now)).toBe('')
   })
 
-  it('filters by inclusive length and duration ranges', () => {
-    expect(
-      ids(
-        filterLogs(
-          logs,
-          {
-            length: { type: 'number', value: [4210, 120000] },
-            duration: { type: 'number', value: [0, 366] }
-          },
-          {}
-        )
-      )
-    ).toEqual(['07L000000000001AAA', '07L000000000003AAA'])
+  it('names the day of a time that is not today', () => {
+    const now = new Date('2026-10-11T12:00:00')
+    expect(formatClock('2026-10-11T13:44:00', now)).toMatch(/^13:44$/)
+    expect(formatClock('2026-10-12T13:44:00', now)).toMatch(/^tomorrow 13:44$/)
+    expect(formatClock('2026-10-14T13:44:00', now)).toMatch(/14, 13:44$/)
+    expect(formatClock(null, now)).toBe('')
   })
 
-  it('combines filters', () => {
-    expect(
-      ids(
-        filterLogs(
-          logs,
-          {
-            user: { type: 'text', value: 'Ada Admin' },
-            duration: { type: 'number', value: [100, 1000] }
-          },
-          {}
-        )
-      )
-    ).toEqual(['07L000000000003AAA'])
+  it('says how long ago the list was updated', () => {
+    expect(formatRelative(1000, 5000)).toBe('just now')
+    expect(formatRelative(0, 125_000)).toBe('2 min ago')
   })
 })

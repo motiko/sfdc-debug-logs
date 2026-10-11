@@ -15,8 +15,12 @@ export type { LogCategory } from './categories'
 // "12:01:02.123 (1234567)|EVENT_TYPE"
 const entryHeaderRegex = /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|([A-Z_]*)/
 
-// A Salesforce record id (15 or 18 characters).
-export const sfIdRegex = /\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b/g
+// A Salesforce record id: 3-character key prefix, 2-character instance, a
+// reserved "0", 9 characters, and for 18-character ids a 3-character
+// checksum of upper-case letters and digits 0-5. Other 15- and 18-character
+// words (parts of usernames, e-mail domains) aren't ids.
+export const sfIdRegex =
+  /\b[a-zA-Z0-9]{5}0[a-zA-Z0-9]{9}[A-Z0-5]{3}\b|\b[a-zA-Z0-9]{5}0[a-zA-Z0-9]{9}\b/g
 
 export interface SplitLog {
   // The lines before the first entry: API version and log levels, and the

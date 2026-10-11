@@ -171,6 +171,16 @@ describe('splitIds', () => {
     ])
   })
 
+  it('skips words that only look like ids (m7)', () => {
+    // Part of a username, and 18/15-character words that aren't ids.
+    expect(splitIds('user@00d1i000002wltfua2.example.com')).toEqual([
+      'user@00d1i000002wltfua2.example.com'
+    ])
+    expect(splitIds('ABCDEFGHIJKLMNOPQR abcdefghijklmno')).toEqual([
+      'ABCDEFGHIJKLMNOPQR abcdefghijklmno'
+    ])
+  })
+
   it('returns the whole text when there is no id', () => {
     expect(splitIds('12:01:02.123 (1245678)|EXECUTION_STARTED\n')).toEqual([
       '12:01:02.123 (1245678)|EXECUTION_STARTED\n'

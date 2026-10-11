@@ -1,6 +1,6 @@
 // The app's Redux store: state.logsPage (pages/logs/logs-slice.ts), with the
 // Salesforce client (global-sf.ts) as the thunks' extra argument and the
-// user's settings saved to sessionStorage (persisted-settings.ts).
+// user's settings saved to localStorage (persisted-settings.ts).
 import { configureStore } from '@reduxjs/toolkit'
 import globalSf from './global-sf'
 import logsPage, { initialLogsPageState } from './pages/logs/logs-slice'
@@ -10,11 +10,26 @@ import {
   settingsChanged
 } from './persisted-settings'
 
-export function createStore(storage: Storage = window.sessionStorage) {
+// localStorage and sessionStorage can throw when site data is blocked.
+const safe = (get: () => Storage) => {
+  try {
+    return get()
+  } catch {
+    return undefined
+  }
+}
+
+export function createStore(
+  storage: Storage | undefined = safe(() => window.localStorage),
+  legacyStorage: Storage | undefined = safe(() => window.sessionStorage)
+) {
   const store = configureStore({
     reducer: { logsPage },
     preloadedState: {
-      logsPage: { ...initialLogsPageState, ...loadSettings(storage) }
+      logsPage: {
+        ...initialLogsPageState,
+        ...(storage ? loadSettings(storage, legacyStorage) : {})
+      }
     },
     middleware: getDefaultMiddleware =>
       getDefaultMiddleware({
@@ -28,7 +43,8 @@ export function createStore(storage: Storage = window.sessionStorage) {
   let saved = store.getState().logsPage
   store.subscribe(() => {
     const current = store.getState().logsPage
-    if (settingsChanged(saved, current)) saveSettings(storage, current)
+    if (storage && settingsChanged(saved, current))
+      saveSettings(storage, current)
     saved = current
   })
   return store
