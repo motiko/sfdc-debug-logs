@@ -10,13 +10,13 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch",
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint ..",
-    "format": "prettier --write --ignore-path ../.prettierignore src vite.config.mjs ../e2e ../scripts ../eslint.config.js",
-    "format:check": "prettier --check --ignore-path ../.prettierignore src vite.config.mjs ../e2e ../scripts ../eslint.config.js",
+    "format": "prettier --write --ignore-path ../.prettierignore src vite.config.mjs build.mjs ../e2e ../scripts ../eslint.config.js",
+    "format:check": "prettier --check --ignore-path ../.prettierignore src vite.config.mjs build.mjs ../e2e ../scripts ../eslint.config.js",
     "react-devtools": "react-devtools"
   },
   "dependencies": {
@@ -25,6 +25,7 @@
     "material-ui": "1.0.0-beta.38",
     "material-ui-color-picker": "github:motiko/material-ui-color-picker#controlled",
     "material-ui-icons": "^1.0.0-beta.36",
+    "mousetrap": "^1.6.5",
     "prop-types": "^15.6.1",
     "rc-slider": "^8.6.1",
     "rc-tooltip": "^3.7.0",
@@ -40,6 +41,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@types/chrome": "^0.3.5",
+    "@types/mousetrap": "^1.6.15",
     "@vitejs/plugin-react": "^6.1.2",
     "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
