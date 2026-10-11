@@ -12,3 +12,6 @@ tags
 
 .chrome-test/
 .env.local
+
+# Claude Code agent worktrees
+.claude/worktrees/
