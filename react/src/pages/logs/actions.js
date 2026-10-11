@@ -120,23 +120,26 @@ export function search(searchTerm) {
 export function checkIsLogging() {
   return (dispatch, getState, sf) => {
     return sf
-      .isTracing(sf.userId)
+      .getUserId()
+      .then(userId => sf.isTracing(userId))
       .then(isLogging => dispatch({ type: 'SET_LOGGING', isLogging }))
   }
 }
 
 export function startLogging() {
   return (dispatch, getState, sf) => {
-    sf.traceUser(sf.userId).then(
-      res => {
-        if (res && res.success) {
-          dispatch({ type: 'SET_LOGGING', isLogging: true })
-        } else {
-          dispatch(checkIsLogging())
-        }
-      },
-      () => dispatch(checkIsLogging())
-    )
+    sf.getUserId()
+      .then(userId => sf.traceUser(userId))
+      .then(
+        res => {
+          if (res && res.success) {
+            dispatch({ type: 'SET_LOGGING', isLogging: true })
+          } else {
+            dispatch(checkIsLogging())
+          }
+        },
+        () => dispatch(checkIsLogging())
+      )
   }
 }
 

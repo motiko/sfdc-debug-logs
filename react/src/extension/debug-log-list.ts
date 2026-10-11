@@ -341,7 +341,9 @@ function clearTable() {
 async function addCurrentUser(event?: Event) {
   if (event) event.preventDefault()
   try {
-    await sf.traceUser(getUserId())
+    // The disco cookie isn't readable on every page; ask Salesforce then.
+    const userId = getUserId() || (await sf.currentUser()).userId
+    await sf.traceUser(userId)
     location.reload()
   } catch (err) {
     console.error('Apex Debugger: adding the current user failed', err)
