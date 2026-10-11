@@ -42,7 +42,13 @@
   gap: 8px 16px;
 }
 
-.ad-toolbar .ad-spacer { flex: 1 }
+.ad-toolbar .ad-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
 
 .ad-toolbar .ad-separator {
   width: 1px;

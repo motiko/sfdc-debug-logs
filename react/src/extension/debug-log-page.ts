@@ -263,22 +263,27 @@ function buildToolbar(): HTMLElement {
         },
         'T'
       ),
-      h('span', { className: 'ad-spacer' }),
-      expandAllButton,
-      h('button', {
-        type: 'button',
-        id: 'adDownloadLog',
-        className: 'ad-button',
-        text: 'Download log',
-        onclick: downloadLog
-      }),
-      h('button', {
-        type: 'button',
-        className: 'ad-button ad-button-primary',
-        text: 'Open in Apex Debugger',
-        onclick: openInApp
-      }),
-      anchor
+      // The actions wrap to the next row together, never one by one.
+      h(
+        'div',
+        { className: 'ad-toolbar-actions' },
+        expandAllButton,
+        h('button', {
+          type: 'button',
+          id: 'adDownloadLog',
+          className: 'ad-button',
+          text: 'Download',
+          title: 'Download this log as a .log file',
+          onclick: downloadLog
+        }),
+        h('button', {
+          type: 'button',
+          className: 'ad-button ad-button-primary',
+          text: 'Open in Apex Debugger',
+          onclick: openInApp
+        }),
+        anchor
+      )
     )
   )
 }
