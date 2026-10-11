@@ -234,8 +234,8 @@ export function countLogs(): Thunk<Promise<{ mine: number; all: number }>> {
   return async (dispatch, getState, sf) => {
     const userId = await sf.getUserId()
     const [mine, all] = await Promise.all([
-      sf.countLogs({ userId }),
-      sf.countLogs()
+      sf.countLogs({ scope: 'user', userId }),
+      sf.countLogs({ scope: 'all' })
     ])
     return { mine, all }
   }
@@ -248,8 +248,14 @@ export function deleteLogs(
   onProgress: (progress: DeleteProgress) => void
 ): Thunk<Promise<number>> {
   return async (dispatch, getState, sf) => {
-    const userId = scope === 'mine' ? await sf.getUserId() : undefined
-    const deleted = await sf.deleteLogs({ userId, onProgress })
+    // 'mine' needs the user's id; the client refuses a missing one rather
+    // than deleting every user's logs.
+    const deleted = await sf.deleteLogs(
+      scope === 'all'
+        ? { scope: 'all' }
+        : { scope: 'user', userId: await sf.getUserId() },
+      { onProgress }
+    )
     dispatch(
       showToast(
         deleted === 1

@@ -441,7 +441,8 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
   const update = () => {
     warning.hidden = scope() !== 'all'
     const count = counts[scope()]
-    confirm.disabled = running || !count
+    confirm.disabled =
+      running || !count || (scope() === 'mine' && (mine.disabled || !userId))
     confirm.textContent =
       count === null
         ? 'Delete logs'
@@ -470,12 +471,16 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
     update()
     progress.hidden = false
     try {
-      const deleted = await sf.deleteLogs({
-        userId: chosen === 'mine' ? userId : undefined,
-        onProgress: p => {
-          status.textContent = STEP_TEXT[p.step]
+      // "Only my logs" needs the user's id; without one the client refuses
+      // (it never widens to all users).
+      const deleted = await sf.deleteLogs(
+        chosen === 'all' ? { scope: 'all' } : { scope: 'user', userId },
+        {
+          onProgress: p => {
+            status.textContent = STEP_TEXT[p.step]
+          }
         }
-      })
+      )
       running = false
       dialog.close()
       document.getElementById('adDeleteResult').textContent =
@@ -496,22 +501,48 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
   followColorMode(dialog)
   dialog.showModal()
   cancel.focus()
+  const showError = (text: string) => {
+    status.className = 'ad-error'
+    status.textContent = text
+  }
+  // The two counts separately: if the user can't be identified, "Only my
+  // logs" is disabled (never replaced by all users' logs), and the user can
+  // still choose all users' logs explicitly.
   ;(async () => {
-    try {
-      userId = getUserId() || (await sf.currentUser()).userId
-      const [mineTotal, allTotal] = await Promise.all([
-        sf.countLogs({ userId }),
-        sf.countLogs()
-      ])
-      counts.mine = mineTotal
-      counts.all = allTotal
-      mineCount.textContent = countText(mineTotal)
-      allCount.textContent = countText(allTotal)
-    } catch (err) {
-      const explained = explainError(err, location.hostname)
-      status.className = 'ad-error'
-      status.textContent = `Couldn’t count the logs. ${explained.title}`
-    }
+    const mineReady = (async () => {
+      try {
+        const id = getUserId() || (await sf.currentUser()).userId
+        if (!/^[a-zA-Z0-9]{15}(?:[a-zA-Z0-9]{3})?$/.test(id || '')) {
+          throw new Error('no user id')
+        }
+        userId = id
+      } catch {
+        mine.disabled = true
+        mineCount.textContent = ' (unavailable)'
+        showError(
+          'Couldn’t tell which user you are, so “Only my logs” is unavailable. Reload the page, or log in again.'
+        )
+        return
+      }
+      try {
+        counts.mine = await sf.countLogs({ scope: 'user', userId })
+        mineCount.textContent = countText(counts.mine)
+      } catch (err) {
+        const explained = explainError(err, location.hostname)
+        showError(`Couldn’t count your logs. ${explained.title}`)
+      }
+    })()
+    const allReady = sf.countLogs({ scope: 'all' }).then(
+      total => {
+        counts.all = total
+        allCount.textContent = countText(total)
+      },
+      err => {
+        const explained = explainError(err, location.hostname)
+        showError(`Couldn’t count the logs. ${explained.title}`)
+      }
+    )
+    await Promise.all([mineReady, allReady])
     update()
   })()
 }

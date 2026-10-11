@@ -181,19 +181,19 @@ describe('deleteLogs', () => {
     const { store, sf, state } = setup({ sf: { deleteLogs: deleteLogsFn } })
     const progress = vi.fn()
     expect(await store.dispatch(deleteLogs('mine', progress) as never)).toBe(3)
-    expect(deleteLogsFn).toHaveBeenCalledWith({
-      userId: USER,
-      onProgress: progress
-    })
+    expect(deleteLogsFn).toHaveBeenCalledWith(
+      { scope: 'user', userId: USER },
+      { onProgress: progress }
+    )
     expect(state().toast.message).toBe('Deleted 3 logs')
     expect(sf.recentLogs).toHaveBeenCalled()
   })
 
-  it("passes no user for 'all'", async () => {
-    const deleteLogsFn = vi.fn(async (options: { userId?: string }) => 1)
+  it("passes the all scope explicitly for 'all'", async () => {
+    const deleteLogsFn = vi.fn(async (scope: unknown, options: unknown) => 1)
     const { store, state } = setup({ sf: { deleteLogs: deleteLogsFn } })
     await store.dispatch(deleteLogs('all', () => {}) as never)
-    expect(deleteLogsFn.mock.calls[0][0].userId).toBeUndefined()
+    expect(deleteLogsFn.mock.calls[0][0]).toEqual({ scope: 'all' })
     expect(state().toast.message).toBe('Deleted 1 log')
   })
 })
