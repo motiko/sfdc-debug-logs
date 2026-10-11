@@ -13,7 +13,7 @@ Run the steps in order and stop at the first failure. Report what ran and what f
 npm --prefix react run build
 ```
 
-If a React source file changed, `chrome/app/js/build/app.js` must change too and be committed with it (see CLAUDE.md).
+The output in `chrome/app/js/build/` is gitignored; don't commit it (see CLAUDE.md).
 
 ## 2. Lint
 

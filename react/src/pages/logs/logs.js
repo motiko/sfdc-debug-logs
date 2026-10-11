@@ -40,18 +40,6 @@ const toolbarTheme = createMuiTheme({
   palette: { primary: teal, secondary: indigo, type: 'dark' }
 })
 
-@connect(
-  state => state.logsPage,
-  dispatch => ({
-    refresh: () => dispatch(loadLogs()),
-    setMessage: msg => dispatch(setMessage(msg)),
-    deleteAll: () => dispatch(deleteAll()),
-    search: searchTerm => dispatch(search(searchTerm)),
-    updateMaxLogs: newMaxLogs => dispatch(updateMaxLogs(newMaxLogs)),
-    toggleFiltersDialog: () => dispatch(toggleFiltersDialog()),
-    toggleStyleDialog: () => dispatch(toggleStyleDialog())
-  })
-)
 class LogsPage extends React.Component {
   componentDidCatch(error, info) {
     setMessage(`Error: ${error}`)
@@ -229,4 +217,15 @@ class LogsPage extends React.Component {
   }
 }
 
-export default LogsPage
+export default connect(
+  state => state.logsPage,
+  dispatch => ({
+    refresh: () => dispatch(loadLogs()),
+    setMessage: msg => dispatch(setMessage(msg)),
+    deleteAll: () => dispatch(deleteAll()),
+    search: searchTerm => dispatch(search(searchTerm)),
+    updateMaxLogs: newMaxLogs => dispatch(updateMaxLogs(newMaxLogs)),
+    toggleFiltersDialog: () => dispatch(toggleFiltersDialog()),
+    toggleStyleDialog: () => dispatch(toggleStyleDialog())
+  })
+)(LogsPage)

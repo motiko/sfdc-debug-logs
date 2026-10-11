@@ -63,12 +63,7 @@ const styles = theme => ({
   }
 })
 
-@withStyles(styles)
-@connect(
-  mapStateToProps,
-  mapDispatchToProps
-)
-export default class LogView extends React.Component {
+class LogView extends React.Component {
   componentDidMount() {
     this.props.fetchLogBody(this.props.match.params.id)
   }
@@ -168,3 +163,7 @@ export default class LogView extends React.Component {
     )
   }
 }
+
+export default withStyles(styles)(
+  connect(mapStateToProps, mapDispatchToProps)(LogView)
+)

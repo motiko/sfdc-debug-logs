@@ -47,6 +47,19 @@ Standalone User Scripts (Not updated)
 
 GreaseMonkey scripts on [openuserjs](https://openuserjs.org/users/motiko/scripts)
 
+Development
+-----------------------------
+
+The extension lives in `chrome/app`. The full-page log viewer is a React app in `react/`, built with Vite into `chrome/app/js/build/` (not committed). Build it before loading `chrome/app` as an unpacked extension:
+
+```bash
+cd react
+npm ci
+npm run build   # or `npm run dev` to rebuild on save
+```
+
+`scripts/chrome-dev.sh` builds the app if needed and starts a test Chrome with the extension loaded.
+
 Releasing
 -----------------------------
 

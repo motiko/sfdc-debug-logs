@@ -9,26 +9,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository layout
 
 - `chrome/app/`: the unpacked extension (`manifest.json`, service worker, content scripts, options page, CSS). Plain JS, no bundler.
-- `react/`: source for the full-page log viewer (`html/app.html`). The only part with a build step. Its output, `chrome/app/js/build/app.js`, **is committed**, so rebuild and commit it together with React source changes.
+- `react/`: source for the full-page log viewer (`html/app.html`). The only part with a build step. Its output, `chrome/app/js/build/app.js` and `app.css`, is **not committed** (gitignored): run `npm run build` in `react/` before loading `chrome/app` unpacked.
 - `scripts/`: local dev tooling (test browser launcher, Salesforce login).
 - `e2e/`: end-to-end flow against a real org (see below).
 
 ## Build commands (run in `react/`)
 
 ```bash
-npm run build   # production bundle (browserify + babelify + uglify) -> chrome/app/js/build/app.js
-npm run watch   # watchify dev build to the same file
-npm test        # runs `standard` (lint only; there are no unit tests)
+npm run build      # Vite production build -> chrome/app/js/build/app.js + app.css
+npm run dev        # vite build --watch: rebuilds on save, then reload the app page
+npm run typecheck  # tsc --noEmit
+npm test           # currently = typecheck (there are no unit tests)
 ```
 
-The toolchain is Babel 7 with browserify, on old libraries (material-ui `1.0.0-beta.38` pinned exactly, React 16, react-router 4, Redux 3). Keep to those APIs rather than modern equivalents. In material-ui beta.38 the `color="contrast"` prop no longer exists; use `color="inherit"`. Use `material-ui-icons` for icons, not `@material-ui/icons`: the latter pulls in `@material-ui/core`, a second JSS instance whose generated class names collide with material-ui's and break layouts. Formatting follows `react/.prettierrc` (no semicolons, single quotes).
+The toolchain is Vite (`react/vite.config.mjs`) plus TypeScript for type checking only (`tsconfig.json`, `allowJs`, not strict); new files can be `.ts`. The output is one classic IIFE script plus one stylesheet, linked from `html/app.html`, so it satisfies the extension CSP (`script-src 'self'`: no inline scripts, no eval, no code splitting). Sources keep JSX in `.js` files; a small plugin in `vite.config.mjs` compiles it. Don't use decorators: wrap components explicitly, e.g. `export default withStyles(styles)(connect(mapState, mapDispatch)(X))`. The React app imports `js-beautify` from npm; the vendored copy in `chrome/app/js/lib/beautify` is for content scripts. The app runs on old libraries (material-ui `1.0.0-beta.38` pinned exactly, React 16, react-router 4, Redux 3). Keep to those APIs rather than modern equivalents. In material-ui beta.38 the `color="contrast"` prop no longer exists; use `color="inherit"`. Use `material-ui-icons` for icons, not `@material-ui/icons`: the latter pulls in `@material-ui/core`, a second JSS instance whose generated class names collide with material-ui's and break layouts. Formatting follows `react/.prettierrc` (no semicolons, single quotes).
 
 ## Local Chrome testing
 
 `scripts/chrome-dev.sh [url]` launches an isolated browser with the unpacked `chrome/app` extension. Branded Chrome 137+ ignores `--load-extension`, so the script downloads **Chrome for Testing** (stable) into `.chrome-test/` (gitignored). The profile in `.chrome-test/profile` persists. The DevTools protocol is on port 9222 (override with `CDP_PORT`).
 
 - **Auto-login:** if `.env.local` exists (gitignored; keys in `.env.example`: `SF_USER`, `SF_PASS`, `SF_TOKEN`, optional `SF_LOGIN_URL`) and no URL argument is given, Chrome starts blank and `scripts/sf-login.mjs` logs in via SOAP `login()` + `frontdoor.jsp`, landing on the Debug Logs page. The session id goes over CDP, not the command line. Rerun it against a running browser with `node scripts/sf-login.mjs [retURL]`.
-- After changing content scripts or the service worker, reload the extension on `chrome://extensions`. React changes need a rebuild and a page reload.
+- The script builds the React bundle if it is missing (running `npm ci` in `react/` first if needed). After changing content scripts or the service worker, reload the extension on `chrome://extensions`. React changes need a rebuild (or `npm run dev` running) and a page reload.
 - **Session token:** the `sid` cookie is HttpOnly on current Salesforce, so content scripts can't read it. `getSession()` in `utils.js` asks the service worker (`getToken` message), which reads `sid` with `chrome.cookies` for the org's `my.salesforce.com` host (`apiHostFor()` maps Lightning and `salesforce-setup.com` hosts) and returns `{ token, host }`. It answers only for org hosts (`isOrgHost()`): content scripts also run on public Salesforce Sites under `*.force.com`, which must never get a session. Only if there's no cookie does it fall back to the token saved on the options page (`chrome.storage.local.token`). The React app asks the same way after a 401. The e2e flow saves no token, so it exercises the cookie path.
 
 ## End-to-end flow (`e2e/`)
@@ -60,7 +61,7 @@ CI: `.github/workflows/e2e.yml` runs the flow on pushes to `main`, same-repo pul
 
 ## Releasing
 
-See "Releasing" in README.md. `scripts/version.sh patch|minor|major` bumps `chrome/app/manifest.json` (the source of truth for the version), commits and tags `vX.Y.Z`; `git push --follow-tags` runs `.github/workflows/release.yml`, which builds, zips `chrome/app`, creates a GitHub release and calls `publish-chrome-web-store.yml` (Chrome Web Store API v2, keyless auth via workload identity federation, set up as in `docs/chrome-web-store-publishing.md`). Retry a failed upload with `gh workflow run publish-chrome-web-store.yml -f tag=vX.Y.Z`. The Salesforce API version is set in three places, kept equal: `API_PATH`/`ASYNC_API_PATH` in `chrome/app/js/utils.js` (content scripts), `react/src/api/version.js` (app) and `API_VERSION` in `scripts/lib/sf-auth.mjs` (e2e). Any new remote host the app calls must be added to `content_security_policy.extension_pages` `connect-src` and to `host_permissions`.
+See "Releasing" in README.md. `scripts/version.sh patch|minor|major` bumps `chrome/app/manifest.json` (the source of truth for the version), commits and tags `vX.Y.Z`; `git push --follow-tags` runs `.github/workflows/release.yml`, which builds the React bundle (it is not in git), zips `chrome/app`, creates a GitHub release and calls `publish-chrome-web-store.yml` (Chrome Web Store API v2, keyless auth via workload identity federation, set up as in `docs/chrome-web-store-publishing.md`). Retry a failed upload with `gh workflow run publish-chrome-web-store.yml -f tag=vX.Y.Z`. The Salesforce API version is set in three places, kept equal: `API_PATH`/`ASYNC_API_PATH` in `chrome/app/js/utils.js` (content scripts), `react/src/api/version.ts` (app) and `API_VERSION` in `scripts/lib/sf-auth.mjs` (e2e). Any new remote host the app calls must be added to `content_security_policy.extension_pages` `connect-src` and to `host_permissions`.
 
 ## Claude tooling
 

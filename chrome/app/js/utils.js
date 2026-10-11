@@ -1,5 +1,5 @@
 // Salesforce REST API path for every content-script call. Keep in sync with
-// react/src/api/version.js and scripts/lib/sf-auth.mjs.
+// react/src/api/version.ts and scripts/lib/sf-auth.mjs.
 const API_PATH = '/services/data/v62.0';
 const ASYNC_API_PATH = '/services/async/62.0'; // Bulk API 1.0
 

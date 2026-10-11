@@ -1,4 +1,3 @@
-import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
 import { API } from './version'
 
 export default class Tooling {

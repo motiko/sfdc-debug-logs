@@ -29,17 +29,7 @@ const styles = theme => ({
   toggleContainer: { marginTop: 'auto', marginBottom: theme.spacing.unit }
 })
 
-@withStyles(styles)
-@connect(
-  state => state.logsPage.styleConfig,
-  dispatch => ({
-    toggleStyleDialog: () => dispatch(toggleStyleDialog()),
-    toggleTextWrap: () => dispatch(toggleTextWrap()),
-    updateFontSize: newSize => dispatch(updateFontSize(newSize)),
-    updateTheme: newTheme => dispatch(updateTheme(newTheme))
-  })
-)
-export default class StyleDialog extends React.Component {
+class StyleDialog extends React.Component {
   render() {
     const { onClose, open, fontSize, theme, classes, textWrap } = this.props
     const { updateFontSize, toggleTextWrap } = this.props
@@ -115,3 +105,15 @@ export default class StyleDialog extends React.Component {
     )
   }
 }
+
+export default withStyles(styles)(
+  connect(
+    state => state.logsPage.styleConfig,
+    dispatch => ({
+      toggleStyleDialog: () => dispatch(toggleStyleDialog()),
+      toggleTextWrap: () => dispatch(toggleTextWrap()),
+      updateFontSize: newSize => dispatch(updateFontSize(newSize)),
+      updateTheme: newTheme => dispatch(updateTheme(newTheme))
+    })
+  )(StyleDialog)
+)

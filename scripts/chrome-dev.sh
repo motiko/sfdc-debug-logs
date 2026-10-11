@@ -29,9 +29,14 @@ if [ -z "$URL" ]; then
   fi
 fi
 
+# The React bundle isn't committed; build it on first run. While developing,
+# keep `npm run dev` running in react/ to rebuild on save.
 if [ ! -f "$EXT/js/build/app.js" ]; then
-  echo "chrome/app/js/build/app.js is missing; run 'npm run build' in react/ first." >&2
-  exit 1
+  echo "chrome/app/js/build/app.js is missing; building it." >&2
+  if [ ! -d "$ROOT/react/node_modules" ]; then
+    npm ci --prefix "$ROOT/react"
+  fi
+  npm run build --prefix "$ROOT/react"
 fi
 
 CHROME="$(npx -y @puppeteer/browsers install chrome@stable --path "$CACHE" 2>/dev/null | tail -1 | cut -d' ' -f2-)"

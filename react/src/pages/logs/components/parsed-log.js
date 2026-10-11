@@ -6,6 +6,7 @@ import RemoveIcon from 'material-ui-icons/RemoveCircle'
 import IconButton from 'material-ui/IconButton'
 import { withStyles } from 'material-ui/styles'
 import { connect } from 'react-redux'
+import jsBeautify from 'js-beautify'
 import { sfIdRegex, logEventToType } from '../constants'
 const styles = theme => ({
   expandButton: {
@@ -89,8 +90,7 @@ export default connect(mapStateToProps, () => ({}))(
   withStyles(styles)(ParsedLog)
 )
 
-@withStyles(styles)
-class LogElement extends React.Component {
+class LogElementBase extends React.Component {
   constructor(props) {
     super(props)
     this.toggleIndentation = this.toggleIndentation.bind(this)
@@ -172,15 +172,17 @@ class LogElement extends React.Component {
   }
 }
 
+const LogElement = withStyles(styles)(LogElementBase)
+
 function beautifyUserDebug(userDebug) {
   if (looksLikeHtml(userDebug)) {
-    return html_beautify(userDebug)
+    return jsBeautify.html(userDebug)
   }
   if (isJsonString(userDebug)) {
     return JSON.stringify(JSON.parse(userDebug), null, 2)
   }
   if (looksLikeSfdcObject(userDebug)) {
-    return js_beautify(sfdcObjectBeautify(userDebug))
+    return jsBeautify.js(sfdcObjectBeautify(userDebug))
   }
   return userDebug
 }

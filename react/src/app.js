@@ -7,12 +7,7 @@ import ReactDOM from 'react-dom'
 import { MuiThemeProvider, createMuiTheme } from 'material-ui/styles'
 import indigo from 'material-ui/colors/indigo'
 import teal from 'material-ui/colors/teal'
-import {
-  HashRouter as Router,
-  Route,
-  hashHistory,
-  Switch
-} from 'react-router-dom'
+import { HashRouter as Router, Route, Switch } from 'react-router-dom'
 import { Provider } from 'react-redux'
 import idbKeyval from 'idb-keyval'
 import thunk from 'redux-thunk'
@@ -33,7 +28,7 @@ class App extends React.Component {
 
   render() {
     return (
-      <Router history={hashHistory}>
+      <Router>
         <Switch>
           <Route path="/logs" render={ownProps => <LogsPage {...ownProps} />} />
           <Route render={ownProps => <LogsPage {...ownProps} />} />
