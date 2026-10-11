@@ -2,6 +2,9 @@
 // the options and app tabs, and answers the content scripts' and the app's
 // messages, keyed on request.command.
 import { apiHostFor, isOrgHost } from '../core/org-hosts'
+import { appPageUrl, appTabName, parseDisco } from '../core/app-tab'
+import { createSalesforceClient } from '../core/salesforce/client'
+import { createRequest } from '../core/salesforce/request'
 import {
   loadPageShortcuts,
   SHORTCUTS_STORAGE_KEY
@@ -85,9 +88,71 @@ chrome.runtime.onInstalled.addListener(async () => {
   })
 })
 
-chrome.action.onClicked.addListener(() =>
-  openOrFocusTab(chrome.runtime.getURL('html/options.html'), 'options_tab')
-)
+// The toolbar button: on a Salesforce org tab (Classic, Lightning, Lightning
+// Setup) it opens that org's log viewer, or focuses it if it's open, like
+// Shift+W; anywhere else (other sites, public Salesforce Sites, no session) it
+// opens the options page.
+async function onActionClicked(tab: { url?: string } | undefined) {
+  if (!(await openAppForTab(tab))) {
+    openOrFocusTab(chrome.runtime.getURL('html/options.html'), 'options_tab')
+  }
+}
+
+chrome.action.onClicked.addListener(tab => {
+  onActionClicked(tab)
+})
+
+// Opens (or focuses) the log viewer for the org of a tab. Resolves false,
+// opening nothing, if the tab isn't on an org host or has no session. The
+// tab's URL is readable because the org hosts are in host_permissions.
+async function openAppForTab(
+  tab: { url?: string } | undefined
+): Promise<boolean> {
+  const url = tab && tab.url
+  let tabHost: string
+  try {
+    tabHost = new URL(url).hostname
+  } catch (e) {
+    return false
+  }
+  if (!isOrgHost(tabHost)) return false
+  const session = await getSessionForUrl(url)
+  if (!session.token) return false
+  const host = session.host || apiHostFor(tabHost)
+  const ids = await orgIdsFor(tabHost, host, session.token)
+  openOrFocusTab(
+    appPageUrl(chrome.runtime.getURL('html/app.html'), ids, {
+      token: session.token,
+      host
+    }),
+    appTabName(ids.orgId)
+  )
+  return true
+}
+
+// The org and user ids, from Salesforce's disco cookie (as Shift+W reads them
+// on the page), or else from Salesforce's userinfo.
+async function orgIdsFor(tabHost: string, apiHost: string, token: string) {
+  for (const candidate of new Set([apiHost, apiHostFor(tabHost), tabHost])) {
+    const cookie = await chrome.cookies.get({
+      url: `https://${candidate}/`,
+      name: 'disco'
+    })
+    const ids = parseDisco(cookie && cookie.value)
+    if (ids.orgId && ids.userId) return ids
+  }
+  const client = createSalesforceClient(
+    createRequest({
+      origin: `https://${apiHost}`,
+      token,
+      getToken: async () => token
+    })
+  )
+  return client.currentUser().catch(() => ({
+    orgId: undefined,
+    userId: undefined
+  }))
+}
 
 // Returns { token, host } for a Salesforce page URL. The sid cookie is
 // HttpOnly, so content scripts can't read it, but chrome.cookies can. Falls
@@ -116,6 +181,8 @@ async function getSessionForUrl(
 // The e2e flow (e2e/apex-logs.test.mjs) calls this from the worker's console
 // to check that only org hosts get a session.
 ;(self as any).getSessionForUrl = getSessionForUrl
+// And this one with a tab ({ url }), since it can't click the toolbar button.
+;(self as any).onActionClicked = onActionClicked
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.command) {

@@ -16,6 +16,7 @@ import {
   pageSalesforce,
   parseDiscoCookie
 } from '../core/page-session'
+import { appTabName } from '../core/app-tab'
 
 // Combinations that also work while a field has focus (they have Ctrl/Cmd,
 // so they never type a character): Save.
@@ -83,7 +84,7 @@ async function openApp() {
   const session = await getSession()
   // Focus the org's log viewer if it is already open.
   chrome.runtime
-    .sendMessage({ command: 'focusAppTab', name: `app_${orgId}` })
+    .sendMessage({ command: 'focusAppTab', name: appTabName(orgId) })
     .then(appOpened => {
       if (!appOpened) {
         if (document.location.hostname.includes('.salesforce')) {

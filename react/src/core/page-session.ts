@@ -2,6 +2,7 @@
 // the Salesforce client that calls the API with that session.
 import { createSalesforceClient } from './salesforce/client'
 import { createRequest } from './salesforce/request'
+import { appPageUrl, appTabName, parseDisco } from './app-tab'
 
 export interface Session {
   token: string | undefined
@@ -53,8 +54,7 @@ export function parseDiscoCookie(): {
     )
     return { orgId: undefined, userId: undefined }
   }
-  const ids = disco.split(':')
-  return { orgId: ids[1], userId: ids[2] }
+  return parseDisco(disco)
 }
 
 export function getUserId(): string | undefined {
@@ -77,10 +77,12 @@ export function openAppMessage(
   { token, host }: Session
 ) {
   return {
-    url: `${chrome.runtime.getURL('html/app.html')}?oid=${orgId}&uid=${userId}&sid=${encodeURIComponent(
-      token
-    )}&host=${encodeURIComponent(host)}`,
-    name: `app_${orgId}`,
+    url: appPageUrl(
+      chrome.runtime.getURL('html/app.html'),
+      { orgId, userId },
+      { token, host }
+    ),
+    name: appTabName(orgId),
     command: 'openOrFocusTab'
   }
 }
