@@ -341,3 +341,18 @@ describe('deleteAllLogs', () => {
     expect(calls).toHaveLength(1)
   })
 })
+
+describe('currentUser', () => {
+  it('reads the user and org ids from userinfo', async () => {
+    const { client } = fakeSalesforce([
+      [
+        is('GET', '/services/oauth2/userinfo'),
+        () => ({ user_id: USER, organization_id: '00D000000000001AAA' })
+      ]
+    ])
+    expect(await client.currentUser()).toEqual({
+      userId: USER,
+      orgId: '00D000000000001AAA'
+    })
+  })
+})
