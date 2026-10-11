@@ -6,7 +6,7 @@
 // indicators, dialog focus return). Used by the ux-ui-review agent
 // (.claude/agents/ux-ui-review.md), and meant to be rerun after UI changes.
 //
-//   node ux-audit.mjs [--out <dir>] [--views app,classic,options]
+//   node ux-audit.mjs [--out <dir>] [--views app,classic,options,callouts]
 //                     [--sizes 1440x900,1024x768] [--compare <previous out dir>]
 //                     [--mock]
 //
@@ -46,7 +46,7 @@ const AXE_PATH = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 const { values: args } = parseArgs({
   options: {
     out: { type: 'string', default: join(HERE, 'ux-artifacts') },
-    views: { type: 'string', default: 'app,classic,options' },
+    views: { type: 'string', default: 'app,classic,options,callouts' },
     sizes: { type: 'string', default: '1440x900,1024x768' },
     compare: { type: 'string' },
     mock: { type: 'boolean', default: process.env.SF_MOCK === '1' }
@@ -1606,6 +1606,137 @@ async function optionsView(ctx) {
   await page.close()
 }
 
+// --- Callouts (CALLOUT_*, NAMED_CREDENTIAL_* entries) -----------------------
+// A log with HTTP callouts, in the app and on the classic log page: collapsed,
+// one value expanded, every value expanded, and dark mode. Mock org only: a
+// real org needs a Remote Site Setting or Named Credential for a callout.
+
+const CALLOUT_MARKER = `UXCALLOUT${Date.now()}`
+const CALLOUT_APEX = `
+HttpRequest req = new HttpRequest();
+req.setEndpoint('callout:Orders_API/v1/orders?ref=${CALLOUT_MARKER}');
+req.setMethod('POST');
+req.setBody(JSON.serialize(new Map<String, Object>{ 'marker' => '${CALLOUT_MARKER}', 'lines' => new List<Object>{ 1, 2, 3 } }));
+HttpResponse res = new Http().send(req);
+System.debug(res.getBody());
+HttpRequest ping = new HttpRequest();
+ping.setEndpoint('https://api.example.com/ping');
+ping.setMethod('GET');
+HttpResponse pong = new Http().send(ping);
+System.debug('Callouts done ' + pong.getStatusCode());
+`
+
+let calloutLog = null // one log for every size
+
+async function calloutsView(ctx) {
+  const V = 'callouts'
+  if (!args.mock) {
+    log('callouts: mock org only, skipped')
+    return
+  }
+  if (!calloutLog) {
+    const since = new Date(Date.now() - 60000)
+    await ctx.sf.executeAnonymous(CALLOUT_APEX)
+    calloutLog = (await ctx.sf.findLogs([CALLOUT_MARKER], { since }))[CALLOUT_MARKER]
+  }
+  // Scrolls the first line (in `selector`) containing `text` near the top of
+  // its scrolling area (not the document, which scrollIntoView would also
+  // move) and clicks its `button` if given; false if there's no such line or
+  // button.
+  const showLine = (page, selector, text, button = null) =>
+    page.evaluate(
+      (selector, text, button) => {
+        const line = [...document.querySelectorAll(selector)].find(d => d.textContent.includes(text))
+        if (!line) return false
+        let box = line.parentElement
+        while (box && !(box.scrollHeight > box.clientHeight && /auto|scroll/.test(getComputedStyle(box).overflowY)))
+          box = box.parentElement
+        const scroller = box || document.scrollingElement
+        const top = box ? box.getBoundingClientRect().top : 0
+        scroller.scrollTop += line.getBoundingClientRect().top - top - 120
+        if (!button) return true
+        const toggle = line.querySelector(button)
+        if (!toggle) return false
+        toggle.click()
+        return true
+      },
+      selector,
+      text,
+      button
+    )
+  const toggleLine = (page, selector, text, button) => showLine(page, selector, text, button)
+  const dark = async (page, on) => {
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: on ? 'dark' : 'light' }])
+    await delay(600)
+  }
+
+  // React app.
+  {
+    const ROW = 'pre > div'
+    const page = await newPage(ctx)
+    await dark(page, false)
+    await page.goto(`${appUrl(ctx)}#/logs/${calloutLog.Id}`, { waitUntil: 'networkidle2' })
+    await waitForText(page, 'Callouts done', 30000)
+    await delay(800)
+    await capture(ctx, page, V, 'app-collapsed')
+    if (await toggleLine(page, ROW, 'NAMED_CREDENTIAL_REQUEST', 'button[aria-expanded]')) {
+      await delay(400)
+      await capture(ctx, page, V, 'app-one-expanded')
+      await dark(page, true)
+      await capture(ctx, page, V, 'app-one-expanded-dark')
+      await dark(page, false)
+    } else summary.errors.push('callouts: no expand toggle on the Named Credential request in the app')
+    const expandAll = await byName(page, [/^expand values$/i])
+    if (expandAll) {
+      await safeClick(expandAll)
+      await delay(600)
+      await showLine(page, ROW, 'NAMED_CREDENTIAL_REQUEST')
+      await capture(ctx, page, V, 'app-all-expanded')
+      await dark(page, true)
+      await capture(ctx, page, V, 'app-all-expanded-dark')
+      await dark(page, false)
+    } else summary.errors.push('callouts: no "Expand values" control in the app')
+    if (ctx.primary) saveKeyboard(`${V}-keyboard-app`, await tabThrough(page, 'callouts app log', { maxStops: 40 }))
+    summary.pageErrors = { ...(summary.pageErrors || {}), [`callouts-app@${ctx.size.label}`]: page.errors.map(redact) }
+    await page.close()
+  }
+
+  // Classic log page.
+  {
+    const LINE = '#debugText .callout'
+    const BUTTON = '.expandUserDebugBtn'
+    const page = await newPage(ctx)
+    await dark(page, false)
+    await gotoSalesforce(ctx, page, `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${calloutLog.Id}`)
+    await waitForText(page, 'Callouts done', 30000)
+    await delay(1500)
+    const themeSelect = await controlByLabel(page, /log colors|style|theme/i)
+    if (themeSelect) await chooseOption(page, themeSelect, 'Match color mode').catch(() => {})
+    await capture(ctx, page, V, 'classic-collapsed', { scope: CLASSIC_LOG_SCOPE })
+    if (await toggleLine(page, LINE, 'NAMED_CREDENTIAL_REQUEST', BUTTON)) {
+      await delay(400)
+      await capture(ctx, page, V, 'classic-one-expanded', { scope: CLASSIC_LOG_SCOPE })
+      await dark(page, true)
+      await capture(ctx, page, V, 'classic-one-expanded-dark', { scope: CLASSIC_LOG_SCOPE })
+      await dark(page, false)
+      await toggleLine(page, LINE, 'NAMED_CREDENTIAL_REQUEST', BUTTON) // collapse again
+    } else summary.errors.push('callouts: no expand button on the Named Credential request on the classic page')
+    const expandAll = await byName(page, [/expand all/i])
+    if (expandAll) {
+      await safeClick(expandAll)
+      await delay(1000)
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await capture(ctx, page, V, 'classic-all-expanded', { scope: CLASSIC_LOG_SCOPE, fullPage: true })
+      await dark(page, true)
+      await capture(ctx, page, V, 'classic-all-expanded-dark', { scope: CLASSIC_LOG_SCOPE, fullPage: true })
+      await dark(page, false)
+    } else summary.errors.push('callouts: no "Expand all" control on the classic page')
+    if (ctx.primary)
+      saveKeyboard(`${V}-keyboard-classic`, await tabThrough(page, 'callouts classic log', { maxStops: 40 }))
+    await page.close()
+  }
+}
+
 // ---------------------------------------------------------------------------
 
 function compareWith(previousDir) {
@@ -1646,7 +1777,7 @@ async function main() {
     for (const [i, size] of SIZES.entries()) {
       const ctx = { ext, session, sf, logs, size, primary: i === 0 }
       for (const view of VIEWS) {
-        const fn = { app: appView, classic: classicViews, options: optionsView }[view]
+        const fn = { app: appView, classic: classicViews, options: optionsView, callouts: calloutsView }[view]
         if (!fn) throw new Error(`unknown view ${view}`)
         log(`--- ${view} @ ${size.label}`)
         try {
