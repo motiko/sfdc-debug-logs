@@ -118,7 +118,7 @@ class LogElementBase extends React.Component {
     const beautify = elementBody => {
       if (eventType === 'USER_DEBUG' && indented) {
         const parsedUserDebug = elementBody.match(
-          /^(\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|USER_DEBUG\|[\d+\]\|[A-Z_]+\|)([^]*)/m
+          /^(\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|USER_DEBUG\|\[\d+\]\|[A-Z_]+\|)([^]*)/m
         )
         if (parsedUserDebug && parsedUserDebug.length > 2) {
           return `${parsedUserDebug[1]}${beautifyUserDebug(parsedUserDebug[2])}`
@@ -127,23 +127,24 @@ class LogElementBase extends React.Component {
       return elementBody
     }
 
+    // Turns Salesforce ids into links and keeps all text around them. The
+    // previous version dropped everything after the last id in a line.
     const addLinks = elementBody => {
-      if (!sfIdRegex.test(elementBody)) return elementBody
-      let textElements = elementBody.split(sfIdRegex)
-      let result = []
-      elementBody.replace(sfIdRegex, id => {
-        result.push(textElements.shift())
-        result.push(
+      const parts = elementBody.split(new RegExp(`(${sfIdRegex.source})`))
+      if (parts.length === 1) return elementBody
+      return parts.map((part, index) =>
+        index % 2 === 1 ? (
           <a
-            href={`https://${globalSf.hostname}/${id}`}
+            href={`https://${globalSf.hostname}/${part}`}
             style={{ color: logTheme[className] }}
-            key={result.length}
+            key={index}
           >
-            {id}
+            {part}
           </a>
+        ) : (
+          part
         )
-      })
-      return result
+      )
     }
 
     const filtered = Object.entries(logEventToType).find(me =>
