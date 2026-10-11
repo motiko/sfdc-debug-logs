@@ -17,6 +17,8 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # Pinned prerelease: each 1.0.0-beta.N changed APIs.
+      - dependency-name: "material-ui"
     groups:
       react-patches:
         applies-to: version-updates
