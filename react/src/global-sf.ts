@@ -16,17 +16,37 @@ async function currentSessionId(): Promise<string | undefined> {
   return session && session.token
 }
 
-const globalSf = {
-  ...createSalesforceClient(
-    createRequest({
-      origin: `https://${hostname}`,
-      token: params.get('sid') || undefined,
-      getToken: currentSessionId
+const client = createSalesforceClient(
+  createRequest({
+    origin: `https://${hostname}`,
+    token: params.get('sid') || undefined,
+    getToken: currentSessionId
+  })
+)
+
+const isId = (id: string | null) =>
+  /^[a-zA-Z0-9]{15}(?:[a-zA-Z0-9]{3})?$/.test(id || '')
+
+// The opening page reads the user and org ids from Salesforce's disco cookie,
+// which isn't readable on every page (the app is then opened with
+// uid=undefined). Ask Salesforce instead in that case, once.
+let currentUser: Promise<{ userId: string; orgId: string }> | undefined
+function ids() {
+  if (isId(params.get('uid')) && isId(params.get('oid'))) {
+    return Promise.resolve({
+      userId: params.get('uid')!,
+      orgId: params.get('oid')!
     })
-  ),
+  }
+  currentUser = currentUser || client.currentUser()
+  return currentUser
+}
+
+const globalSf = {
+  ...client,
   hostname,
-  userId: params.get('uid'),
-  orgId: params.get('oid')
+  getUserId: async () => (await ids()).userId,
+  getOrgId: async () => (await ids()).orgId
 }
 
 export type AppSalesforce = typeof globalSf

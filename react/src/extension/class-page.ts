@@ -102,10 +102,15 @@ function addCheckboxes() {
 }
 
 function addCheckbox(row: any, cell: HTMLElement) {
+  const link = row.querySelector('th>a')
+  // Rows without a class link (e.g. on the "all classes" view) get no toggle.
+  if (!link) return
   const clone: any = cell.cloneNode(true)
-  const classLink = row.querySelector('th>a').href
+  const classLink = link.href
   const classId = classLink.slice(classLink.lastIndexOf('/01') + 1)
-  const isChecked = row.querySelector('td>img').title === 'Checked'
+  // Not every class list layout has the checkbox image column.
+  const image = row.querySelector('td>img')
+  const isChecked = !!image && image.title === 'Checked'
   clone.firstChild.dataset.classId = classId
   clone.firstChild.onclick = toggleTraceFlag
   clone.firstChild.checked = isChecked

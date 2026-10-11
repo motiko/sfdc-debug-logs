@@ -310,8 +310,16 @@ export function createSalesforceClient(
     }
   }
 
+  // The ids of the user the session belongs to. Used when the page's disco
+  // cookie (which normally carries them) can't be read.
+  async function currentUser(): Promise<{ userId: string; orgId: string }> {
+    const info = await request('/services/oauth2/userinfo')
+    return { userId: info.user_id, orgId: info.organization_id }
+  }
+
   return {
     request,
+    currentUser,
     toolingQuery,
     logBody,
     recentLogs,

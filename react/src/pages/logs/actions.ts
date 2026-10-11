@@ -112,7 +112,7 @@ export function search(searchTerm: string): Thunk<Promise<void>> {
 
 export function checkIsLogging(): Thunk<Promise<boolean>> {
   return async (dispatch, getState, sf) => {
-    const isLogging = await sf.isTracing(sf.userId)
+    const isLogging = await sf.isTracing(await sf.getUserId())
     dispatch(setLogging(isLogging))
     return isLogging
   }
@@ -121,7 +121,7 @@ export function checkIsLogging(): Thunk<Promise<boolean>> {
 export function startLogging(): Thunk<Promise<void>> {
   return async (dispatch, getState, sf) => {
     try {
-      const res = await sf.traceUser(sf.userId)
+      const res = await sf.traceUser(await sf.getUserId())
       if (res && res.success) {
         dispatch(setLogging(true))
         return

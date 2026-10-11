@@ -816,3 +816,45 @@ test('Lightning Experience: Shift+W opens the app with the org session', async t
     await sf.setLightningPreferred(wasLightning)
   }
 })
+
+test('pages without readable ids', async t => {
+  // Salesforce's disco cookie, which carries the user and org ids, isn't
+  // readable on every page; Shift+W then opens the app with uid=undefined.
+  await t.test('the app finds the user itself and shows logging as active', async () => {
+    const page = await ext.browser.newPage()
+    const errors = collectPageErrors(page)
+    try {
+      const host = new URL(session.instance).hostname
+      await page.goto(
+        `chrome-extension://${ext.extensionId}/html/app.html?oid=undefined&uid=undefined&sid=${encodeURIComponent(session.sessionId)}&host=${host}`
+      )
+      await page.waitForFunction(() => document.querySelectorAll('tbody tr').length > 0, { timeout: 30000 })
+      // The flow keeps a trace flag on the user: the toolbar shows "Logging
+      // Activity" (instead of "Start Logging") once the user id is known.
+      await page.waitForFunction(() => /Logging Activity/i.test(document.body.innerText), {
+        timeout: 30000
+      })
+      assert.deepEqual(
+        errors.filter(e => /Salesforce id/.test(e)),
+        []
+      )
+    } finally {
+      await page.close()
+    }
+  })
+
+  await t.test('the "all classes" list page loads without script errors', async () => {
+    const page = await ext.browser.newPage()
+    const errors = collectPageErrors(page)
+    try {
+      await page.goto(frontdoorUrl(session, '/01p?all_classes_page%3AtheTemplate%3AclassList%3Arowsperpage=3500'), {
+        waitUntil: 'networkidle2',
+        timeout: 60000
+      })
+      await new Promise(r => setTimeout(r, 2000))
+      assert.deepEqual(errors, [])
+    } finally {
+      await page.close()
+    }
+  })
+})
