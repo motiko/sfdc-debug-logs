@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import {
   Box,
   Button,
-  Chip,
   Tab,
   Table,
   TableBody,
@@ -14,6 +13,7 @@ import {
   Typography
 } from '@mui/material'
 import ErrorIcon from '@mui/icons-material/ErrorOutlined'
+import WarningIcon from '@mui/icons-material/WarningAmberOutlined'
 import { fontFamily } from '../../../ui/tokens'
 import {
   limitLevel,
@@ -25,11 +25,11 @@ const number = new Intl.NumberFormat('en-US')
 const formatMs = ms =>
   ms === null ? '–' : `${ms < 10 ? ms.toFixed(1) : Math.round(ms)} ms`
 
-const LEVEL_TEXT = { warning: 'Over 70 %', critical: 'Over 90 %' }
-const LEVEL_COLOR = {
-  ok: 'primary.main',
-  warning: 'warning.main',
-  critical: 'error.main'
+// A limit's level is told by its text and icon, not only by its color.
+const LEVELS = {
+  ok: { color: 'primary.main', text: null, icon: null },
+  warning: { color: 'warning.main', text: 'over 70 %', icon: WarningIcon },
+  critical: { color: 'error.main', text: 'over 90 %', icon: ErrorIcon }
 }
 
 // The log's summary (core/log/log-summary.ts) in tabs: errors, governor
@@ -46,6 +46,13 @@ export default function LogSummaryPanel({ id, summary, activeLine, onJump }) {
   const [tab, setTab] = useState(() =>
     summary.issues.length ? 'errors' : summary.limits.length ? 'limits' : 'soql'
   )
+  // Announced to screen readers after each jump (focus stays on the entry,
+  // so the next press goes to the next occurrence).
+  const [status, setStatus] = useState('')
+  const jump = line => {
+    setStatus(`Showing log line ${line}`)
+    onJump(line)
+  }
   return (
     <Box
       id={id}
@@ -63,6 +70,7 @@ export default function LogSummaryPanel({ id, summary, activeLine, onJump }) {
       <Tabs
         value={tab}
         onChange={(_, value) => setTab(value)}
+        selectionFollowsFocus
         aria-label="Summary sections"
         sx={{ px: 2, minHeight: 36, borderBottom: 1, borderColor: 'divider' }}
       >
@@ -83,10 +91,13 @@ export default function LogSummaryPanel({ id, summary, activeLine, onJump }) {
         aria-labelledby={`${id}-tab-${tab}`}
         sx={{ overflow: 'auto', minHeight: 0, px: 2, py: 1 }}
       >
+        <span id={`${id}-jump-hint`} hidden>
+          Goes to the next occurrence in the log.
+        </span>
         {tab === 'errors' ? (
-          <Errors summary={summary} onJump={onJump} />
+          <Errors summary={summary} onJump={jump} />
         ) : tab === 'limits' ? (
-          <Limits limits={summary.limits} onJump={onJump} />
+          <Limits limits={summary.limits} onJump={jump} />
         ) : tab === 'soql' ? (
           <Groups
             label="SOQL queries"
@@ -96,7 +107,8 @@ export default function LogSummaryPanel({ id, summary, activeLine, onJump }) {
             columns={[{ key: 'query', label: 'Query' }]}
             name={g => g.query}
             activeLine={activeLine}
-            onJump={onJump}
+            hintId={`${id}-jump-hint`}
+            onJump={jump}
           />
         ) : (
           <Groups
@@ -110,10 +122,14 @@ export default function LogSummaryPanel({ id, summary, activeLine, onJump }) {
             ]}
             name={g => `${g.operation} ${g.object}`}
             activeLine={activeLine}
-            onJump={onJump}
+            hintId={`${id}-jump-hint`}
+            onJump={jump}
           />
         )}
       </Box>
+      <span className="sr-only" role="status">
+        {status}
+      </span>
     </Box>
   )
 }
@@ -197,7 +213,7 @@ function Limits({ limits, onJump }) {
         </Typography>
         <Button
           onClick={() => onJump(usage[0].line)}
-          aria-label={`Show the limits of ${namespace} in the log`}
+          aria-label={`Show in log: limits of ${namespace}`}
         >
           Show in log
         </Button>
@@ -212,12 +228,16 @@ function Limits({ limits, onJump }) {
         </TableHead>
         <TableBody>
           {usage.map(limit => {
-            const level = limitLevel(limit.used, limit.max)
+            const level = LEVELS[limitLevel(limit.used, limit.max)]
+            const LevelIcon = level.icon
             const percent = limit.max
               ? Math.min(100, (limit.used / limit.max) * 100)
               : 0
             return (
-              <TableRow key={limit.name} data-level={level}>
+              <TableRow
+                key={limit.name}
+                data-level={limitLevel(limit.used, limit.max)}
+              >
                 <TableCell component="th" scope="row">
                   {limit.name}
                 </TableCell>
@@ -238,7 +258,7 @@ function Limits({ limits, onJump }) {
                       aria-valuemin={0}
                       aria-valuemax={limit.max}
                       aria-valuenow={limit.used}
-                      aria-valuetext={`${Math.round(percent)} %`}
+                      aria-valuetext={`${Math.round(percent)} %${level.text ? `, ${level.text}` : ''}`}
                       sx={{
                         flex: 1,
                         height: 8,
@@ -253,24 +273,31 @@ function Limits({ limits, onJump }) {
                         sx={{
                           width: `${percent}%`,
                           height: '100%',
-                          bgcolor: LEVEL_COLOR[level]
+                          bgcolor: level.color
                         }}
                       />
                     </Box>
                     <Box
                       component="span"
+                      aria-hidden
                       sx={{
-                        minWidth: 64,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        minWidth: 136,
                         fontSize: 12,
-                        color:
-                          level === 'critical'
-                            ? 'error.main'
-                            : level === 'warning'
-                              ? 'warning.main'
-                              : 'text.secondary'
+                        whiteSpace: 'nowrap',
+                        fontWeight: level.text ? 600 : 'normal',
+                        color: level.text ? level.color : 'text.secondary'
                       }}
                     >
-                      {LEVEL_TEXT[level] || `${Math.round(percent)} %`}
+                      {LevelIcon ? (
+                        <LevelIcon sx={{ fontSize: 16 }} />
+                      ) : (
+                        <Box component="span" sx={{ width: 16 }} />
+                      )}
+                      {Math.round(percent)} %
+                      {level.text ? ` · ${level.text}` : ''}
                     </Box>
                   </Box>
                 </TableCell>
@@ -297,6 +324,7 @@ function Groups({
   columns,
   name,
   activeLine,
+  hintId,
   onJump
 }) {
   const [sort, setSort] = useState({ key: 'count', direction: 'desc' })
@@ -350,6 +378,7 @@ function Groups({
                       color="inherit"
                       onClick={jump}
                       aria-label={name(group)}
+                      aria-describedby={group.count > 1 ? hintId : undefined}
                       title={
                         group.count > 1
                           ? 'Go to the next occurrence in the log'
@@ -372,13 +401,7 @@ function Groups({
                     group[c.key]
                   )}
                   {i === 0 && group.possibleLoop ? (
-                    <Chip
-                      size="small"
-                      color="warning"
-                      variant="outlined"
-                      label={loopText}
-                      sx={{ ml: 1 }}
-                    />
+                    <LoopHint>{loopText}</LoopHint>
                   ) : null}
                 </TableCell>
               ))}
@@ -408,5 +431,34 @@ function Groups({
         })}
       </TableBody>
     </Table>
+  )
+}
+
+// A badge on a group that ran many times from the same line: text and icon,
+// not only color.
+function LoopHint({ children }) {
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 0.5,
+        ml: 1,
+        px: 0.75,
+        border: 1,
+        borderColor: 'warning.main',
+        borderRadius: 1,
+        color: 'warning.main',
+        fontFamily: fontFamily.ui,
+        fontSize: 12,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+        verticalAlign: 'middle'
+      }}
+    >
+      <WarningIcon aria-hidden sx={{ fontSize: 14 }} />
+      {children}
+    </Box>
   )
 }
