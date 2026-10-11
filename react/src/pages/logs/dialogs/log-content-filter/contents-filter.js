@@ -48,21 +48,7 @@ class Option extends React.Component {
   }
 }
 
-@withStyles(styles)
-@connect(
-  state => ({
-    selected: state.logsPage.visibleEvents,
-    isOpen: state.logsPage.contentsFilterOpen
-  }),
-  dispatch => ({
-    handleAdd: newItem => dispatch(addVisibleEvents([newItem])),
-    handleRemove: removedItem => dispatch(removeVisibleEvent(removedItem)),
-    addAll: () => dispatch(addVisibleEvents(allEventTypes)),
-    removeAll: () => dispatch(clearVisibleEvents()),
-    toggleContentsFilter: () => dispatch(toggleContentsFilter())
-  })
-)
-export default class ContentsFilter extends React.Component {
+class ContentsFilter extends React.Component {
   availableItems = () => {
     return allEventTypes
       .filter(eventType => {
@@ -130,3 +116,19 @@ export default class ContentsFilter extends React.Component {
     )
   }
 }
+
+export default withStyles(styles)(
+  connect(
+    state => ({
+      selected: state.logsPage.visibleEvents,
+      isOpen: state.logsPage.contentsFilterOpen
+    }),
+    dispatch => ({
+      handleAdd: newItem => dispatch(addVisibleEvents([newItem])),
+      handleRemove: removedItem => dispatch(removeVisibleEvent(removedItem)),
+      addAll: () => dispatch(addVisibleEvents(allEventTypes)),
+      removeAll: () => dispatch(clearVisibleEvents()),
+      toggleContentsFilter: () => dispatch(toggleContentsFilter())
+    })
+  )(ContentsFilter)
+)

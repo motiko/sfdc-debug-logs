@@ -1,4 +1,3 @@
-import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
 import { filtersToWhereClause } from './utils.js'
 
 const normalize = logsArray => {

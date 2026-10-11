@@ -10,13 +10,7 @@ const typeToLogEvents = (desiredType, eventToType) =>
     .filter(([event, type]) => desiredType == type)
     .map(([event, type]) => event)
 
-@connect(
-  state => state.logsPage.styleConfig.theme,
-  dispatch => ({
-    updateColor: (name, newColor) => dispatch(updateColor(name, newColor))
-  })
-)
-export default class ColorPickers extends React.Component {
+class ColorPickers extends React.Component {
   render() {
     const { theme } = this.props
     const { updateColor } = this.props
@@ -50,3 +44,10 @@ export default class ColorPickers extends React.Component {
     )
   }
 }
+
+export default connect(
+  state => state.logsPage.styleConfig.theme,
+  dispatch => ({
+    updateColor: (name, newColor) => dispatch(updateColor(name, newColor))
+  })
+)(ColorPickers)

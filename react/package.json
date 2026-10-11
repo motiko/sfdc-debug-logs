@@ -7,19 +7,15 @@
   "main": "",
   "private": true,
   "scripts": {
-    "build": "browserify -g [ envify --NODE_ENV production ] -t [ babelify  ] -t [ browserify-css --global ] -g [ uglifyify ] src/*.js | uglifyjs --compress --mangle | tee ../chrome/app/js/build/app.js > /dev/null",
-    "watch": "watchify -t [ babelify ]  -t [ browserify-css --global  ] src/*.js -o '| tee ../chrome/app/js/build/app.js > /dev/null'",
-    "clean": "rm ../chrome/app/js/build/app.js",
-    "react-devtools": "react-devtools",
-    "test": "standard"
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck",
+    "react-devtools": "react-devtools"
   },
   "dependencies": {
-    "@babel/plugin-proposal-decorators": "^7.22.0",
-    "@babel/runtime": "^7.29.10",
-    "@babel/runtime-corejs2": "^7.29.7",
-    "browserify": "^16.3.0",
-    "core-js": "^2.6.12",
     "idb-keyval": "^2.3.0",
+    "js-beautify": "^2.0.3",
     "material-ui": "1.0.0-beta.38",
     "material-ui-color-picker": "github:motiko/material-ui-color-picker#controlled",
     "material-ui-icons": "^1.0.0-beta.36",
@@ -34,24 +30,13 @@
     "redux": "^3.7.2",
     "redux-localstorage": "^1.0.0-rc5",
     "redux-localstorage-filter": "^0.1.1",
-    "redux-thunk": "2.2.0",
-    "regenerator-runtime": "^0.11.0",
-    "watchify": "^4.0.0"
+    "redux-thunk": "2.2.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.7",
-    "@babel/plugin-proposal-class-properties": "^7.18.6",
-    "@babel/plugin-proposal-object-rest-spread": "^7.20.7",
-    "@babel/plugin-transform-runtime": "^7.22.0",
-    "@babel/preset-env": "^7.29.7",
-    "@babel/preset-react": "^7.22.0",
-    "babelify": "^10.0.0",
-    "browserify-css": "^0.15.0",
-    "envify": "^4.1.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "extend": ">=2.0.2",
     "prettier": "^1.11.1",
-    "reactify": "^1.1.1",
-    "uglify-js": "^3.3.16",
-    "uglifyify": "^4.0.5"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
   }
 }

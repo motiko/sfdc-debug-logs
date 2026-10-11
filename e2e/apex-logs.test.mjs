@@ -30,6 +30,7 @@ String marker = '${MARKER}';
 System.debug(marker);
 System.debug(JSON.serialize(new Map<String, Object>{ 'marker' => marker, 'n' => 42 }));
 List<User> users = [SELECT Id, Name FROM User LIMIT 1];
+System.debug(marker + ' users ' + users);
 try { Integer x = 1 / 0; } catch (Exception e) { System.debug('caught ' + e.getMessage()); }
 `
 
@@ -465,6 +466,31 @@ test('React log viewer', async t => {
     const lastLine = log.body.trimEnd().split('\n').pop()
     const lastRendered = await app.evaluate(() => [...document.querySelectorAll('pre > div')].pop().innerText.trim())
     assert.equal(lastRendered, lastLine.trim())
+  })
+
+  await t.test('indent toggle beautifies a debugged SObject', async () => {
+    // "<marker> users (User:{Id=…, Name=…})" is pretty-printed with js-beautify.
+    const line = () =>
+      app.evaluate(marker => {
+        const div = [...document.querySelectorAll('pre > div')].find(d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker))
+        return div ? div.innerText : null
+      }, MARKER)
+    const before = await line()
+    assert.ok(before && !before.trim().includes('\n'), 'collapsed: one line')
+    assert.match(before, /Name=/, 'text after the user id is kept')
+    await app.evaluate(marker => {
+      const div = [...document.querySelectorAll('pre > div')].find(d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker))
+      div.querySelector('button[aria-label="Add"]').click()
+    }, MARKER)
+    await app.waitForFunction(
+      marker => {
+        const div = [...document.querySelectorAll('pre > div')].find(d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker))
+        return div && div.innerText.trim().split('\n').length > 2
+      },
+      { timeout: 5000, polling: 100 },
+      MARKER
+    )
+    assert.match(await line(), /\n\s+Id:[^\n]*\n\s+Name:/, 'expanded: one field per indented line')
   })
 
   // material-ui 1.0 beta dialogs have no role="dialog"; use the title id.
