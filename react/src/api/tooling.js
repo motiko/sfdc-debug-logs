@@ -1,4 +1,5 @@
 import regeneratorRuntime from 'regenerator-runtime' // eslint-disable-line
+import { API } from './version'
 
 export default class Tooling {
   constructor(request) {
@@ -26,22 +27,20 @@ export default class Tooling {
       System: 'DEBUG',
       Database: 'DEBUG'
     }
-    return this.request(
-      `/services/data/v41.0/tooling/query?q=${query}`,
-      'GET',
-      headers
-    ).then(existingDebugLevel => {
-      if (existingDebugLevel.records.length > 0) {
-        return existingDebugLevel.records[0].Id
-      } else {
-        return this.request(
-          '/services/data/v41.0/tooling/sobjects/DebugLevel',
-          'POST',
-          {},
-          debugLevelPayload
-        ).then(result => result.id)
+    return this.request(`${API}/tooling/query?q=${query}`, 'GET', headers).then(
+      existingDebugLevel => {
+        if (existingDebugLevel.records.length > 0) {
+          return existingDebugLevel.records[0].Id
+        } else {
+          return this.request(
+            `${API}/tooling/sobjects/DebugLevel`,
+            'POST',
+            {},
+            debugLevelPayload
+          ).then(result => result.id)
+        }
       }
-    })
+    )
   }
 
   async removeTraceFlags(userId, debugLevelId) {
@@ -50,31 +49,33 @@ export default class Tooling {
     return Promise.all(
       existingTraceFlags.records.map(traceFlag =>
         this.request(
-          `/services/data/v41.0/tooling/sobjects/TraceFlag/${traceFlag.Id}`,
+          `${API}/tooling/sobjects/TraceFlag/${traceFlag.Id}`,
           'DELETE'
         )
       )
     )
   }
 
+  // Traces the user for 24 hours. If that fails (e.g. an overlapping trace
+  // flag exists), removes the user's flags for this debug level and retries
+  // without an expiration date; Salesforce then applies its default.
   createTraceFlag(userId, debugLevelId) {
-    const MS_IN_DAY = 1000 * 59 * 60 * 24
-    let expirationDate = new Date(Date.now() + MS_IN_DAY)
-    var payload = {
+    const MS_IN_DAY = 1000 * 60 * 60 * 24
+    const expirationDate = new Date(Date.now() + MS_IN_DAY)
+    const payload = {
       TracedEntityId: userId,
       DebugLevelId: debugLevelId,
       LogType: 'DEVELOPER_LOG'
     }
     return this.request(
-      '/services/data/v41.0/tooling/sobjects/TraceFlag',
+      `${API}/tooling/sobjects/TraceFlag`,
       'POST',
       {},
       { ...payload, ExpirationDate: expirationDate }
     ).catch(async err => {
-      // fallback, try without expiration date
       await this.removeTraceFlags(userId, debugLevelId)
-      this.request(
-        '/services/data/v41.0/tooling/sobjects/TraceFlag',
+      return this.request(
+        `${API}/tooling/sobjects/TraceFlag`,
         'POST',
         {},
         {
@@ -87,7 +88,7 @@ export default class Tooling {
 
   getLogBody(logId) {
     return this.request(
-      `/services/data/v32.0/tooling/sobjects/ApexLog/${logId}/Body`,
+      `${API}/tooling/sobjects/ApexLog/${logId}/Body`,
       'GET',
       {},
       undefined,
@@ -96,6 +97,6 @@ export default class Tooling {
   }
 
   query(query) {
-    return this.request(`/services/data/v36.0/tooling/query?q=${query}`)
+    return this.request(`${API}/tooling/query?q=${encodeURIComponent(query)}`)
   }
 }

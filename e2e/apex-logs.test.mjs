@@ -169,6 +169,31 @@ test('classic log view', async t => {
   await page.close()
 })
 
+test('classic log list', async t => {
+  const page = await ext.browser.newPage()
+  const errors = collectPageErrors(page)
+  await page.goto(frontdoorUrl(session, '/setup/ui/listApexTraces.apexp'), { waitUntil: 'networkidle2' })
+  await page.waitForSelector('input[type="number"][min="25"]', { timeout: 30000 })
+
+  await t.test('reloading lists the newest logs, for all users', async () => {
+    // Changing "Maximum logs per Page" reloads the table from the API.
+    await page.$eval('input[type="number"][min="25"]', el => {
+      el.value = '25'
+      el.dispatchEvent(new Event('change'))
+    })
+    await page.waitForSelector(`tr[data-id="${log.Id}"]`, { timeout: 30000 })
+    const ids = await page.$$eval('tr[data-id]', trs => trs.map(tr => tr.dataset.id))
+    // Loading Setup pages can itself create logs, so allow a few newer ones.
+    const newest = (await sf.query('SELECT Id FROM ApexLog ORDER BY LastModifiedDate DESC LIMIT 5')).map(r => r.Id)
+    assert.ok(newest.includes(ids[0]), 'the first row is one of the newest logs, not the oldest')
+    const userLink = await page.$eval(`tr[data-id="${log.Id}"] td:nth-child(2) a`, a => a.getAttribute('href'))
+    assert.equal(userLink, `/${session.userId}`, 'user name links to the user')
+  })
+
+  if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
+  await page.close()
+})
+
 test('React log viewer', async t => {
   // Open the app the way users do: Shift+W on a Salesforce page.
   const sfPage = await ext.browser.newPage()

@@ -168,7 +168,7 @@ function realDeleteAll(event) {
   document.body.style.cursor = "wait";
 
   sfRequest(
-    "/services/data/v32.0/tooling/query/?q=" +
+    API_PATH + "/tooling/query/?q=" +
       encodeURIComponent("Select Id From ApexLog")
   )
     .then((r) => r.json())
@@ -203,17 +203,6 @@ function loadedLogIds() {
     var id = params.pop();
     return id;
   });
-}
-
-function getMonitoredUsers() {
-  return toArray(document.querySelectorAll('th[scope="row"]'))
-    .map(function (th) {
-      if (!th.firstElementChild) return null;
-      var href = th.firstElementChild.href;
-      return "'" + href.substr(href.lastIndexOf("/") + 1) + "'";
-    })
-    .filter((x) => x)
-    .join(",");
 }
 
 function loadNewLogs() {
@@ -268,20 +257,24 @@ function addToTable(tr) {
   }
 }
 
+// All logs in the org, like Salesforce's own list. Filtering by the users in
+// the "Monitored Users" table hid logs of entities without a user link there,
+// such as the Automated Process user (#10).
 function requestLogs() {
-  var monitoredUsers = getMonitoredUsers();
   var selectQuery = [
     `SELECT LogUser.Name,Application,DurationMilliseconds,`,
     `Id,LastModifiedDate,Location,LogLength,LogUserId,`,
     `Operation,Request,StartTime,Status,SystemModstamp From `,
-    `ApexLog Where LogUserId in (${monitoredUsers}) ORDER BY `,
-    `LastModifiedDate ASC LIMIT ${showLogsNum}`,
+    `ApexLog ORDER BY `,
+    `LastModifiedDate DESC LIMIT ${showLogsNum}`,
   ].join("");
   return sfRequest(
-    "/services/data/v32.0/tooling/query/?q=" + encodeURIComponent(selectQuery)
+    API_PATH + "/tooling/query/?q=" + encodeURIComponent(selectQuery)
   )
     .then((r) => r.json())
-    .then((responseObj) => responseObj.records)
+    // Newest first from the query; the table is filled by inserting each row
+    // at the top, so add them oldest first.
+    .then((responseObj) => responseObj.records.reverse())
     .catch(function (err) {
       console.error(err);
     });
@@ -340,7 +333,7 @@ function logRecordToTr(logObj) {
   var startTime = new Date(Date.parse(logObj.StartTime)).toLocaleString();
   tr.innerHTML = `<td class="dataCell  actionColumn" colspan="1">
       <a href="/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${logObj.Id}" class="actionLink">View</a>&nbsp;|&nbsp;<a href="/servlet/servlet.FileDownload?file=${logObj.Id}" class="actionLink">Download</a>&nbsp;|&nbsp;<a class="actionLink deleteActionLink" href="#" >Delete</a></td>
-      <td class="dataCell" colspan="1"><a  href="/{logObj.LogUserId}" class="actionLink">${logObj.LogUser.Name}</a></td>
+      <td class="dataCell" colspan="1"><a  href="/${logObj.LogUserId}" class="actionLink">${logObj.LogUser.Name}</a></td>
       <td class="dataCell" colspan="1">${logObj.Request}</td>
       <td class="dataCell" colspan="1">${logObj.Application}</td>
       <td class="dataCell" colspan="1">${logObj.Operation}</td>
@@ -380,7 +373,7 @@ async function addCurrentUser(event) {
     System: "DEBUG",
     Database: "DEBUG",
   };
-  return fetch(`/services/data/v36.0/tooling/query?q=${query}`, {
+  return fetch(`${API_PATH}/tooling/query?q=${query}`, {
     headers,
   })
     .then((res) => res.json())
@@ -388,7 +381,7 @@ async function addCurrentUser(event) {
       if (existingDebugLevel.records.length > 0) {
         return existingDebugLevel.records[0].Id;
       } else {
-        return fetch("/services/data/v36.0/tooling/sobjects/DebugLevel", {
+        return fetch(API_PATH + "/tooling/sobjects/DebugLevel", {
           method: "POST",
           headers,
           body: JSON.stringify(debugLevelPayload),
@@ -401,7 +394,7 @@ async function addCurrentUser(event) {
         DebugLevelId: dlId,
         LogType: "USER_DEBUG",
       };
-      fetch("/services/data/v36.0/tooling/sobjects/TraceFlag/", {
+      fetch(API_PATH + "/tooling/sobjects/TraceFlag/", {
         method: "POST",
         headers: headers,
         body: JSON.stringify(payload),
@@ -504,7 +497,7 @@ function searchLogs() {
     });
   var promises = visibleLogRows.map(function (logRow) {
     return sfRequest(
-      "/services/data/v32.0/tooling/sobjects/ApexLog/" + logRow.id + "/Body"
+      API_PATH + "/tooling/sobjects/ApexLog/" + logRow.id + "/Body"
     )
       .then((r) => r.text())
       .then((rawLogContents) => {
@@ -535,7 +528,7 @@ function createJob(objectName, operation) {
         <contentType>CSV</contentType>
    </jobInfo>`;
   return sfRequest(
-    "/services/async/34.0/job",
+    ASYNC_API_PATH + "/job",
     "POST",
     {
       "Content-Type": "application/xml",
@@ -568,7 +561,7 @@ function pollBatchStatus(jobId, batchId) {
 
 function checkBatchStatus(jobId, batchId) {
   return sfRequest(
-    `/services/async/34.0/job/${jobId}/batch/${batchId}`,
+    `${ASYNC_API_PATH}/job/${jobId}/batch/${batchId}`,
     "GET",
     {
       "X-SFDC-Session": true,
@@ -582,7 +575,7 @@ function checkBatchStatus(jobId, batchId) {
 
 function createBatch(jobId, csv) {
   return sfRequest(
-    `/services/async/34.0/job/${jobId}/batch`,
+    `${ASYNC_API_PATH}/job/${jobId}/batch`,
     "POST",
     {
       "Content-Type": "text/csv; charset=UTF-8",
