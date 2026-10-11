@@ -18,7 +18,14 @@ export function useAppShortcuts(options) {
       if (event.defaultPrevented || !o.enabled) return
       const target = event.target
       const logIds = o.logOpen
-        ? ['find', 'nextLog', 'previousLog', 'nextError', 'nextDebug']
+        ? [
+            'find',
+            'nextLog',
+            'previousLog',
+            'nextError',
+            'nextDebug',
+            'download'
+          ]
         : []
       if (o.logOpen && shortcutFor(event, ['find']) === 'find') {
         if (o.isFindFocused()) return
@@ -63,7 +70,8 @@ export function useAppShortcuts(options) {
         nextLog: () => o.onLog(1),
         previousLog: () => o.onLog(-1),
         nextError: o.onNextError,
-        nextDebug: o.onNextDebug
+        nextDebug: o.onNextDebug,
+        download: o.onDownload
       }
       if (actions[id]) actions[id]()
     }

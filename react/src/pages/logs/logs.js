@@ -97,6 +97,7 @@ export default function LogsPage() {
       Boolean(viewerRef.current && viewerRef.current.isFindFocused()),
     onNextError: () => viewerRef.current && viewerRef.current.nextError(),
     onNextDebug: () => viewerRef.current && viewerRef.current.nextDebug(),
+    onDownload: () => viewerRef.current && viewerRef.current.download(),
     onClose: () => openLog(null)
   })
 

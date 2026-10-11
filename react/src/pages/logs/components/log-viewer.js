@@ -63,6 +63,7 @@ import {
   shortOperation
 } from '../utils'
 import { shortcutHint } from '../../../core/app-shortcuts'
+import { logFileName, saveTextFile } from '../../../core/log/download'
 
 const FIND_DELAY_MS = 200
 
@@ -70,7 +71,7 @@ const FIND_DELAY_MS = 200
 // with a match counter, next error / next debug line, event-type toggles
 // with counts, expand all values), and the log body. A failed run opens at
 // its first error, any other log at the top. The ref offers the page's
-// shortcuts: focusFind(), nextError(), nextDebug().
+// shortcuts: focusFind(), nextError(), nextDebug(), download().
 const LogViewer = forwardRef(function LogViewer(
   { logId, log, colorMode, initialFind },
   ref
@@ -194,7 +195,8 @@ const LogViewer = forwardRef(function LogViewer(
     },
     isFindFocused: () => document.activeElement === findRef.current,
     nextError: () => jump(isErrorLine),
-    nextDebug: () => jump(isDebugLine)
+    nextDebug: () => jump(isDebugLine),
+    download
   }))
 
   const onFindKeyDown = e => {
@@ -215,13 +217,17 @@ const LogViewer = forwardRef(function LogViewer(
     }
   }
 
+  // The raw body as Salesforce returned it, whatever the view hides.
   const download = () => {
-    const url = URL.createObjectURL(new Blob([body], { type: 'text/plain' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `apex-log-${logId}.log`
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    if (!body) return
+    saveTextFile(
+      logFileName({
+        id: logId,
+        startTime: log && log.StartTime,
+        operation: log && log.Operation
+      }),
+      body
+    )
   }
 
   const counter = term
@@ -307,6 +313,7 @@ const LogViewer = forwardRef(function LogViewer(
         <Box sx={{ display: 'flex', gap: 0.5 }}>
           <IconAction
             label="Download log"
+            shortcut="Shift+D"
             icon={<DownloadIcon />}
             onClick={download}
             disabled={!body}

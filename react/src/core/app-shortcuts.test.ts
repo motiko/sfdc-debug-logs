@@ -41,11 +41,15 @@ describe('app shortcuts', () => {
     expect(shortcutFor(key('e'), ['nextError', 'nextDebug'])).toBe('nextError')
     expect(shortcutFor(key('e'), ['nextDebug'])).toBe(null)
     expect(shortcutFor(key(']'), ['nextLog', 'previousLog'])).toBe('nextLog')
+    const ids = ['nextDebug', 'download'] as const
+    expect(shortcutFor(key('d'), [...ids])).toBe('nextDebug')
+    expect(shortcutFor(key('D', { shiftKey: true }), [...ids])).toBe('download')
   })
 
   it('labels keys for the help overlay and tooltips', () => {
     expect(keyLabel('Mod+f', true)).toEqual(['⌘', 'F'])
     expect(keyLabel('Mod+f', false)).toEqual(['Ctrl', 'F'])
     expect(shortcutHint('refresh')).toBe('R')
+    expect(shortcutHint('download')).toBe('Shift D')
   })
 })
