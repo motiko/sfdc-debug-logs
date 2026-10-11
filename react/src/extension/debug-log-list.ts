@@ -507,7 +507,8 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
   }
   // The two counts separately: if the user can't be identified, "Only my
   // logs" is disabled (never replaced by all users' logs), and the user can
-  // still choose all users' logs explicitly.
+  // still choose all users' logs explicitly. The confirm button follows each
+  // count as it arrives, so the selected scope never waits for the other one.
   ;(async () => {
     const mineReady = (async () => {
       try {
@@ -527,6 +528,7 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
       try {
         counts.mine = await sf.countLogs({ scope: 'user', userId })
         mineCount.textContent = countText(counts.mine)
+        update()
       } catch (err) {
         const explained = explainError(err, location.hostname)
         showError(`Couldn’t count your logs. ${explained.title}`)
@@ -536,6 +538,7 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
       total => {
         counts.all = total
         allCount.textContent = countText(total)
+        update()
       },
       err => {
         const explained = explainError(err, location.hostname)
