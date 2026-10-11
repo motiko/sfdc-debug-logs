@@ -1,3 +1,6 @@
+// The feedback page is disabled (see app.js) and kept unconnected until it
+// returns; its redux wiring below is unused for now.
+/* eslint-disable no-unused-vars */
 import React from 'react'
 import List from 'material-ui/List'
 import Button from 'material-ui/Button'

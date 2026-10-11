@@ -58,6 +58,13 @@ npm ci
 npm run build   # or `npm run dev` to rebuild on save
 ```
 
+Before a pull request, run the checks that CI runs (Node 24, see `.nvmrc`):
+
+```bash
+cd react
+npm run lint && npm run format:check && npm run typecheck && npm test
+```
+
 `scripts/chrome-dev.sh` builds the app if needed and starts a test Chrome with the extension loaded.
 
 Releasing

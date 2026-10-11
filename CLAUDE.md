@@ -13,16 +13,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `scripts/`: local dev tooling (test browser launcher, Salesforce login).
 - `e2e/`: end-to-end flow against a real org (see below).
 
-## Build commands (run in `react/`)
+## Build and check commands (run in `react/`)
+
+Use Node 24 (`.nvmrc`).
 
 ```bash
-npm run build      # Vite production build -> chrome/app/js/build/app.js + app.css
-npm run dev        # vite build --watch: rebuilds on save, then reload the app page
-npm run typecheck  # tsc --noEmit
-npm test           # currently = typecheck (there are no unit tests)
+npm run build         # Vite production build -> chrome/app/js/build/app.js + app.css
+npm run dev           # vite build --watch: rebuilds on save, then reload the app page
+npm run lint          # ESLint 9 over the whole repository (react/src, e2e, scripts, chrome/app/js)
+npm run format        # Prettier 3: react/src, e2e, scripts (format:check in CI)
+npm run typecheck     # tsc --noEmit
+npm test              # Vitest unit tests (vitest run); npx vitest to watch
 ```
 
-The toolchain is Vite (`react/vite.config.mjs`) plus TypeScript for type checking only (`tsconfig.json`, `allowJs`, not strict); new files can be `.ts`. The output is one classic IIFE script plus one stylesheet, linked from `html/app.html`, so it satisfies the extension CSP (`script-src 'self'`: no inline scripts, no eval, no code splitting). Sources keep JSX in `.js` files; a small plugin in `vite.config.mjs` compiles it. Don't use decorators: wrap components explicitly, e.g. `export default withStyles(styles)(connect(mapState, mapDispatch)(X))`. The React app imports `js-beautify` from npm; the vendored copy in `chrome/app/js/lib/beautify` is for content scripts. The app runs on old libraries (material-ui `1.0.0-beta.38` pinned exactly, React 16, react-router 4, Redux 3). Keep to those APIs rather than modern equivalents. In material-ui beta.38 the `color="contrast"` prop no longer exists; use `color="inherit"`. Use `material-ui-icons` for icons, not `@material-ui/icons`: the latter pulls in `@material-ui/core`, a second JSS instance whose generated class names collide with material-ui's and break layouts. Formatting follows `react/.prettierrc` (no semicolons, single quotes).
+`.github/workflows/ci.yml` runs lint, format:check, typecheck, unit tests and build on pushes to `main` and on pull requests (no Salesforce secrets needed).
+
+The toolchain is Vite (`react/vite.config.mjs`) plus TypeScript for type checking only (`tsconfig.json`, `allowJs`, not strict); new files can be `.ts`. The output is one classic IIFE script plus one stylesheet, linked from `html/app.html`, so it satisfies the extension CSP (`script-src 'self'`: no inline scripts, no eval, no code splitting). Sources keep JSX in `.js` files; a small plugin in `vite.config.mjs` compiles it. Don't use decorators: wrap components explicitly, e.g. `export default withStyles(styles)(connect(mapState, mapDispatch)(X))`. The React app imports `js-beautify` from npm; the vendored copy in `chrome/app/js/lib/beautify` is for content scripts. The app runs on old libraries (material-ui `1.0.0-beta.38` pinned exactly, React 16, react-router 4, Redux 3). Keep to those APIs rather than modern equivalents. In material-ui beta.38 the `color="contrast"` prop no longer exists; use `color="inherit"`. Use `material-ui-icons` for icons, not `@material-ui/icons`: the latter pulls in `@material-ui/core`, a second JSS instance whose generated class names collide with material-ui's and break layouts.
+
+**Formatting and lint.** One Prettier config at the root (`.prettierrc.json`: no semicolons, single quotes, no trailing commas, `arrowParens: avoid`; 120 columns in `e2e/` and `scripts/`). The extension scripts in `chrome/app/js` use another style and are excluded (`.prettierignore`) until they are refactored. `eslint.config.js` (flat config) lives at the root but loads its plugins from `react/node_modules`, so run ESLint from `react/`. Content scripts share one global scope (every Salesforce page also loads `default_shortcuts.js`, Mousetrap, `utils.js` and `shortcuts.js`), so names like `API_PATH`, `sfRequest` and `getSession` are declared as globals in the config rather than imported. ESLint parses only `.js`/`.mjs`: typescript-eslint doesn't support TypeScript 7, so `.ts` files are checked by `tsc` only. material-ui orders its style sheets by module load order, so removing or reordering a material-ui import can change CSS precedence (see the side-effect import of `material-ui/Button` in `logs.js`).
+
+**Unit tests** (`*.test.ts` next to the code, Node environment, config in `vite.config.mjs`): keep logic testable by putting it in plain modules, like `pages/logs/log-parsing.ts` (log splitting, event categories, id links, USER_DEBUG beautifying) and `pages/logs/utils.ts` (log filters). Fixtures such as `pages/logs/__fixtures__/anonymous-apex.log` are imported with `?raw`.
 
 ## Local Chrome testing
 
@@ -65,7 +75,7 @@ See "Releasing" in README.md. `scripts/version.sh patch|minor|major` bumps `chro
 
 ## Claude tooling
 
-- `.claude/skills/verify-extension`: build, lint and run the e2e flow before committing.
+- `.claude/skills/verify-extension`: build, lint, typecheck, unit tests and the e2e flow before committing.
 - `.claude/skills/triage-reports`: check GitHub issues and Chrome Web Store reviews against the code.
 - `.claude/skills/release-extension`: readiness checks, tagging, and watching the release and store upload.
 - `.claude/agents/market-research`: compares competing extensions and files feature requests (labels `enhancement`, `market-research`).

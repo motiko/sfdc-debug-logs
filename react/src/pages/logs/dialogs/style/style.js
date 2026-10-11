@@ -5,14 +5,18 @@ import MenuItem from 'material-ui/Menu/MenuItem'
 import Dialog, {
   DialogActions,
   DialogContent,
-  DialogContentText,
   DialogTitle
 } from 'material-ui/Dialog'
 import { connect } from 'react-redux'
-import { updateFontSize, updateTheme, toggleTextWrap } from './actions'
+import {
+  updateFontSize,
+  updateTheme,
+  toggleTextWrap,
+  toggleStyleDialog
+} from './actions'
 import { defaultLogThemes } from '../../constants'
 import { withStyles } from 'material-ui/styles'
-import { FormControl, FormControlLabel } from 'material-ui/Form'
+import { FormControlLabel } from 'material-ui/Form'
 import Grid from 'material-ui/Grid'
 import Switch from 'material-ui/Switch'
 import ColorPickers from './color-pickers'
@@ -32,7 +36,7 @@ const styles = theme => ({
 class StyleDialog extends React.Component {
   render() {
     const { onClose, open, fontSize, theme, classes, textWrap } = this.props
-    const { updateFontSize, toggleTextWrap } = this.props
+    const { toggleTextWrap } = this.props
     return (
       <Dialog
         open={open}

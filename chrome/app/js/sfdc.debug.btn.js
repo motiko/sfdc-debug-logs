@@ -512,7 +512,7 @@ function searchLogs() {
       }
       // consider for perfomance: row.children[0].children[0]
       var link = row.querySelector("td>a").href;
-      logIdParam = link
+      var logIdParam = link
         .split("?")[1]
         .split("&")
         .filter(function (keyVal) {

@@ -263,7 +263,6 @@ function addExpnasionButtonsForUserDebugDivs(userDebugDiv) {
     debugParts[0] + debugLevel + '</span> <span class="debugContent searchable">' +
     debugParts[1] + '</span>';
   var debugText = unescapeHtml(debugParts[1]);
-  debugTextParentObj = document.getElementById("debugText")
   if (looksLikeHtml(debugText) || looksLikeSfdcObject(debugText) || isJsonString(debugText)) {
     var buttonExpand = document.createElement('button');
     buttonExpand.onclick = expandUserDebug;

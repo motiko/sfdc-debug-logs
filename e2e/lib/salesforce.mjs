@@ -45,9 +45,7 @@ export class Salesforce {
   }
 
   async ensureDebugLevel() {
-    const [existing] = await this.query(
-      `SELECT Id FROM DebugLevel WHERE DeveloperName = '${DEBUG_LEVEL_NAME}'`
-    )
+    const [existing] = await this.query(`SELECT Id FROM DebugLevel WHERE DeveloperName = '${DEBUG_LEVEL_NAME}'`)
     if (existing) return existing.Id
     const { id } = await this.request('/tooling/sobjects/DebugLevel', {
       method: 'POST',
@@ -91,9 +89,7 @@ export class Salesforce {
   }
 
   async executeAnonymous(apex) {
-    const result = await this.request(
-      `/tooling/executeAnonymous/?anonymousBody=${encodeURIComponent(apex)}`
-    )
+    const result = await this.request(`/tooling/executeAnonymous/?anonymousBody=${encodeURIComponent(apex)}`)
     if (!result.compiled) throw new Error(`Apex compile error: ${result.compileProblem}`)
     if (!result.success) throw new Error(`Apex failed: ${result.exceptionMessage}`)
     return result

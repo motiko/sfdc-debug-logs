@@ -1,8 +1,9 @@
 import React from 'react'
 import Snackbar from 'material-ui/Snackbar'
-import ChatIcon from 'material-ui-icons/Chat'
 import HomeIcon from 'material-ui-icons/Home'
-import Button from 'material-ui/Button'
+// Unused here, but material-ui orders its style sheets by module load order:
+// loading Button at this point keeps the CSS precedence unchanged.
+import 'material-ui/Button'
 import { Link, Route, Switch } from 'react-router-dom'
 import Toolbar from 'material-ui/Toolbar'
 import AppBar from 'material-ui/AppBar'

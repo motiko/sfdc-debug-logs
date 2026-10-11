@@ -1,4 +1,4 @@
-import { filtersToWhereClause } from './utils.js'
+import { filtersToWhereClause } from './utils'
 
 const normalize = logsArray => {
   return logsArray.reduce((acc, cur) => {

@@ -16,13 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { login, frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { Salesforce } from './lib/salesforce.mjs'
 import { launchWithExtension } from './lib/browser.mjs'
-import {
-  classicThemes,
-  defaultLogThemes,
-  logEventToType,
-  computedValue,
-  toRgb
-} from './lib/styles.mjs'
+import { classicThemes, defaultLogThemes, logEventToType, computedValue, toRgb } from './lib/styles.mjs'
 
 const MARKER = `E2E_MARKER_${Date.now()}`
 const APEX = `
@@ -129,7 +123,10 @@ async function openAppWithShiftW(sfPage, consoleLog, name) {
   const step = (msg, data) => steps.push(`${new Date().toISOString()} ${msg}${data ? ' ' + JSON.stringify(data) : ''}`)
   const appTarget = ext.browser.waitForTarget(t => t.url().includes('/html/app.html'), { timeout: 90000 })
   let opened = false
-  appTarget.then(() => (opened = true), () => {})
+  appTarget.then(
+    () => (opened = true),
+    () => {}
+  )
   const fromThisPage = async (command, since) => {
     // The page may be mid-navigation (e.g. a Lightning redirect).
     const host = await sfPage.evaluate(() => location.host).catch(() => null)
@@ -154,11 +151,7 @@ async function openAppWithShiftW(sfPage, consoleLog, name) {
       await sfPage.evaluate(() => {
         if (!window.__e2eKeydowns) {
           window.__e2eKeydowns = []
-          document.addEventListener(
-            'keydown',
-            e => window.__e2eKeydowns.push(`${e.key}@${e.target.tagName}`),
-            true
-          )
+          document.addEventListener('keydown', e => window.__e2eKeydowns.push(`${e.key}@${e.target.tagName}`), true)
         }
         const el = document.activeElement
         if (el && el !== document.body) el.blur()
@@ -182,15 +175,21 @@ async function openAppWithShiftW(sfPage, consoleLog, name) {
     step(`failed: ${e.message}`)
     const state = await keyboardState(sfPage).catch(err => ({ error: err.message }))
     const messages = await workerMessages().catch(() => [])
-    await saveArtifacts(sfPage, name, [
-      `keyboard: ${JSON.stringify(state)}`,
-      '--- steps',
-      ...steps,
-      '--- messages to the service worker',
-      ...messages.map(m => `${new Date(m.time).toISOString()} ${m.command} from ${m.host}${m.path} frame ${m.frameId}`),
-      '--- console',
-      ...consoleLog
-    ].map(redact))
+    await saveArtifacts(
+      sfPage,
+      name,
+      [
+        `keyboard: ${JSON.stringify(state)}`,
+        '--- steps',
+        ...steps,
+        '--- messages to the service worker',
+        ...messages.map(
+          m => `${new Date(m.time).toISOString()} ${m.command} from ${m.host}${m.path} frame ${m.frameId}`
+        ),
+        '--- console',
+        ...consoleLog
+      ].map(redact)
+    )
     throw new Error(`Shift+W did not open the app (${e.message}); see e2e/artifacts/${name}.*`)
   }
 }
@@ -205,9 +204,7 @@ test('classic log view', async t => {
 
   await t.test('log is visible', async () => {
     const visible = await page.evaluate(marker => {
-      const line = [...document.querySelectorAll('#debugText .debug')].find(d =>
-        d.textContent.includes(marker)
-      )
+      const line = [...document.querySelectorAll('#debugText .debug')].find(d => d.textContent.includes(marker))
       if (!line) return false
       const box = line.getBoundingClientRect()
       return box.width > 0 && box.height > 0
@@ -335,10 +332,7 @@ test('React log viewer', async t => {
     await app.$eval('#search', el => el.select())
     await app.type('#search', term)
     await app.keyboard.press('Enter')
-    await app.waitForFunction(
-      () => /Found \d+ matching logs/.test(document.body.innerText),
-      { timeout: 30000 }
-    )
+    await app.waitForFunction(() => /Found \d+ matching logs/.test(document.body.innerText), { timeout: 30000 })
   }
 
   await t.test('session comes from the HttpOnly cookie, not a saved token', async () => {
@@ -431,7 +425,10 @@ test('React log viewer', async t => {
     await closeDialog()
     await reload()
     const listed = await rows()
-    assert.ok(listed.every(r => r.includes(log.Operation)), `every row is a ${log.Operation} log`)
+    assert.ok(
+      listed.every(r => r.includes(log.Operation)),
+      `every row is a ${log.Operation} log`
+    )
 
     await app.click('button[aria-label="Filter logs"]')
     await app.waitForSelector(dialog, { visible: true })
@@ -472,19 +469,25 @@ test('React log viewer', async t => {
     // "<marker> users (User:{Id=…, Name=…})" is pretty-printed with js-beautify.
     const line = () =>
       app.evaluate(marker => {
-        const div = [...document.querySelectorAll('pre > div')].find(d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker))
+        const div = [...document.querySelectorAll('pre > div')].find(
+          d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker)
+        )
         return div ? div.innerText : null
       }, MARKER)
     const before = await line()
     assert.ok(before && !before.trim().includes('\n'), 'collapsed: one line')
     assert.match(before, /Name=/, 'text after the user id is kept')
     await app.evaluate(marker => {
-      const div = [...document.querySelectorAll('pre > div')].find(d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker))
+      const div = [...document.querySelectorAll('pre > div')].find(
+        d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker)
+      )
       div.querySelector('button[aria-label="Add"]').click()
     }, MARKER)
     await app.waitForFunction(
       marker => {
-        const div = [...document.querySelectorAll('pre > div')].find(d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker))
+        const div = [...document.querySelectorAll('pre > div')].find(
+          d => /users ?\(User/.test(d.innerText) && d.innerText.includes(marker)
+        )
         return div && div.innerText.trim().split('\n').length > 2
       },
       { timeout: 5000, polling: 100 },
@@ -669,7 +672,10 @@ test('Lightning Experience: Shift+W opens the app with the org session', async t
           timeout: 30000
         })
         const listed = await app.$$eval('tbody tr', trs => trs.map(tr => tr.innerText))
-        assert.ok(listed.some(r => r.includes(log.Operation)), "the app lists the org's logs")
+        assert.ok(
+          listed.some(r => r.includes(log.Operation)),
+          "the app lists the org's logs"
+        )
       })
     }
   } finally {

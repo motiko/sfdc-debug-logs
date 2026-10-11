@@ -79,9 +79,7 @@ async function sessionFromToken({ SF_ACCESS_TOKEN, SF_INSTANCE_URL }) {
 
 // Returns { sessionId, instance, userId, orgId }.
 export function login(env = loadEnv()) {
-  return env.SF_ACCESS_TOKEN && env.SF_INSTANCE_URL
-    ? sessionFromToken(env)
-    : soapLogin(env)
+  return env.SF_ACCESS_TOKEN && env.SF_INSTANCE_URL ? sessionFromToken(env) : soapLogin(env)
 }
 
 export function frontdoorUrl({ instance, sessionId }, retURL) {

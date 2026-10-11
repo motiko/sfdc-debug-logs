@@ -32,9 +32,10 @@ export const styles = theme => ({
     '.Select--multi .Select-input': {
       margin: 0
     },
-    '.Select.has-value.is-clearable.Select--single > .Select-control .Select-value': {
-      padding: 0
-    },
+    '.Select.has-value.is-clearable.Select--single > .Select-control .Select-value':
+      {
+        padding: 0
+      },
     '.Select-noresults': {
       padding: theme.spacing.unit * 2
     },

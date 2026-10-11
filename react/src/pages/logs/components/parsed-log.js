@@ -1,13 +1,18 @@
 import globalSf from '../../../global-sf'
 import React from 'react'
-import Icon from 'material-ui/Icon'
 import AddIcon from 'material-ui-icons/AddCircle'
 import RemoveIcon from 'material-ui-icons/RemoveCircle'
 import IconButton from 'material-ui/IconButton'
 import { withStyles } from 'material-ui/styles'
 import { connect } from 'react-redux'
-import jsBeautify from 'js-beautify'
-import { sfIdRegex, logEventToType } from '../constants'
+import {
+  splitLog,
+  filterEntries,
+  eventTypeOf,
+  eventCategory,
+  splitAtIds,
+  indentUserDebug
+} from '../log-parsing'
 const styles = theme => ({
   expandButton: {
     margin: 0,
@@ -30,29 +35,8 @@ const styles = theme => ({
 
 function ParsedLog({ body, classes, logStyleConfig, visibleEvents }) {
   if (!body || body === '') return <div />
-  const intro = body.match(
-    /^\d{1,2}\.\d\s[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\))/m
-  )
-  // Each entry runs until the next timestamp, or to the end of the log: the
-  // last entry has no timestamp after it and used to be dropped.
-  const allTheRest =
-    body.match(
-      /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|[A-Z_]*[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)|(?![^]))/gm
-    ) || []
-  const visibleRest =
-    visibleEvents.length == 0
-      ? allTheRest
-      : allTheRest.filter(body => {
-          const eventTypeMatch = /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|([A-Z_]*)/.exec(
-            body
-          )
-          if (!eventTypeMatch) {
-            console.error(`Didn't find event type for ${body} `)
-            return false
-          }
-          const eventType = eventTypeMatch[1]
-          return visibleEvents.indexOf(eventType) > -1
-        })
+  const { intro, entries } = splitLog(body)
+  const visibleRest = filterEntries(entries, visibleEvents)
   return (
     <pre
       className={classes.logBodyPre}
@@ -107,30 +91,19 @@ class LogElementBase extends React.Component {
   render() {
     const { body, classes, logTheme } = this.props
     const { indented } = this.state
-    const eventTypeMatch = /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|([A-Z_]*)/.exec(
-      body
-    )
-    if (!eventTypeMatch) {
+    const eventType = eventTypeOf(body)
+    if (eventType === null) {
       console.error(`Didn't find event type for ${body} `)
       return null
     }
-    const eventType = eventTypeMatch[1]
-    const beautify = elementBody => {
-      if (eventType === 'USER_DEBUG' && indented) {
-        const parsedUserDebug = elementBody.match(
-          /^(\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|USER_DEBUG\|\[\d+\]\|[A-Z_]+\|)([^]*)/m
-        )
-        if (parsedUserDebug && parsedUserDebug.length > 2) {
-          return `${parsedUserDebug[1]}${beautifyUserDebug(parsedUserDebug[2])}`
-        }
-      }
-      return elementBody
-    }
+    const beautify = elementBody =>
+      eventType === 'USER_DEBUG' && indented
+        ? indentUserDebug(elementBody)
+        : elementBody
 
-    // Turns Salesforce ids into links and keeps all text around them. The
-    // previous version dropped everything after the last id in a line.
+    // Turns Salesforce ids into links and keeps all text around them.
     const addLinks = elementBody => {
-      const parts = elementBody.split(new RegExp(`(${sfIdRegex.source})`))
+      const parts = splitAtIds(elementBody)
       if (parts.length === 1) return elementBody
       return parts.map((part, index) =>
         index % 2 === 1 ? (
@@ -147,10 +120,7 @@ class LogElementBase extends React.Component {
       )
     }
 
-    const filtered = Object.entries(logEventToType).find(me =>
-      eventType.startsWith(me[0])
-    )
-    const className = filtered ? filtered[1] : 'rest'
+    const className = eventCategory(eventType)
     return (
       <div
         style={{ color: logTheme[className] }}
@@ -174,45 +144,3 @@ class LogElementBase extends React.Component {
 }
 
 const LogElement = withStyles(styles)(LogElementBase)
-
-function beautifyUserDebug(userDebug) {
-  if (looksLikeHtml(userDebug)) {
-    return jsBeautify.html(userDebug)
-  }
-  if (isJsonString(userDebug)) {
-    return JSON.stringify(JSON.parse(userDebug), null, 2)
-  }
-  if (looksLikeSfdcObject(userDebug)) {
-    return jsBeautify.js(sfdcObjectBeautify(userDebug))
-  }
-  return userDebug
-}
-
-function isJsonString(str) {
-  try {
-    JSON.parse(str)
-  } catch (e) {
-    return false
-  }
-  return true
-}
-
-function sfdcObjectBeautify(string) {
-  string = string.replace(/={/g, ':{')
-  return string.replace(/([{| |\[]\w+)=(.+?)(?=, |},|}\)|:{|])/g, function(
-    match,
-    p1,
-    p2
-  ) {
-    return p1 + ":'" + p2 + "'"
-  })
-}
-
-function looksLikeSfdcObject(string) {
-  return string.match(/\w+:{\w+=.+,?\s*}/)
-}
-
-function looksLikeHtml(source) {
-  var trimmed = source.replace(/^[ \t\n\r]+/, '')
-  return trimmed && trimmed.substring(0, 1) === '<'
-}

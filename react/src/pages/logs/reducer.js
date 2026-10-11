@@ -1,4 +1,3 @@
-import { defaultLogThemes } from './constants'
 import { defaultStyleConfig, styleConfigReducer } from './dialogs/style/reducer'
 import { defaultFiltersState, filtersReducer } from './dialogs/filter/reducer'
 import {

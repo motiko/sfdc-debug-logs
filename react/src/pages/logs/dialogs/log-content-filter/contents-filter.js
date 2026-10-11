@@ -1,14 +1,7 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 import { withStyles } from 'material-ui/styles'
-import Typography from 'material-ui/Typography'
 import Button from 'material-ui/Button'
 import Input from 'material-ui/Input'
-import { MenuItem } from 'material-ui/Menu'
-import ArrowDropDownIcon from 'material-ui-icons/ArrowDropDown'
-import CancelIcon from 'material-ui-icons/Cancel'
-import ArrowDropUpIcon from 'material-ui-icons/ArrowDropUp'
-import ClearIcon from 'material-ui-icons/Clear'
 import Chip from 'material-ui/Chip'
 import Select from 'react-select'
 import Paper from 'material-ui/Paper'
@@ -27,26 +20,6 @@ import {
   clearVisibleEvents,
   toggleContentsFilter
 } from '../../actions'
-
-class Option extends React.Component {
-  handleClick = event => {
-    this.props.onSelect(this.props.option, event)
-  }
-
-  render() {
-    const { children, isFocused, onFocus } = this.props
-    return (
-      <MenuItem
-        onFocus={onFocus}
-        selected={isFocused}
-        onClick={this.handleClick}
-        component="div"
-      >
-        {children}
-      </MenuItem>
-    )
-  }
-}
 
 class ContentsFilter extends React.Component {
   availableItems = () => {

@@ -1,0 +1,12 @@
+{
+  "semi": false,
+  "singleQuote": true,
+  "trailingComma": "none",
+  "arrowParens": "avoid",
+  "overrides": [
+    {
+      "files": ["e2e/**", "scripts/**"],
+      "options": { "printWidth": 120 }
+    }
+  ]
+}

@@ -158,7 +158,7 @@ chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
     case "openOrFocusTab":
       openOrFocusTab(request.url, request.name)
       break
-    case "focusAppTab":
+    case "focusAppTab": {
       // const appTabNames = Object.keys(appTabIds).filter(tabName => tabName.startsWith("app_") )
       const appTabNames = []
       if(appTabNames.length > 0 && appTabIds[appTabNames[0]]){
@@ -166,7 +166,7 @@ chrome.runtime.onMessage.addListener((request,sender,sendResponse) => {
         return true
       }
       return false
-      break
+    }
   }
   return true
 });

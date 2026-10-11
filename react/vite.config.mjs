@@ -22,6 +22,11 @@ const jsxInJs = {
 // so it runs under the extension pages' CSP ("script-src 'self'").
 export default defineConfig({
   plugins: [jsxInJs, react()],
+  // Unit tests (npm test): pure logic only, no DOM.
+  test: {
+    include: ['src/**/*.test.{js,ts}'],
+    environment: 'node'
+  },
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
     // Some CommonJS dependencies (jss) expect browserify's `global`.

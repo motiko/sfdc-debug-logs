@@ -10,7 +10,6 @@ import { withStyles } from 'material-ui/styles'
 import ParsedLog from './parsed-log.js'
 import { fetchLogBody, toggleSideLogs, toggleContentsFilter } from '../actions'
 import { filterLogs } from '../utils'
-import { maxLogSizeToParse } from '../constants'
 import ContentsFilter from '../dialogs/log-content-filter/contents-filter'
 
 const mapStateToProps = state => ({
@@ -83,7 +82,7 @@ class LogView extends React.Component {
       hour12: false
     })
     const props = this.props
-    const { sideLogsOpen, contentsFilterOpen, classes } = this.props
+    const { sideLogsOpen, classes } = this.props
     const curLogId = props.match.params.id
     const openLog = logId => {
       props.fetchLogBody(logId)
