@@ -14,7 +14,8 @@
     "service_worker": "js/build/background.js"
   },
   "options_ui": {
-    "page": "html/options.html"
+    "page": "html/options.html",
+    "open_in_tab": true
   },
   "action": {
     "default_icon": {
