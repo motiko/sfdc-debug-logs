@@ -32,7 +32,9 @@ import CloseIcon from '@mui/icons-material/Close'
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore'
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess'
 import ReportIcon from '@mui/icons-material/ReportProblemOutlined'
+import SummaryIcon from '@mui/icons-material/AssessmentOutlined'
 import ParsedLog from './parsed-log'
+import LogSummaryPanel from './log-summary-panel'
 import globalSf from '../../../global-sf'
 import { StatusLabel } from './log-list'
 import IconAction from '../../../ui/components/icon-action'
@@ -50,6 +52,7 @@ import {
   visibleLines
 } from '../../../core/log/log-lines'
 import { CATEGORY_LABELS } from '../../../core/log/categories'
+import { rowOfLine, summarizeLog } from '../../../core/log/log-summary'
 import {
   paletteFor,
   themeCssVariables,
@@ -68,7 +71,8 @@ const FIND_DELAY_MS = 200
 
 // The opened log (#/logs/<id>): its metadata and actions, a toolbar (find
 // with a match counter, next error / next debug line, event-type toggles
-// with counts, expand all values), and the log body. A failed run opens at
+// with counts, expand all values, the summary), the summary panel (errors,
+// limits, SOQL, DML; entries jump to their line) and the log body. A failed run opens at
 // its first error, any other log at the top. The ref offers the page's
 // shortcuts: focusFind(), nextError(), nextDebug().
 const LogViewer = forwardRef(function LogViewer(
@@ -94,6 +98,9 @@ const LogViewer = forwardRef(function LogViewer(
   const [activeRow, setActiveRow] = useState(-1)
   const [expandAll, setExpandAll] = useState(false)
   const [eventsAnchor, setEventsAnchor] = useState(null)
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  // A line the summary asked for: { number }, shown once it's visible.
+  const [pendingLine, setPendingLine] = useState(null)
 
   useEffect(() => {
     dispatch(fetchLogBody(logId))
@@ -109,6 +116,11 @@ const LogViewer = forwardRef(function LogViewer(
   const matches = useMemo(() => findMatches(lines, term), [lines, term])
   const matchRows = useMemo(() => new Set(matches.map(m => m.row)), [matches])
   const errorCount = counts.error
+  // Only parsed while the panel is open; once per log.
+  const summary = useMemo(
+    () => (summaryOpen && body ? summarizeLog(allLines) : null),
+    [summaryOpen, body, allLines]
+  )
   const debugCount = useMemo(
     () => allLines.filter(isDebugLine).length,
     [allLines]
@@ -184,6 +196,23 @@ const LogViewer = forwardRef(function LogViewer(
     setActiveRow(row)
     parsedRef.current && parsedRef.current.scrollToRow(row)
   }
+
+  // Go to a line from the summary; a line of a hidden event type is shown
+  // first.
+  const jumpToLine = number => {
+    const line = allLines[number]
+    if (!line) return
+    if (hidden.includes(line.category)) dispatch(toggleCategory(line.category))
+    setPendingLine({ number })
+  }
+  useEffect(() => {
+    if (!pendingLine) return
+    const row = rowOfLine(lines, pendingLine.number)
+    if (row < 0) return
+    setPendingLine(null)
+    setActiveRow(row)
+    parsedRef.current && parsedRef.current.scrollToRow(row)
+  }, [pendingLine, lines])
 
   useImperativeHandle(ref, () => ({
     focusFind: () => {
@@ -443,6 +472,17 @@ const LogViewer = forwardRef(function LogViewer(
         >
           {expandAll ? 'Collapse values' : 'Expand values'}
         </Button>
+        <Button
+          variant="text"
+          color="inherit"
+          startIcon={<SummaryIcon />}
+          aria-expanded={summaryOpen}
+          aria-controls={summaryOpen ? 'log-summary' : undefined}
+          onClick={() => setSummaryOpen(v => !v)}
+          disabled={!body}
+        >
+          {summaryOpen ? 'Hide summary' : 'Summary'}
+        </Button>
         <EventsPopover
           anchor={eventsAnchor}
           onClose={() => setEventsAnchor(null)}
@@ -450,6 +490,18 @@ const LogViewer = forwardRef(function LogViewer(
           hidden={hidden}
         />
       </Box>
+
+      {summary ? (
+        <LogSummaryPanel
+          key={logId}
+          id="log-summary"
+          summary={summary}
+          activeLine={
+            activeRow >= 0 && lines[activeRow] ? lines[activeRow].number : -1
+          }
+          onJump={jumpToLine}
+        />
+      ) : null}
 
       {/* The log body: one Tab stop; arrows and Page keys scroll it. */}
       <Box
