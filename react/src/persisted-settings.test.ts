@@ -115,6 +115,7 @@ describe('current settings', () => {
     const saved = JSON.parse(serializeSettings(state))
     expect(saved.version).toBe(2)
     expect(Object.keys(saved.settings).sort()).toEqual([
+      'autoRefresh',
       'colorMode',
       'hiddenCategories',
       'maxLogs',
@@ -126,8 +127,17 @@ describe('current settings', () => {
       sideLogsOpen: state.sideLogsOpen,
       styleConfig: state.styleConfig,
       hiddenCategories: [],
-      colorMode: 'system'
+      colorMode: 'system',
+      autoRefresh: 0
     })
+  })
+
+  it('keeps a valid auto-refresh interval only', () => {
+    const saved = (autoRefresh: unknown) =>
+      JSON.stringify({ version: 2, settings: { autoRefresh } })
+    expect(parseSettings(saved(30))).toEqual({ autoRefresh: 30 })
+    expect(parseSettings(saved(5))).toEqual({})
+    expect(parseSettings(saved('10'))).toEqual({})
   })
 
   it('drops invalid values', () => {

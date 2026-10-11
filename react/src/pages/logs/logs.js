@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Alert, Box, Button, LinearProgress, Link } from '@mui/material'
 import ListIcon from '@mui/icons-material/ViewList'
@@ -28,6 +35,8 @@ import {
 } from './utils'
 import { openLog, useOpenLogId } from '../../hash-route'
 import { useAppShortcuts } from './use-app-shortcuts'
+import { useAutoRefresh } from './use-auto-refresh'
+import { describeAutoRefresh } from './auto-refresh'
 import globalSf from '../../global-sf'
 import { layout } from '../../ui/tokens'
 
@@ -60,6 +69,9 @@ export default function LogsPage() {
   useEffect(() => {
     dispatch(loadLogs())
   }, [dispatch])
+
+  const autoRefresh = useAutoRefresh({ openId: logId })
+  const scrollAnchor = useScrollAnchor(logs)
 
   const shownLogs = useMemo(
     () => sortLogs(filterLogs(logs, filters, search.matches), sort),
@@ -225,7 +237,18 @@ export default function LogsPage() {
           Refresh failed. {listError.title}
         </Alert>
       ) : null}
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>{listContent}</Box>
+      <Box
+        ref={scrollAnchor.ref}
+        onScroll={scrollAnchor.onScroll}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowAnchor: 'none'
+        }}
+      >
+        {listContent}
+      </Box>
       {logs.length > 0 ? (
         <Box
           sx={{
@@ -247,6 +270,15 @@ export default function LogsPage() {
               : `Newest ${logs.length} logs loaded`}
             {loadedAt ? ` · updated ${formatRelative(loadedAt)}` : ''}
           </span>
+          {autoRefresh.state !== 'off' ? (
+            <span data-testid="auto-refresh-status">
+              {describeAutoRefresh(
+                autoRefresh.state,
+                autoRefresh.interval,
+                autoRefresh.failing
+              )}
+            </span>
+          ) : null}
           {logs.length >= maxLogs ? (
             <Button
               size="small"
@@ -274,6 +306,7 @@ export default function LogsPage() {
         host={host}
         onRefresh={refresh}
         refreshing={loading}
+        autoRefresh={autoRefresh}
         onHelp={() => setDialog('help')}
         onAppearance={() => setDialog('appearance')}
         onDelete={() => setDialog('delete')}
@@ -337,8 +370,59 @@ export default function LogsPage() {
         onClose={() => setDialog(null)}
       />
       <Toast toast={toast} onClose={() => dispatch(hideToast())} />
+      {/* New logs from auto-refresh, announced politely. */}
+      <Box
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        data-testid="auto-refresh-announcement"
+      >
+        {autoRefresh.announcement ? (
+          <span key={autoRefresh.announcement.key}>
+            {autoRefresh.announcement.text}
+          </span>
+        ) : null}
+      </Box>
     </Box>
   )
+}
+
+// Keeps the list where the user scrolled it when rows are added above (an
+// auto-refresh poll or a refresh): the first visible row stays in place.
+// At the top, new rows show up at the top.
+function useScrollAnchor(logs) {
+  const ref = useRef(null)
+  const anchor = useRef(null)
+  const record = useCallback(() => {
+    const el = ref.current
+    anchor.current = null
+    if (!el || el.scrollTop === 0) return
+    const top = el.getBoundingClientRect().top
+    for (const row of el.querySelectorAll('[data-log-id]')) {
+      const rect = row.getBoundingClientRect()
+      if (rect.bottom > top) {
+        anchor.current = { id: row.dataset.logId, offset: rect.top - top }
+        return
+      }
+    }
+  }, [])
+  useLayoutEffect(() => {
+    const el = ref.current
+    const kept = anchor.current
+    if (el && kept) {
+      const row = [...el.querySelectorAll('[data-log-id]')].find(
+        r => r.dataset.logId === kept.id
+      )
+      if (row) {
+        el.scrollTop +=
+          row.getBoundingClientRect().top -
+          el.getBoundingClientRect().top -
+          kept.offset
+      }
+    }
+    record()
+  }, [logs, record])
+  return { ref, onScroll: record }
 }
 
 function ListError({ error, host, onRetry }) {

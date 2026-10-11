@@ -19,16 +19,19 @@ import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import CloudIcon from '@mui/icons-material/CloudOutlined'
 import IconAction from '../../../ui/components/icon-action'
 import LoggingControl from './logging-control'
+import AutoRefreshControl from './auto-refresh-control'
 import { shortcutHint } from '../../../core/app-shortcuts'
 import { layout } from '../../../ui/tokens'
 
-// The app shell's header: name and org, the logging status, Refresh, help,
+// The app shell's header: name and org, the logging status, auto-refresh
+// (autoRefresh: useAutoRefresh's state), Refresh, help,
 // and an overflow menu for the less common actions (appearance, Salesforce
 // pages, settings, and "Delete logs…" in its own danger section).
 export default function AppHeader({
   host,
   onRefresh,
   refreshing,
+  autoRefresh,
   onHelp,
   onAppearance,
   onDelete
@@ -106,6 +109,7 @@ export default function AppHeader({
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         <LoggingControl />
+        {autoRefresh ? <AutoRefreshControl {...autoRefresh} /> : null}
         <IconAction
           label="Refresh logs"
           shortcut={shortcutHint('refresh')}

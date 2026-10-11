@@ -90,17 +90,20 @@ const LogList = forwardRef(function LogList(
 ) {
   const rowRefs = useRef([])
   const openIndex = logs.findIndex(log => log.Id === openId)
-  const [active, setActive] = useState(Math.max(0, openIndex))
-  const current = Math.min(active, Math.max(0, logs.length - 1))
+  // The current row is kept by log id, so it stays on the same log when
+  // auto-refresh adds rows above it.
+  const [activeId, setActiveId] = useState(openId)
+  const activeIndex = logs.findIndex(log => log.Id === activeId)
+  const current = activeIndex >= 0 ? activeIndex : Math.max(0, openIndex)
+  const setActive = index => setActiveId(logs[index] ? logs[index].Id : null)
 
   // Follow the opened log (e.g. [ and ] or the back button).
   useEffect(() => {
-    if (openIndex >= 0) {
-      setActive(openIndex)
-      const row = rowRefs.current[openIndex]
-      if (row) row.scrollIntoView({ block: 'nearest' })
-    }
-  }, [openIndex])
+    if (!openId) return
+    setActiveId(openId)
+    const row = rowRefs.current.find(r => r && r.dataset.logId === openId)
+    if (row) row.scrollIntoView({ block: 'nearest' })
+  }, [openId])
 
   const focusAt = index => {
     const i = Math.max(0, Math.min(logs.length - 1, index))
@@ -177,7 +180,12 @@ const LogList = forwardRef(function LogList(
     ) : null
     if (compact) {
       return (
-        <Box component="tr" key={log.Id} {...rowProps} sx={rowSx(isOpen)}>
+        <Box
+          component="tr"
+          key={log.Id}
+          {...rowProps}
+          sx={rowSx(isOpen, isNew)}
+        >
           <Box component="td" role="gridcell" sx={{ ...cell, py: 0.75 }}>
             <Box
               sx={{
@@ -260,7 +268,7 @@ const LogList = forwardRef(function LogList(
       matches: matches ? matches[log.Id] || 0 : null
     }
     return (
-      <Box component="tr" key={log.Id} {...rowProps} sx={rowSx(isOpen)}>
+      <Box component="tr" key={log.Id} {...rowProps} sx={rowSx(isOpen, isNew)}>
         {columns.map(c => (
           <Box
             component="td"
@@ -385,7 +393,16 @@ const ellipsis = {
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 
-const rowSx = isOpen => ({
+// New rows (auto-refresh or Refresh) fade in from the hover tint, besides
+// their "New" badge; no fade with reduced motion.
+const rowSx = (isOpen, isNew) => ({
+  ...(isNew && {
+    animation: 'ad-new-row 2.5s ease-out',
+    '@keyframes ad-new-row': {
+      from: { backgroundColor: 'var(--ad-selected)' }
+    },
+    '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
+  }),
   height: layout.rowHeight,
   cursor: 'pointer',
   borderBottom: 1,
