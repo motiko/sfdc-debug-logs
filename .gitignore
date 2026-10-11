@@ -10,8 +10,11 @@ lib-srcs/
 tags/
 tags
 
-.chrome-test/
+.chrome-test
 .env.local
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# UX audit output (e2e/ux-audit.mjs)
+e2e/ux-artifacts/
