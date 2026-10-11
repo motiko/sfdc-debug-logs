@@ -199,7 +199,7 @@ export default function AppearancePanel({ open, onClose, colorMode }) {
             borderColor: 'divider',
             backgroundColor: 'var(--log-background)',
             whiteSpace: textWrap ? 'pre-wrap' : 'pre',
-            overflowX: 'auto'
+            overflow: 'hidden'
           }}
         >
           {Object.keys(CATEGORY_LABELS).map(category => {

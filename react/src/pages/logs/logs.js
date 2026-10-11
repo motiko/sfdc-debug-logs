@@ -176,7 +176,7 @@ export default function LogsPage() {
       component="section"
       aria-label="Debug logs"
       sx={{
-        width: logId ? layout.listWidth : '100%',
+        width: logId ? `clamp(260px, 28vw, ${layout.listWidth}px)` : '100%',
         flex: logId ? 'none' : 1,
         minWidth: 0,
         display: 'flex',

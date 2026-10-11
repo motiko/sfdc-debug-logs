@@ -4,7 +4,6 @@ import {
   Divider,
   ListItemIcon,
   ListItemText,
-  ListSubheader,
   Menu,
   MenuItem,
   Tooltip,
@@ -169,7 +168,6 @@ export default function AppHeader({
           <ListItemText>Extension options</ListItemText>
         </MenuItem>
         <Divider />
-        <ListSubheader disableSticky>Danger zone</ListSubheader>
         <MenuItem onClick={run(onDelete)} sx={{ color: 'error.main' }}>
           <ListItemIcon sx={{ color: 'inherit' }}>
             <DeleteIcon fontSize="small" />
