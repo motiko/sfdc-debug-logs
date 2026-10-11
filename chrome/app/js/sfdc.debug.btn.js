@@ -4,7 +4,7 @@ const USERS_TABLE_ID = "Apex_Trace_List:monitoredUsersForm";
 var showLogsNum = 50;
 var tableElement = document.getElementById(LOGS_TABLE_ID);
 
-async function openApp() {
+async function openAppIfRequested() {
   if (!document.location.search.includes("openApp=yes")) {
     return;
   }
@@ -60,7 +60,7 @@ function focusOn(selector) {
 }
 
 function initPage() {
-  openApp();
+  openAppIfRequested();
   addDeleteAllBtn();
   removeOldDeleteBtn();
   addAddUserBtn();
