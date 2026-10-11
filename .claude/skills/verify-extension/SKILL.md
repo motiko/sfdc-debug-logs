@@ -31,7 +31,8 @@ Needs `.env.local` (SF_USER, SF_PASS, SF_TOKEN, optional SF_LOGIN_URL). Never pr
 cd e2e && npm install && npm test
 ```
 
-This rebuilds the bundle, logs into the org, runs anonymous Apex and checks the classic log page and the React app (visibility, search, every theme of `core/log/themes.ts` in both views, font size, wrap).
+This rebuilds the bundle, logs into the org, runs anonymous Apex and checks the classic log page and the React app (visibility, search, every theme of `core/log/themes.ts` in both views, font size, wrap, the virtualized rendering of a long log).
+- After changing the log body rendering (`parsed-log.js`, `core/log/parsing.ts`), also run `node large-log-perf.mjs` in `e2e/`: it creates a ~20 MB log and prints the time to the first rendered line and the scroll step times (compare with `--ext <dir>` pointing at a build of `main`).
 - Watch it run with `HEADFUL=1 npm test`.
 - Only one run at a time: CI and local runs share the org's trace flag.
 
