@@ -238,6 +238,104 @@ async function openAppWithShiftW(sfPage, consoleLog, name) {
 
 const classicUrl = id => `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${id}`
 
+// Installing opens a welcome on the options page, once (background.ts
+// runtime.onInstalled, reason "install"): every run's profile is new.
+test('first run: a welcome explains how to start, once', async t => {
+  const target = await ext.browser.waitForTarget(t => t.url().includes('/html/options.html#welcome'), {
+    timeout: 15000
+  })
+  const page = await target.page()
+  const errors = collectPageErrors(page)
+  const WELCOME = '::-p-aria([name="Welcome to Apex Debugger"][role="region"])'
+  try {
+    await t.test('it says how to open the viewer, start logging and find the settings', async () => {
+      await page.waitForSelector(WELCOME, { timeout: 10000 })
+      const text = await page.$eval('#welcome', el => el.innerText)
+      assert.match(text, /browser toolbar/, 'the toolbar button')
+      assert.match(text, /Shift|⇧/, 'the shortcut')
+      assert.match(text, /Start logging/)
+      assert.match(text, /Settings/)
+      const first = await page.$eval('main', m => m.firstElementChild && m.firstElementChild.id)
+      assert.equal(first, 'welcome', 'it comes before the settings')
+    })
+
+    await t.test('"Got it" dismisses it for good', async () => {
+      await page.click('::-p-xpath(//button[normalize-space()="Got it"])')
+      await page.waitForSelector('#welcome', { hidden: true })
+      assert.equal(new URL(page.url()).hash, '', 'no #welcome left to bring it back')
+      await page.reload({ waitUntil: 'networkidle0' })
+      await page.waitForSelector('::-p-aria(Key for Debug Logs)', { timeout: 10000 })
+      assert.equal(await page.$('#welcome'), null, 'not shown after a reload')
+    })
+  } finally {
+    if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
+    await page.close()
+  }
+})
+
+// The toolbar button (chrome.action) can't be clicked from puppeteer; the
+// worker exposes its click handler, which gets the tab like Chrome passes it.
+test('toolbar button opens the log viewer from Lightning Setup', async t => {
+  const clickToolbarButton = url =>
+    ext.background.evaluate(async url => {
+      const tab = (await chrome.tabs.query({})).find(t => t.url === url) || { url }
+      await globalThis.onActionClicked(tab)
+    }, url)
+  const appPages = async () => (await ext.browser.pages()).filter(p => p.url().includes('/html/app.html'))
+  for (const p of await appPages()) await p.close()
+  const wasLightning = await sf.lightningPreferred()
+  await sf.setLightningPreferred(true)
+  const page = await ext.browser.newPage()
+  const consoleLog = []
+  try {
+    await gotoLightning(
+      page,
+      frontdoorUrl(session, '/lightning/setup/ApexDebugLogs/home'),
+      '.my.salesforce-setup.com',
+      {
+        log: line => consoleLog.push(`lightning: ${line}`)
+      }
+    )
+
+    await t.test("on an org tab it opens that org's app with its session", async () => {
+      const appTarget = ext.browser.waitForTarget(t => t.url().includes('/html/app.html'), { timeout: 30000 })
+      await clickToolbarButton(page.url())
+      const app = await (await appTarget).page()
+      const params = new URL(app.url()).searchParams
+      assert.equal(params.get('host'), new URL(session.instance).hostname, 'the my.salesforce.com host')
+      assert.ok(params.get('sid'), 'a session id')
+      assert.equal(
+        (params.get('oid') || '').slice(0, 15),
+        session.orgId.slice(0, 15),
+        "the org's id, so the tab is tracked"
+      )
+      await app.waitForSelector(`[role="grid"] [data-log-id="${log.Id}"]`, { timeout: 30000 })
+    })
+
+    await t.test('again: focuses the open app instead of opening another', async () => {
+      await page.bringToFront()
+      await clickToolbarButton(page.url())
+      await delay(1500)
+      assert.equal((await appPages()).length, 1, 'no second app tab')
+    })
+
+    await t.test('on a public Site or another site it opens the options, never the app', async () => {
+      const optionsTarget = ext.browser.waitForTarget(t => t.url().includes('/html/options.html'), { timeout: 15000 })
+      await clickToolbarButton('https://someone.force.com/s/')
+      const options = await (await optionsTarget).page()
+      assert.equal((await appPages()).length, 1, 'no app tab for a public Site')
+      await options.close()
+    })
+  } catch (e) {
+    await saveArtifacts(page, 'toolbar-button', consoleLog.map(redact))
+    throw e
+  } finally {
+    for (const p of await appPages()) await p.close()
+    await page.close().catch(() => {})
+    await sf.setLightningPreferred(wasLightning)
+  }
+})
+
 test('classic log view', async t => {
   const page = await ext.browser.newPage()
   const errors = collectPageErrors(page)
@@ -615,6 +713,12 @@ test('React log viewer', async t => {
     const text = await app.$eval(HELP, d => d.innerText)
     assert.match(text, /Refresh the list of logs/)
     assert.doesNotMatch(text, /delete all/i)
+    assert.match(text, /Open Apex Debugger/, 'the page shortcuts are listed too')
+    const configure = await app.$eval(
+      `${HELP} ::-p-aria([name="Change or turn off the page shortcuts in the extension options"][role="link"])`,
+      a => a.getAttribute('href')
+    )
+    assert.equal(configure, 'options.html#shortcuts', 'a link to change them')
     await app.keyboard.press('Escape')
     await app.waitForSelector(HELP, { hidden: true })
   })

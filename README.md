@@ -20,6 +20,11 @@ Key Features
   * Start, extend or stop logging (a 24-hour trace flag for the current user).
   * Customizable keyboard shortcuts for Salesforce
 
+Getting Started
+---------------
+
+On a Salesforce tab (Lightning, Lightning Setup or Salesforce Classic), click the Apex Debugger button in the browser toolbar, or press _Shift+W_, to open the log viewer for that org; if it's already open, its tab comes to the front. On any other tab the button opens the extension's options. In the log viewer, choose "Start logging" so Salesforce records your Apex (for 24 hours), run your code, then refresh. A welcome page with these steps opens once, when you install the extension.
+
 Keyboard Shortcuts
 ------------------
 
@@ -42,7 +47,7 @@ Hold Alt to open a page in the same tab (e.g. _Alt+Shift+D_).
 
 Since 0.9, Edit and Save need a modifier: earlier versions used the bare _e_ and _s_ keys, which a stray key press could trigger. The classic debug log list has no delete key any more; "Delete logs…" always asks, with the scope (only your logs, or all users') and the count.
 
-Change, add or remove shortcuts, or turn them off, on the extension's options page (click the toolbar icon, or press _?_ in the log viewer for the full list). Shortcuts you customized in earlier versions are kept; if one of yours used L or E, it keeps the key and the new built-in shortcut starts turned off.
+Change, add or remove shortcuts, or turn them off, on the extension's options page (click the toolbar button on a tab that isn't Salesforce, or follow the link under _?_ in the log viewer, which lists every shortcut). On macOS keys are shown with ⌘ ⌥ ⇧. Shortcuts you customized in earlier versions are kept; if one of yours used L or E, it keeps the key and the new built-in shortcut starts turned off.
 
 The log viewer has its own keys (press _?_ there), and the classic debug log pages have a few single-letter keys that only change the view (listed under "Shortcuts" on the page).
 
