@@ -188,6 +188,12 @@ test('classic log list', async t => {
     assert.ok(newest.includes(ids[0]), 'the first row is one of the newest logs, not the oldest')
     const userLink = await page.$eval(`tr[data-id="${log.Id}"] td:nth-child(2) a`, a => a.getAttribute('href'))
     assert.equal(userLink, `/${session.userId}`, 'user name links to the user')
+    // Cells hold the field values as plain text (no HTML parsing of log data).
+    const operation = await page.$eval(`tr[data-id="${log.Id}"] td:nth-child(5)`, td => ({
+      text: td.textContent,
+      elements: td.children.length
+    }))
+    assert.deepEqual(operation, { text: log.Operation, elements: 0 }, 'operation cell is plain text')
   })
 
   if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)

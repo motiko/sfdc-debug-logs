@@ -331,17 +331,49 @@ function logRecordToTr(logObj) {
   tr.onfocus = "if (window.hiOn){hiOn(this);}";
   tr.dataset.id = logObj.Id;
   var startTime = new Date(Date.parse(logObj.StartTime)).toLocaleString();
-  tr.innerHTML = `<td class="dataCell  actionColumn" colspan="1">
-      <a href="/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${logObj.Id}" class="actionLink">View</a>&nbsp;|&nbsp;<a href="/servlet/servlet.FileDownload?file=${logObj.Id}" class="actionLink">Download</a>&nbsp;|&nbsp;<a class="actionLink deleteActionLink" href="#" >Delete</a></td>
-      <td class="dataCell" colspan="1"><a  href="/${logObj.LogUserId}" class="actionLink">${logObj.LogUser.Name}</a></td>
-      <td class="dataCell" colspan="1">${logObj.Request}</td>
-      <td class="dataCell" colspan="1">${logObj.Application}</td>
-      <td class="dataCell" colspan="1">${logObj.Operation}</td>
-      <td class="dataCell" colspan="1">${logObj.Status}</td>
-      <td class="dataCell" colspan="1">${logObj.DurationMilliseconds}</td>
-      <td class="dataCell" colspan="1">${logObj.LogLength}</td>
-      <td class="dataCell" colspan="1">${startTime}</td>`;
+  // Built with textContent, not innerHTML: Operation, Request and the user
+  // name come from the org's data, and requests to public Sites control some
+  // of them, so they must never be parsed as HTML.
+  var actions = cell("dataCell  actionColumn");
+  actions.append(
+    link("/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=" + encodeURIComponent(logObj.Id), "View"),
+    "\u00a0|\u00a0",
+    link("/servlet/servlet.FileDownload?file=" + encodeURIComponent(logObj.Id), "Download"),
+    "\u00a0|\u00a0",
+    link("#", "Delete", "actionLink deleteActionLink")
+  );
+  var user = cell("dataCell");
+  user.append(link("/" + encodeURIComponent(logObj.LogUserId), logObj.LogUser ? logObj.LogUser.Name : ""));
+  tr.append(actions, user);
+  [
+    logObj.Request,
+    logObj.Application,
+    logObj.Operation,
+    logObj.Status,
+    logObj.DurationMilliseconds,
+    logObj.LogLength,
+    startTime,
+  ].forEach(function (value) {
+    var td = cell("dataCell");
+    td.textContent = value == null ? "" : String(value);
+    tr.append(td);
+  });
   return tr;
+}
+
+function cell(className) {
+  var td = document.createElement("td");
+  td.className = className;
+  td.colSpan = 1;
+  return td;
+}
+
+function link(href, text, className) {
+  var a = document.createElement("a");
+  a.href = href;
+  a.className = className || "actionLink";
+  a.textContent = text;
+  return a;
 }
 
 function clearTable() {
