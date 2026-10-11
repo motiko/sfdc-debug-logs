@@ -92,3 +92,4 @@ See "Releasing" in README.md. `scripts/version.sh patch|minor|major` bumps `chro
 - `.claude/skills/triage-reports`: check GitHub issues and Chrome Web Store reviews against the code.
 - `.claude/skills/release-extension`: readiness checks, tagging, and watching the release and store upload.
 - `.claude/agents/market-research`: compares competing extensions and files feature requests (labels `enhancement`, `market-research`).
+- `.claude/agents/ux-ui-review`: reviews the UI in a real browser (screenshots, axe-core, contrast, keyboard, task walkthroughs) with `e2e/ux-audit.mjs`, and ranks findings; can file them as `ux` issues.
