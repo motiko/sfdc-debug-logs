@@ -9,6 +9,7 @@
 // counted (stats()), by source and kind, so runs can report how many
 // Salesforce API requests they'd make.
 
+import { generateKeyPairSync, verify } from 'node:crypto'
 import { runAnonymousApex } from './apex.mjs'
 import { API_VERSION } from '../../scripts/lib/sf-auth.mjs'
 
@@ -44,6 +45,7 @@ const sfError = (status, errorCode, message) => json(status, [{ errorCode, messa
 export function requestKind(method, path) {
   if (path.startsWith('/services/Soap/')) return 'soap login'
   if (path.startsWith('/services/oauth2/userinfo')) return 'userinfo'
+  if (path.startsWith('/services/oauth2/token')) return 'oauth token'
   if (/\/tooling\/query/.test(path)) return 'tooling query'
   if (/\/tooling\/sobjects\/ApexLog\/[^/]+\/Body/.test(path)) return 'log body'
   if (/\/tooling\/executeAnonymous/.test(path)) return 'execute anonymous'
@@ -55,9 +57,11 @@ export function requestKind(method, path) {
   return null
 }
 
-// Salesforce API requests count against the org's daily limit; SOAP login and
-// userinfo don't (but login is rate limited, and fails once the limit is hit).
-export const COUNTS_AGAINST_LIMIT = kind => kind && kind !== 'soap login' && kind !== 'userinfo'
+// Salesforce API requests count against the org's daily limit; logins (SOAP
+// or OAuth token) and userinfo don't (but login is rate limited, and fails
+// once the limit is hit).
+const NOT_COUNTED = new Set(['soap login', 'oauth token', 'userinfo'])
+export const COUNTS_AGAINST_LIMIT = kind => Boolean(kind) && !NOT_COUNTED.has(kind)
 
 function parseLiteral(raw) {
   const value = raw.trim()
@@ -131,7 +135,69 @@ export class MockOrg {
     // Optional delay (ms) per path pattern, e.g. to hold the frontdoor
     // redirect to Lightning: [{ pattern: /\/lightning\//, ms: 70000, times: 1 }].
     this.delays = []
+    // The External Client App the JWT bearer flow logs in through
+    // (createJwtApp()); null: the token endpoint refuses every assertion.
+    this.jwtApp = null
     this.addSeedLogs()
+  }
+
+  // Registers an app with a new key pair, its user pre-authorized, and
+  // returns the env that scripts/lib/sf-auth.mjs login() needs to log in
+  // through it with the JWT bearer flow.
+  createJwtApp() {
+    const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
+    this.jwtApp = { clientId: `3MVG9MOCK${Math.random().toString(36).slice(2)}`, publicKey }
+    return {
+      SF_USER: this.user.Username,
+      SF_CLIENT_ID: this.jwtApp.clientId,
+      SF_JWT_KEY: privateKey.export({ type: 'pkcs8', format: 'pem' }),
+      SF_LOGIN_URL: `https://${MOCK_HOSTS.api}`
+    }
+  }
+
+  // POST /services/oauth2/token with the JWT bearer grant, checked like
+  // Salesforce: RS256 signature by the app's key, iss, sub, aud, exp.
+  token(body) {
+    const fail = (error, error_description) => json(400, { error, error_description })
+    const params = new URLSearchParams(body)
+    if (params.get('grant_type') !== 'urn:ietf:params:oauth:grant-type:jwt-bearer') {
+      return fail('unsupported_grant_type', 'grant type not supported')
+    }
+    const parts = (params.get('assertion') || '').split('.')
+    if (parts.length !== 3) return fail('invalid_grant', 'invalid assertion')
+    let header, claims
+    try {
+      header = JSON.parse(Buffer.from(parts[0], 'base64url').toString())
+      claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    } catch {
+      return fail('invalid_grant', 'invalid assertion')
+    }
+    if (header.alg !== 'RS256') return fail('invalid_grant', 'invalid assertion')
+    if (!this.jwtApp || claims.iss !== this.jwtApp.clientId) {
+      return fail('invalid_client_id', 'client identifier invalid')
+    }
+    const signed = verify(
+      'sha256',
+      Buffer.from(`${parts[0]}.${parts[1]}`),
+      this.jwtApp.publicKey,
+      Buffer.from(parts[2], 'base64url')
+    )
+    if (!signed) return fail('invalid_grant', 'invalid assertion')
+    if (!['https://login.salesforce.com', 'https://test.salesforce.com'].includes(claims.aud)) {
+      return fail('invalid_grant', 'audience is invalid')
+    }
+    const now = Date.now() / 1000
+    if (typeof claims.exp !== 'number' || claims.exp < now || claims.exp > now + 300) {
+      return fail('invalid_grant', 'expired authorization code')
+    }
+    if (claims.sub !== this.user.Username) return fail('invalid_grant', "user hasn't approved this consumer")
+    return json(200, {
+      access_token: this.sessionId,
+      scope: 'web api',
+      instance_url: `https://${MOCK_HOSTS.api}`,
+      id: `https://login.salesforce.com/id/${this.orgId}/${this.user.Id}`,
+      token_type: 'Bearer'
+    })
   }
 
   // A few logs that exist before the run, one of another user.
@@ -212,6 +278,7 @@ export class MockOrg {
     this.record(source, method, path)
     const auth = headers.authorization || ''
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : null
+    if (method === 'POST' && path === '/services/oauth2/token') return this.token(body)
     if (path.startsWith('/services/') && !path.startsWith('/services/Soap/')) {
       if (token !== this.sessionId) {
         return sfError(401, 'INVALID_SESSION_ID', 'Session expired or invalid')
@@ -240,6 +307,10 @@ export class MockOrg {
     let m
     if (method === 'GET' && path === '/tooling/query') return json(200, this.query(params.get('q')))
     if (method === 'GET' && path === '/query') return json(200, this.query(params.get('q')))
+    if (method === 'GET' && path === '/limits') {
+      const max = 15000
+      return json(200, { DailyApiRequests: { Max: max, Remaining: max - this.stats().apiRequests } })
+    }
     if (method === 'GET' && path === '/sobjects') {
       return json(200, {
         sobjects: ['001', '003', '005', '006', '00D', '00Q', '01p', '07L', '7tf', '7dl', 'a00'].map(keyPrefix => ({
