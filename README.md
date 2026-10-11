@@ -70,4 +70,6 @@ gh workflow run publish-chrome-web-store.yml -f tag=vX.Y.Z
 
 The same command retries any other failed upload. Check the review state in the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 
+**New permissions:** if the release adds a permission to `chrome/app/manifest.json`, first add its justification in the dashboard (the item's **Privacy** tab). Otherwise the upload succeeds but submitting for review fails with `400 INVALID_ITEM_METADATA`. In that case, fill in the missing fields and click **Submit for review** in the dashboard. Don't rerun the workflow: the version is already uploaded, and the store rejects the same version twice.
+
 If the Chrome Web Store isn't configured (see [Chrome Web Store publishing setup](docs/chrome-web-store-publishing.md)), step 3 is skipped with a warning, and you upload the zip from the GitHub release in the dashboard by hand.
