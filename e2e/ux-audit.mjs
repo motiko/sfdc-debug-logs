@@ -106,18 +106,34 @@ System.debug('UX audit failing run ${MARKER}');
 Integer y = 1 / 0;
 `
 
-async function produceLogs(sf) {
+// The log summary's limit levels and loop hints: 95 of 100 queries (over
+// 90 %) and 110 of 150 DML statements (over 70 %), each in a loop, no errors.
+// Mock org only: it changes no data there, and it would spend the real org's
+// limits on nothing.
+const LIMITS_APEX = `
+System.debug('UX audit limits run ${MARKER}');
+for (Integer i = 0; i < 95; i++) { List<Account> a = [SELECT Id, Name FROM Account LIMIT 1]; }
+for (Integer i = 0; i < 110; i++) { insert new Account(Name = 'UX audit'); }
+System.debug('Limits done ${MARKER}');
+`
+
+async function produceLogs(sf, { mock }) {
   await sf.ensureLogging()
   const since = new Date(Date.now() - 60000)
   await sf.executeAnonymous(APEX)
   await sf.executeAnonymous(FAILING_APEX).catch(() => {}) // fails on purpose
+  let limits = null
+  if (mock) {
+    await sf.executeAnonymous(LIMITS_APEX)
+    limits = await sf.findLog(`Limits done ${MARKER}`, { since })
+  }
   // Both logs in one search (each body downloaded once); the failed run is
   // optional.
   const both = await sf.findLogs([`Done ${MARKER}`, `failing run ${MARKER}`], { since }).catch(() => null)
   const main = both ? both[`Done ${MARKER}`] : await sf.findLog(`Done ${MARKER}`, { since })
   const failed = both ? both[`failing run ${MARKER}`] : null
   log(`log ${main.Id}: ${main.body.split('\n').length} lines`)
-  return { main, failed }
+  return { main, failed, limits }
 }
 
 // ---------------------------------------------------------------------------
@@ -1419,8 +1435,167 @@ async function appView(ctx) {
     await delay(800)
     await capture(ctx, app, V, 'log-failed-run')
   }
+  await logSummaryStates(ctx, app, V)
   summary.pageErrors = { ...(summary.pageErrors || {}), [`app@${ctx.size.label}`]: app.errors.map(redact) }
   await app.close()
+}
+
+// --- The log summary (Errors, Limits, SOQL, DML tabs) ----------------------
+// Its states in the main log (exceptions, SOQL, no DML), the limits log (mock
+// only: limit levels, loop hints, DML, no errors) and the failed run (fatal
+// error, no SOQL), in light and dark mode, plus a jump to a line and the
+// keyboard path through the panel.
+
+async function logSummaryStates(ctx, app, V) {
+  const { logs } = ctx
+  const openLog = async (log, text) => {
+    await app.evaluate(id => (location.hash = `#/logs/${id}`), log.Id)
+    await waitForText(app, text, 30000).catch(() => {})
+    await delay(800)
+  }
+  const showSummary = async () => {
+    if (await app.$('#log-summary')) return true
+    const button = await byName(app, [/^summary$/i], { roles: ['button'] })
+    if (!button) return false
+    await button.click()
+    await app.waitForSelector('#log-summary', { visible: true, timeout: 5000 }).catch(() => {})
+    return Boolean(await app.$('#log-summary'))
+  }
+  const tab = async name => {
+    const handle = await byName(app, [new RegExp(`^${name}\\b`, 'i')], { within: '#log-summary', roles: ['tab'] })
+    if (!handle) {
+      summary.errors.push(`app: no ${name} tab in the log summary`)
+      return false
+    }
+    await handle.click()
+    await delay(300)
+    return true
+  }
+  const dark = async state => {
+    await app.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await delay(800)
+    await capture(ctx, app, V, state)
+    await app.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await delay(500)
+  }
+
+  // Main log: caught exceptions, SOQL, no DML.
+  await openLog(logs.main, `Done ${MARKER}`)
+  if (!(await showSummary())) {
+    summary.errors.push('app: the Summary button did not open the log summary')
+    return
+  }
+  await capture(ctx, app, V, 'summary-errors')
+  await dark('summary-errors-dark')
+  if (await tab('Limits')) await capture(ctx, app, V, 'summary-limits')
+  if (await tab('SOQL')) {
+    await capture(ctx, app, V, 'summary-soql')
+    // Jump to a query's line.
+    const query = await app.$('#log-summary tbody tr button')
+    if (query) {
+      await query.click()
+      await delay(800)
+      const active = await app.evaluate(() => (document.querySelector('pre > div.is-active') || {}).innerText || '')
+      if (!/SOQL_EXECUTE_BEGIN/.test(active)) summary.errors.push('app: the summary did not jump to the query line')
+      await capture(ctx, app, V, 'summary-jumped-to-line')
+    } else summary.errors.push('app: no query in the summary SOQL tab')
+  }
+  if (await tab('DML')) await capture(ctx, app, V, 'summary-dml-empty')
+
+  // Keyboard: Summary button, tabs (arrow keys), panel content, Enter jumps.
+  if (ctx.primary) {
+    const k = {}
+    const toggle = await byName(app, [/^hide summary$/i], { roles: ['button'] })
+    if (toggle) {
+      await toggle.click() // closed, then opened again with the keyboard
+      await delay(300)
+      const open = await byName(app, [/^summary$/i], { roles: ['button'] })
+      await open.focus()
+      await app.keyboard.press('Enter')
+      await delay(500)
+      k.openedWithEnter = Boolean(await app.$('#log-summary'))
+      const focusIn = () => app.evaluate(() => document.querySelector('#log-summary')?.contains(document.activeElement))
+      const active = () => describeActive(app)
+      await app.keyboard.press('Tab')
+      await delay(200)
+      k.tabReachesTabs = (await active()).role === 'tab' || (await focusIn())
+      k.tabsFocus = await active()
+      k.tabsFocusVisible = await focusIndicatorVisible(app)
+      await app.keyboard.press('ArrowRight')
+      await delay(300)
+      k.arrowSelects = await app.evaluate(
+        () =>
+          (document.activeElement.getAttribute('aria-selected') === 'true' && document.activeElement.textContent) ||
+          null
+      )
+      const stops = []
+      for (let i = 0; i < 8; i++) {
+        await app.keyboard.press('Tab')
+        await delay(150)
+        const stop = await active()
+        stop.inSummary = await focusIn()
+        stop.focusIndicatorVisible = await focusIndicatorVisible(app)
+        stops.push(stop)
+        if (!stop.inSummary) break
+      }
+      k.stops = stops
+      // Enter on an entry jumps to its line (from another line first: the
+      // first error) and announces it; focus stays on the entry.
+      await tab('Errors')
+      const error = await app.$('#log-summary li button')
+      if (error) {
+        await error.focus()
+        await app.keyboard.press('Enter')
+        await delay(600)
+      }
+      await tab('SOQL')
+      const button = await app.$('#log-summary tbody tr button')
+      if (button) {
+        await button.focus()
+        await app.keyboard.press('Enter')
+        await delay(600)
+        k.enterJumps = await app.evaluate(() =>
+          /SOQL_EXECUTE_BEGIN/.test((document.querySelector('pre > div.is-active') || {}).innerText || '')
+        )
+        k.jumpAnnounced = await app.evaluate(
+          () => (document.querySelector('#log-summary [role=status]') || {}).textContent || null
+        )
+        k.focusAfterJump = await active()
+      }
+    }
+    saveKeyboard(`${V}-keyboard-summary`, { tabbableElements: null, stopsRecorded: k.stops?.length, ...k })
+  }
+
+  // Limits log (mock only): limits over 70 % and 90 %, loops, DML, no errors.
+  if (logs.limits) {
+    await openLog(logs.limits, `Limits done ${MARKER}`)
+    if (await showSummary()) {
+      await tab('Limits')
+      await capture(ctx, app, V, 'summary-limit-levels')
+      await dark('summary-limit-levels-dark')
+      if (await tab('Errors')) await capture(ctx, app, V, 'summary-errors-empty')
+      if (await tab('SOQL')) {
+        await capture(ctx, app, V, 'summary-soql-loop')
+        await dark('summary-soql-loop-dark')
+      }
+      if (await tab('DML')) {
+        await capture(ctx, app, V, 'summary-dml')
+        await dark('summary-dml-dark')
+      }
+    }
+  }
+
+  // Failed run: a fatal error, no SOQL.
+  if (logs.failed) {
+    await openLog(logs.failed, 'failing run')
+    if (await showSummary()) {
+      await tab('Errors')
+      await capture(ctx, app, V, 'summary-fatal-error')
+      if (await tab('SOQL')) await capture(ctx, app, V, 'summary-soql-empty')
+    }
+  }
+  const hide = await byName(app, [/^hide summary$/i], { roles: ['button'] })
+  if (hide) await hide.click()
 }
 
 // --- Classic Salesforce pages enhanced by content scripts -----------------
@@ -1637,7 +1812,7 @@ async function main() {
   summary.mock = Boolean(run.mock)
   const sf = run.sf
   SESSION_ID = run.session.sessionId
-  const logs = await produceLogs(sf)
+  const logs = await produceLogs(sf, { mock: run.mock })
   // produceLogs renews a reused session that had expired.
   const session = run.session
   SESSION_ID = session.sessionId
