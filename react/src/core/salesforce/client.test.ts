@@ -585,14 +585,14 @@ describe('deleteLogsById', () => {
         ]
       ]
     ])
-    expect(
-      await client.deleteLogsById([logId(1), logId(2), logId(3)])
-    ).toEqual({
-      deleted: [logId(1), logId(2)],
-      failed: [
-        { id: logId(3), message: 'insufficient access rights on object id' }
-      ]
-    })
+    expect(await client.deleteLogsById([logId(1), logId(2), logId(3)])).toEqual(
+      {
+        deleted: [logId(1), logId(2)],
+        failed: [
+          { id: logId(3), message: 'insufficient access rights on object id' }
+        ]
+      }
+    )
   })
 
   it('refuses anything that is not an id before any request', async () => {

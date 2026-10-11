@@ -465,9 +465,10 @@ export function createSalesforceClient(
     for (let at = 0; at < total; at += DELETE_BATCH_SIZE) {
       onProgress({ done: at, total })
       const batch = unique.slice(at, at + DELETE_BATCH_SIZE)
-      const saved: (SaveResult & {
+      const saved: {
+        success?: boolean
         errors?: { statusCode?: string; message?: string }[]
-      })[] = await request(
+      }[] = await request(
         `${API}/composite/sobjects?ids=${batch.join(',')}&allOrNone=false`,
         { method: 'DELETE' }
       )
