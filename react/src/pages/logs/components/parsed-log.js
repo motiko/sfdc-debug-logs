@@ -32,9 +32,12 @@ function ParsedLog({ body, classes, logStyleConfig, visibleEvents }) {
   const intro = body.match(
     /^\d{1,2}\.\d\s[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\))/m
   )
-  const allTheRest = body.match(
-    /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|[A-Z_]*[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\))/gm
-  )
+  // Each entry runs until the next timestamp, or to the end of the log: the
+  // last entry has no timestamp after it and used to be dropped.
+  const allTheRest =
+    body.match(
+      /^\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)\|[A-Z_]*[^]*?(?=\d\d:\d\d:\d\d\.\d{0,3}\s\(\d+\)|(?![^]))/gm
+    ) || []
   const visibleRest =
     visibleEvents.length == 0
       ? allTheRest
@@ -82,10 +85,9 @@ const mapStateToProps = state => ({
   visibleEvents: state.logsPage.visibleEvents
 })
 
-export default connect(
-  mapStateToProps,
-  () => ({})
-)(withStyles(styles)(ParsedLog))
+export default connect(mapStateToProps, () => ({}))(
+  withStyles(styles)(ParsedLog)
+)
 
 @withStyles(styles)
 class LogElement extends React.Component {

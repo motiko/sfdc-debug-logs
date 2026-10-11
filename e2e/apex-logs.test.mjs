@@ -322,6 +322,15 @@ test('React log viewer', async t => {
     assert.ok(visible)
   })
 
+  await t.test('every log entry is rendered, including the last one', async () => {
+    const expected = log.body.match(/^\d\d:\d\d:\d\d\.\d+ \(\d+\)\|/gm).length
+    const rendered = await app.evaluate(() => document.querySelectorAll('pre > div').length - 1)
+    assert.equal(rendered, expected, 'one line per timestamped entry (plus the header)')
+    const lastLine = log.body.trimEnd().split('\n').pop()
+    const lastRendered = await app.evaluate(() => [...document.querySelectorAll('pre > div')].pop().innerText.trim())
+    assert.equal(lastRendered, lastLine.trim())
+  })
+
   // material-ui 1.0 beta dialogs have no role="dialog"; use the title id.
   const DIALOG = '#form-dialog-title'
   const openStyleDialog = async () => {
