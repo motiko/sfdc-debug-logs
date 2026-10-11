@@ -7,6 +7,7 @@
 // Everything here builds DOM with elements and textContent: page and log
 // data never goes through innerHTML.
 import { designTokensCss } from '../ui/tokens'
+import { keyLabel } from '../core/key-labels'
 import {
   colorModeAttribute,
   onSharedAppearanceChange,
@@ -134,16 +135,12 @@ export function select(
   )
 }
 
-// Keys as <kbd> elements: "Shift+e" -> Shift E.
+// Keys as <kbd> elements: "Shift+e" -> Shift E (⇧ E on macOS).
 export function keysElement(keys: string): HTMLSpanElement {
   return h(
     'span',
     { className: 'ad-keys' },
-    ...keys
-      .split('+')
-      .map(part =>
-        h('kbd', { text: part.length === 1 ? part.toUpperCase() : part })
-      )
+    ...keyLabel(keys).map(part => h('kbd', { text: part }))
   )
 }
 
