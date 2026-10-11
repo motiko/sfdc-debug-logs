@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-export const API_VERSION = '59.0'
+export const API_VERSION = '62.0'
 
 export function loadEnv(file = join(ROOT, '.env.local')) {
   const env = {}

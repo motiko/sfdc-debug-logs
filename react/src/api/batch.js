@@ -1,3 +1,4 @@
+import { API } from './version'
 export default class Batch {
   constructor(request) {
     this.request = request
@@ -8,12 +9,12 @@ export default class Batch {
       object: objectName,
       operation: operation
     }
-    return this.request('/services/data/v41.0/jobs/ingest', 'POST', {}, job)
+    return this.request(`${API}/jobs/ingest`, 'POST', {}, job)
   }
 
   closeJob(jobId) {
     return this.request(
-      `/services/data/v41.0/jobs/ingest/${jobId}`,
+      `${API}/jobs/ingest/${jobId}`,
       'PATCH',
       {},
       { state: 'UploadComplete' }
@@ -21,7 +22,7 @@ export default class Batch {
   }
 
   checkJobStatus(jobId) {
-    return this.request(`/services/data/v41.0/jobs/ingest/${jobId}`)
+    return this.request(`${API}/jobs/ingest/${jobId}`)
   }
 
   pollJobStatus(jobId) {

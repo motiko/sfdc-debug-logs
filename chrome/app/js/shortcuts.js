@@ -119,7 +119,7 @@ function saveObject() {
 function openLastLog(inNewTab) {
   logEvent("Shortcut", "openLastLog");
   sfRequest(
-    "/services/data/v32.0/tooling/query/?q=" +
+    API_PATH + "/tooling/query/?q=" +
       encodeURIComponent(
         "SELECT Id,LastModifiedDate,StartTime,Status,SystemModstamp FROM ApexLog ORDER BY LastModifiedDate DESC Limit 1"
       )

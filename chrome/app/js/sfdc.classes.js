@@ -108,7 +108,7 @@ function toggleTraceFlag(event) {
   checkbox.parentNode.children[1].style.display = 'inline';
   noLog.TracedEntityId = classId;
   if (dontLog) {
-    sfRequest('/services/data/v32.0/tooling/sobjects/TraceFlag/', 'POST', {
+    sfRequest(API_PATH + '/tooling/sobjects/TraceFlag/', 'POST', {
         'Content-Type': 'application/json'
       }, JSON.stringify(noLog))
       .then(function(result) {
@@ -117,14 +117,14 @@ function toggleTraceFlag(event) {
         checkbox.parentNode.children[1].style.display = 'none';
       });
   } else {
-    sfRequest('/services/data/v32.0/tooling/query?q=' +
+    sfRequest(API_PATH + '/tooling/query?q=' +
         encodeURI("Select Id From TraceFlag Where TracedEntityId = '" +
           classId + "'"))
       .then(r => r.json())
       .then(function(responseObj) {
         if (responseObj.records.length > 0) {
           var traceFlagId = responseObj.records[0].Id;
-          sfRequest('/services/data/v32.0/tooling/sobjects/TraceFlag/' + traceFlagId, 'DELETE')
+          sfRequest(API_PATH + '/tooling/sobjects/TraceFlag/' + traceFlagId, 'DELETE')
             .then(function() {
               checkbox.parentNode.children[1].style.display = 'none';
             });

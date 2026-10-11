@@ -1,3 +1,8 @@
+// Salesforce REST API path for every content-script call. Keep in sync with
+// react/src/api/version.js and scripts/lib/sf-auth.mjs.
+const API_PATH = '/services/data/v62.0';
+const ASYNC_API_PATH = '/services/async/62.0'; // Bulk API 1.0
+
 // Returns a cookie's value, or null. Matches the last cookie too, which has
 // no trailing ';'.
 function readCookie(name) {
