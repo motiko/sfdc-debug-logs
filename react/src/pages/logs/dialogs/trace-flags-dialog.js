@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import {
   Alert,
@@ -65,7 +65,12 @@ const DEFAULT_DURATION = TRACE_DURATIONS[1].ms
 // Apex class or trigger with a debug level (the extension's, one of the
 // org's, or custom levels per category) for a chosen duration. Nothing is
 // traced until "Start tracing" is pressed.
-export default function TraceFlagsDialog({ open, onClose, host }) {
+export default function TraceFlagsDialog({
+  open,
+  onClose,
+  host,
+  disableRestoreFocus = false
+}) {
   const dispatch = useDispatch()
   const id = useId()
   const [setup, setSetup] = useState({ status: 'loading' })
@@ -76,11 +81,13 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
   const [durationMs, setDurationMs] = useState(DEFAULT_DURATION)
   const [running, setRunning] = useState(null)
   const [error, setError] = useState(null)
+  const [pickMissing, setPickMissing] = useState(false)
+  const [loads, setLoads] = useState(0)
+  const now = useNow(open)
+  const pickRef = useRef(null)
 
   useEffect(() => {
     if (!open) return
-    let current = true
-    setSetup({ status: 'loading' })
     setTarget('me')
     setPicked(null)
     setLevel('default')
@@ -88,6 +95,13 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
     setDurationMs(DEFAULT_DURATION)
     setRunning(null)
     setError(null)
+    setPickMissing(false)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    let current = true
+    setSetup({ status: 'loading' })
     dispatch(loadTraceSetup()).then(
       result => current && setSetup({ status: 'ready', ...result }),
       err =>
@@ -96,7 +110,7 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
     return () => {
       current = false
     }
-  }, [open, dispatch, host])
+  }, [open, loads, dispatch, host])
 
   const needsPick = target === 'user' || target === 'code'
   const busy = running !== null
@@ -119,7 +133,9 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
     return { kind: target }
   }
 
-  const withFlags = async (key, action) => {
+  // Runs a start or stop and shows the active flags it resolves with; on
+  // failure, says what failed (`failed`) and why.
+  const withFlags = async (key, action, failed) => {
     setError(null)
     setRunning(key)
     try {
@@ -127,27 +143,37 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
       setSetup(s => (s.status === 'ready' ? { ...s, flags } : s))
       return true
     } catch (err) {
-      setError(explainError(err, host))
+      setError({ ...explainError(err, host), failed })
       return false
     } finally {
       setRunning(null)
     }
   }
 
-  const start = () =>
-    withFlags(
+  // A user, class or trigger must be picked first: says so at the field
+  // (rather than a Start button disabled without a reason).
+  const start = () => {
+    if (needsPick && !picked) {
+      setPickMissing(true)
+      pickRef.current?.focus()
+      return
+    }
+    return withFlags(
       'start',
       startTrace({
         target: targetChoice(),
         level: levelChoice(),
         durationMs
-      })
+      }),
+      'Couldn’t start tracing.'
     )
+  }
 
   return (
     <Dialog
       open={open}
       onClose={busy ? undefined : onClose}
+      disableRestoreFocus={disableRestoreFocus}
       aria-labelledby={`${id}-title`}
       maxWidth="sm"
       fullWidth
@@ -172,9 +198,27 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
           </Box>
         ) : null}
         {setup.status === 'error' ? (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert
+            severity="error"
+            sx={{ mb: 2 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => setLoads(n => n + 1)}
+              >
+                Retry
+              </Button>
+            }
+          >
             Couldn’t read the trace flags. {setup.error.title}{' '}
             {setup.error.hint}
+            {setup.error.detail ? (
+              <Box component="details" sx={{ mt: 0.5, fontSize: 12 }}>
+                <summary>Details</summary>
+                {setup.error.detail}
+              </Box>
+            ) : null}
           </Alert>
         ) : null}
         {setup.status === 'ready' ? (
@@ -182,9 +226,16 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
             labelledBy={`${id}-active`}
             flags={setup.flags}
             userId={setup.userId}
+            now={now}
             stopping={running}
             disabled={busy}
-            onStop={flag => withFlags(flag.id, stopTrace(flag))}
+            onStop={(flag, name) =>
+              withFlags(
+                flag.id,
+                stopTrace(flag),
+                `Couldn’t stop tracing ${name}.`
+              )
+            }
           />
         ) : null}
 
@@ -202,6 +253,7 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
             onChange={e => {
               setTarget(e.target.value)
               setPicked(null)
+              setPickMissing(false)
             }}
             helperText={TARGET_NOTES[target]}
           >
@@ -216,7 +268,12 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
               key={target}
               kind={target}
               value={picked}
-              onChange={setPicked}
+              onChange={option => {
+                setPicked(option)
+                if (option) setPickMissing(false)
+              }}
+              missing={pickMissing}
+              inputRef={pickRef}
               disabled={busy}
               host={host}
             />
@@ -277,7 +334,7 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
         ) : null}
         {error ? (
           <Alert severity="error" sx={{ mt: 2 }} role="alert">
-            {error.title} {error.hint}
+            {error.failed} {error.title} {error.hint}
             <Box component="details" sx={{ mt: 0.5, fontSize: 12 }}>
               <summary>Details</summary>
               {error.detail}
@@ -292,9 +349,7 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
         <Button
           variant="contained"
           onClick={start}
-          disabled={
-            busy || setup.status === 'loading' || (needsPick && !picked)
-          }
+          disabled={busy || setup.status === 'loading'}
         >
           Start tracing
         </Button>
@@ -303,10 +358,24 @@ export default function TraceFlagsDialog({ open, onClose, host }) {
   )
 }
 
+// The current time, renewed every 30 seconds while `active`, so the time
+// left on each flag stays true while the dialog is open.
+function useNow(active) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!active) return
+    setNow(Date.now())
+    const timer = setInterval(() => setNow(Date.now()), 30000)
+    return () => clearInterval(timer)
+  }, [active])
+  return now
+}
+
 function ActiveFlags({
   labelledBy,
   flags,
   userId,
+  now,
   stopping,
   disabled,
   onStop
@@ -330,13 +399,15 @@ function ActiveFlags({
             ? `You${flag.entityName ? ` (${flag.entityName})` : ''}`
             : flag.entityName || flag.entityId
         const kind = KIND_LABELS[flag.entityKind] || 'Entity'
+        // The log type only when the kind doesn't say it (Developer Console).
         const details = [
-          flag.logType === 'USER_DEBUG'
+          flag.logType === 'USER_DEBUG' || flag.logType === 'CLASS_TRACING'
             ? null
             : LOG_TYPE_LABELS[flag.logType] || flag.logType,
-          `Debug level ${flag.debugLevel || 'unknown'}`,
-          `until ${formatClock(flag.expiresAt)} (${formatRemaining(flag.expiresAt)})`
+          `Debug level ${flag.debugLevel || 'unknown'}`
         ].filter(Boolean)
+        const remaining = formatRemaining(flag.expiresAt, now)
+        const until = formatClock(flag.expiresAt, new Date(now))
         return (
           <Box
             component="li"
@@ -354,12 +425,41 @@ function ActiveFlags({
             <ListItemText
               primary={`${name} · ${kind}`}
               secondary={details.join(' · ')}
-              sx={{ my: 0 }}
+              sx={{ my: 0, minWidth: 0 }}
             />
+            {remaining ? (
+              <Box
+                component="time"
+                dateTime={flag.expiresAt}
+                sx={{ textAlign: 'right', flexShrink: 0, lineHeight: 1.3 }}
+              >
+                <Typography
+                  component="span"
+                  variant="body2"
+                  sx={{
+                    display: 'block',
+                    color: 'text.primary',
+                    fontWeight: 500
+                  }}
+                >
+                  {remaining === 'ended' ? 'Ended' : remaining}
+                </Typography>
+                {until ? (
+                  <Typography
+                    component="span"
+                    variant="body2"
+                    sx={{ display: 'block', color: 'text.secondary' }}
+                  >
+                    until {until}
+                  </Typography>
+                ) : null}
+              </Box>
+            ) : null}
             <Button
               size="small"
               variant="outlined"
-              onClick={() => onStop(flag)}
+              sx={{ flexShrink: 0 }}
+              onClick={() => onStop(flag, name)}
               disabled={disabled}
               aria-label={`Stop tracing ${name}`}
               startIcon={
@@ -378,7 +478,15 @@ function ActiveFlags({
 }
 
 // A user or an Apex class or trigger, found by name as the user types.
-function TargetSearch({ kind, value, onChange, disabled, host }) {
+function TargetSearch({
+  kind,
+  value,
+  onChange,
+  missing,
+  inputRef,
+  disabled,
+  host
+}) {
   const dispatch = useDispatch()
   const [input, setInput] = useState('')
   const [options, setOptions] = useState([])
@@ -404,6 +512,7 @@ function TargetSearch({ kind, value, onChange, disabled, host }) {
         },
         err => {
           if (!current) return
+          setOptions([])
           setError(explainError(err, host))
           setLoading(false)
         }
@@ -416,6 +525,17 @@ function TargetSearch({ kind, value, onChange, disabled, host }) {
   }, [term, kind, dispatch, host])
 
   const label = kind === 'user' ? 'User' : 'Apex class or trigger'
+  const searchError =
+    error && term.length >= 2
+      ? `Search failed. ${error.title} ${error.hint}`
+      : null
+  const helperText =
+    searchError ||
+    (missing
+      ? `Choose ${kind === 'user' ? 'a user' : 'a class or trigger'} to trace.`
+      : value
+        ? value.detail
+        : 'Type at least 2 characters to search.')
   return (
     <Autocomplete
       value={value}
@@ -429,11 +549,15 @@ function TargetSearch({ kind, value, onChange, disabled, host }) {
       }
       loading={loading}
       disabled={disabled}
+      // Inside the dialog, so the suggestions belong to it (screen readers
+      // and the dialog's focus trap).
+      disablePortal
       filterOptions={x => x}
       getOptionLabel={option => option.name}
       isOptionEqualToValue={(a, b) => a.id === b.id}
       noOptionsText={
-        term.length < 2 ? 'Type at least 2 characters' : 'No matches'
+        searchError ||
+        (term.length < 2 ? 'Type at least 2 characters' : 'No matches')
       }
       loadingText="Searching…"
       renderOption={(props, option) => {
@@ -447,12 +571,14 @@ function TargetSearch({ kind, value, onChange, disabled, host }) {
       renderInput={params => (
         <TextField
           {...params}
+          inputRef={inputRef}
           label={label}
+          required
           placeholder={
             kind === 'user' ? 'Name or username' : 'Class or trigger name'
           }
-          error={Boolean(error)}
-          helperText={error ? `${error.title} ${error.hint}` : null}
+          error={Boolean(searchError) || missing}
+          helperText={helperText}
         />
       )}
     />
@@ -462,12 +588,33 @@ function TargetSearch({ kind, value, onChange, disabled, host }) {
 // A level per category, with presets to start from.
 function CustomLevels({ id, levels, onChange, disabled }) {
   return (
-    <Box>
+    <Box component="fieldset" sx={{ border: 0, m: 0, p: 0, minWidth: 0 }}>
+      <Typography
+        component="legend"
+        variant="body2"
+        sx={{ fontWeight: 500, mb: 1, p: 0 }}
+      >
+        Log level per category
+      </Typography>
       <Box
         role="group"
-        aria-label="Presets"
-        sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}
+        aria-labelledby={`${id}-presets-label`}
+        sx={{
+          display: 'flex',
+          gap: 1,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          mb: 2
+        }}
       >
+        <Typography
+          component="span"
+          variant="body2"
+          id={`${id}-presets-label`}
+          sx={{ color: 'text.secondary' }}
+        >
+          Start from
+        </Typography>
         {LEVEL_PRESETS.map(preset => (
           <Button
             key={preset.id}
