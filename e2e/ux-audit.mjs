@@ -6,7 +6,7 @@
 // indicators, dialog focus return). Used by the ux-ui-review agent
 // (.claude/agents/ux-ui-review.md), and meant to be rerun after UI changes.
 //
-//   node ux-audit.mjs [--out <dir>] [--views app,classic,options]
+//   node ux-audit.mjs [--out <dir>] [--views app,app-delete,classic,options]
 //                     [--sizes 1440x900,1024x768] [--compare <previous out dir>]
 //                     [--mock]
 //
@@ -25,7 +25,8 @@
 // Safety: the org may be shared with other runs. The script never deletes
 // logs: it never clicks a control named like delete/remove/clear all (except
 // the app's "Delete logs…" menu item, which only opens a confirmation dialog
-// that the script cancels with Escape), never
+// that the script cancels with Escape, and the delete confirmations of
+// appDeleteSelectedView, whose DELETE requests the page answers itself), never
 // types outside a verified focused input (the app and the classic list bind
 // single-letter hotkeys such as "a" for delete all), dismisses every
 // confirm() and only sends Tab, Shift+Tab, Escape, arrows and Enter on
@@ -46,7 +47,7 @@ const AXE_PATH = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 const { values: args } = parseArgs({
   options: {
     out: { type: 'string', default: join(HERE, 'ux-artifacts') },
-    views: { type: 'string', default: 'app,classic,options' },
+    views: { type: 'string', default: 'app,app-delete,classic,options' },
     sizes: { type: 'string', default: '1440x900,1024x768' },
     compare: { type: 'string' },
     mock: { type: 'boolean', default: process.env.SF_MOCK === '1' }
@@ -1425,6 +1426,207 @@ async function appView(ctx) {
 
 // --- Classic Salesforce pages enhanced by content scripts -----------------
 
+// --- React app: checking logs, "Delete selected…" and "Delete log…" --------
+//
+// Every sObject Collections DELETE the page sends is answered here (held for
+// the progress state, then a partial failure, then a network error) and never
+// reaches Salesforce, so this step deletes nothing, on the mock or a real org.
+
+async function appDeleteSelectedView(ctx) {
+  const V = 'app-delete'
+  const page = await newPage(ctx)
+  await page.setRequestInterception(true)
+  let answer = null // how the next DELETE is answered
+  const deletes = []
+  page.on('request', req => {
+    if (req.method() === 'DELETE' && /\/composite\/sobjects/.test(req.url())) {
+      const ids = (new URL(req.url()).searchParams.get('ids') || '').split(',')
+      deletes.push(ids.length)
+      const respond = answer || (r => r.abort('failed'))
+      respond(req, ids)
+      return
+    }
+    req.continue().catch(() => {})
+  })
+  const json = (req, status, body) =>
+    req
+      .respond({
+        status,
+        contentType: 'application/json',
+        headers: { 'access-control-allow-origin': '*' },
+        body: JSON.stringify(body)
+      })
+      .catch(() => {})
+  let release = () => {}
+  const held = new Promise(r => (release = r))
+  const partialFailure = (req, ids) =>
+    json(
+      req,
+      200,
+      ids.map((id, i) =>
+        i === 0
+          ? { id, success: true, errors: [] }
+          : {
+              success: false,
+              errors: [
+                {
+                  statusCode: 'INSUFFICIENT_ACCESS_OR_READONLY',
+                  message: 'insufficient access rights on object id'
+                }
+              ]
+            }
+      )
+    )
+
+  const dark = async state => {
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await delay(600)
+    await capture(ctx, page, V, `${state}-dark`)
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await delay(400)
+  }
+  const rowCheckbox = n => `[role=grid] tbody tr:nth-child(${n}) input[type=checkbox]`
+  const button = async (pattern, within = null) => byName(page, [pattern], { within, roles: ['button'] })
+
+  await page.goto(appUrl(ctx), { waitUntil: 'networkidle2' })
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+  await page.waitForSelector(rowCheckbox(3), { timeout: 30000 })
+  await delay(800)
+
+  // Two logs checked: the selection bar, the header box half checked.
+  await page.click(rowCheckbox(1))
+  await page.click(rowCheckbox(2))
+  await delay(300)
+  await capture(ctx, page, V, 'two-checked')
+  await dark('two-checked')
+  if (ctx.primary) saveKeyboard(`${V}-keyboard-selection`, await tabThrough(page, 'app list with a selection'))
+
+  // Every shown log checked.
+  const all = await controlByLabel(page, /^select all shown logs$/i)
+  if (all) {
+    await safeClick(all)
+    await delay(300)
+    await capture(ctx, page, V, 'all-checked')
+    await safeClick(all) // unchecks them all
+    await delay(300)
+  } else summary.errors.push('app-delete: no "Select all shown logs" checkbox')
+
+  // Checked with the keyboard (Space, then x on the next row).
+  await page.focus('[role=grid] tbody tr:nth-child(1)')
+  await page.keyboard.press('Space')
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('x')
+  await delay(300)
+  const checked = await page.$$eval('[role=grid] tbody tr[aria-selected=true]', rows => rows.length)
+  if (checked !== 2) summary.errors.push(`app-delete: Space and x checked ${checked} rows, not 2`)
+
+  // The confirmation.
+  const deleteSelected = await button(/^delete selected/i)
+  if (!deleteSelected) {
+    summary.errors.push('app-delete: no "Delete selected…" button')
+    await page.close()
+    return
+  }
+  await deleteSelected.click() // its DELETE is answered by this page
+  await delay(700)
+  await capture(ctx, page, V, 'confirm')
+  await dark('confirm')
+  if (ctx.primary) {
+    const d = await openDialog(page)
+    summary.deleteSelectedDialog = d
+      ? await d.evaluate(el => ({
+          text: el.innerText.slice(0, 400),
+          focused: document.activeElement && document.activeElement.textContent
+        }))
+      : null
+    if (d) await d.dispose()
+  }
+
+  // Progress (the DELETE held), then a partial failure.
+  answer = async (req, ids) => {
+    await held
+    partialFailure(req, ids)
+  }
+  const confirm = await button(/^delete 2 logs$/i, '[role=dialog]')
+  if (confirm) {
+    await confirm.click() // its DELETE is answered by this page
+    await delay(500)
+    await capture(ctx, page, V, 'progress')
+    release()
+    await waitForText(page, 'Couldn’t delete', 10000).catch(() => {})
+    await delay(300)
+    await capture(ctx, page, V, 'partial-failure')
+    await dark('partial-failure')
+
+    // Trying again fails to reach Salesforce.
+    answer = req => req.abort('failed')
+    const again = await button(/^try 1 log again$/i, '[role=dialog]')
+    if (again) {
+      await again.click() // its DELETE is answered by this page
+      await page
+        .waitForFunction(() => /can.t reach|unreachable|network|failed/i.test(document.body.innerText), {
+          timeout: 10000
+        })
+        .catch(() => {})
+      await delay(300)
+      await capture(ctx, page, V, 'error')
+      await dark('error')
+    } else summary.errors.push('app-delete: no "Try 1 log again" button')
+  } else summary.errors.push('app-delete: no "Delete 2 logs" button in the confirmation')
+  await closeDialog(page)
+  await delay(400)
+  summary.deleteSelectedFocusAfterClose = await describeActive(page)
+
+  // The open log's "Delete log…".
+  const id = await page.$eval('[role=grid] tbody tr[data-log-id]', r => r.dataset.logId)
+  await page.evaluate(id => (location.hash = `#/logs/${id}`), id)
+  await delay(1500)
+  const deleteLog = await button(/^delete log…$/i)
+  if (deleteLog) {
+    if (ctx.primary) saveKeyboard(`${V}-keyboard-dialog`, [await dialogKeyboard(page, deleteLog, 'delete log')])
+    await deleteLog.click() // its DELETE is answered by this page
+    await delay(700)
+    await capture(ctx, page, V, 'delete-log-confirm')
+    await dark('delete-log-confirm')
+    await closeDialog(page)
+  } else summary.errors.push('app-delete: no "Delete log…" button on the open log')
+
+  // Clear selection: the bar goes away; the focus should go back to the list.
+  await page.evaluate(() => (location.hash = '#/'))
+  const unchecked = '[role=grid] tbody tr[aria-selected=false] input[type=checkbox]'
+  await page.waitForSelector(unchecked, { timeout: 10000 }).catch(() => {})
+  await page.click(unchecked).catch(() => {})
+  const clear = await button(/^clear selection$/i)
+  if (clear) {
+    await safeClick(clear)
+    await delay(300)
+    summary.clearSelectionFocus = await describeActive(page)
+  } else summary.errors.push('app-delete: no "Clear selection" button')
+
+  // Every selected log deleted (answered as deleted, here only): the bar and
+  // its button go away; the focus should go back to the list.
+  answer = (req, ids) =>
+    json(
+      req,
+      200,
+      ids.map(id => ({ id, success: true, errors: [] }))
+    )
+  await page.click(unchecked).catch(() => {})
+  const deleteOne = await button(/^delete selected/i)
+  if (deleteOne) {
+    await deleteOne.click() // its DELETE is answered by this page
+    const confirmOne = await page.waitForSelector('[role=dialog] ::-p-text(Delete 1 log)', { timeout: 5000 })
+    await confirmOne.click()
+    await page.waitForSelector('[role=dialog]', { hidden: true, timeout: 10000 }).catch(() => {})
+    await delay(500)
+    summary.focusAfterDeletingSelection = await describeActive(page)
+  }
+
+  summary.deleteRequestsAnswered = [...(summary.deleteRequestsAnswered || []), ...deletes]
+  summary.pageErrors = { ...(summary.pageErrors || {}), [`${V}@${ctx.size.label}`]: page.errors.map(redact) }
+  await page.close()
+}
+
 const CLASSIC_LOG_SCOPE = [
   '#adToolbar',
   'pre.ad-log',
@@ -1646,7 +1848,9 @@ async function main() {
     for (const [i, size] of SIZES.entries()) {
       const ctx = { ext, session, sf, logs, size, primary: i === 0 }
       for (const view of VIEWS) {
-        const fn = { app: appView, classic: classicViews, options: optionsView }[view]
+        const fn = { app: appView, 'app-delete': appDeleteSelectedView, classic: classicViews, options: optionsView }[
+          view
+        ]
         if (!fn) throw new Error(`unknown view ${view}`)
         log(`--- ${view} @ ${size.label}`)
         try {
