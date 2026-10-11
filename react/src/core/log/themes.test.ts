@@ -2,23 +2,30 @@ import { describe, expect, it } from 'vitest'
 import debugCss from '../../../../chrome/app/css/debug.css?raw'
 import { LOG_CATEGORIES } from './categories'
 import {
-  appTheme,
+  AUTO_THEME,
   CLASSIC_CATEGORY_CLASS,
   DEFAULT_THEME,
+  legacyThemeColors,
   logThemes,
-  migrateAppTheme,
+  migrateSavedTheme,
+  paletteFor,
   resolveThemeName,
   themeByName,
-  themeCssVariables
+  themeCssVariables,
+  withCustomColors
 } from './themes'
+import { CONTRAST, contrastRatio } from '../../ui/contrast'
+
+const palettes = Object.entries(logThemes)
 
 describe('logThemes', () => {
-  it.each(Object.entries(logThemes))(
-    '%s defines a color for every category and a background',
+  it.each(palettes)(
+    '%s defines a color for every category, a background and a muted color',
     (name, theme) => {
       expect(theme.name).toBe(name)
       expect(theme.label).toBeTruthy()
       expect(theme.background).toMatch(/^#[0-9a-f]{6}$/)
+      expect(theme.muted).toMatch(/^#[0-9a-f]{6}$/)
       expect(Object.keys(theme.categories).sort()).toEqual(
         [...LOG_CATEGORIES].sort()
       )
@@ -28,9 +35,49 @@ describe('logThemes', () => {
     }
   )
 
-  it('has unique labels (the app menu shows them)', () => {
+  it('has unique labels (the menus show them)', () => {
     const labels = Object.values(logThemes).map(t => t.label)
     expect(new Set(labels).size).toBe(labels.length)
+  })
+
+  it('has a light and a dark palette for the app color modes', () => {
+    expect(logThemes.light.mode).toBe('light')
+    expect(logThemes.dark.mode).toBe('dark')
+  })
+})
+
+// Contrast of every palette's text colors on its background
+// (docs/ux/baseline-review.md M2): 4.5:1 for every category and the muted
+// color, 7:1 for errors and USER_DEBUG.
+describe.each(palettes)('%s palette contrast', (name, theme) => {
+  const minimum = (category: string) =>
+    category === 'error' || category === 'debug'
+      ? CONTRAST.emphasis
+      : CONTRAST.text
+
+  it.each(LOG_CATEGORIES)(
+    '%s meets its minimum on the background',
+    category => {
+      const ratio = contrastRatio(
+        theme.categories[category].color,
+        theme.background
+      )
+      expect(
+        ratio,
+        `${name} ${category} ${theme.categories[category].color} on ${theme.background}: ${ratio.toFixed(2)}:1`
+      ).toBeGreaterThanOrEqual(minimum(category))
+    }
+  )
+
+  it('muted text meets 4.5:1', () => {
+    expect(contrastRatio(theme.muted, theme.background)).toBeGreaterThanOrEqual(
+      CONTRAST.text
+    )
+  })
+
+  it("the palette's mode matches its background", () => {
+    const light = contrastRatio(theme.background, '#000000') > 10
+    expect(theme.mode).toBe(light ? 'light' : 'dark')
   })
 })
 
@@ -41,11 +88,9 @@ describe('resolveThemeName', () => {
     }
   })
 
-  it("maps the app's old names to the theme with their colors", () => {
-    expect(resolveThemeName('dark')).toBe('monokai')
-    expect(resolveThemeName('light')).toBe('emacs')
-    expect(appTheme('dark').debug).toBe('#a6e22e')
-    expect(appTheme('light').background).toBe('#ffffcc')
+  it('maps dropped themes to the light palette', () => {
+    expect(resolveThemeName('emacs')).toBe('light')
+    expect(resolveThemeName('bw')).toBe('light')
   })
 
   it('falls back to the default theme', () => {
@@ -55,44 +100,87 @@ describe('resolveThemeName', () => {
   })
 })
 
-describe('appTheme', () => {
-  it('flattens a theme to one color per category, as the color pickers edit it', () => {
-    expect(appTheme('monokai')).toEqual({
-      themeName: 'monokai',
-      debug: '#a6e22e',
-      soql: '#66d9ef',
-      callout: '#ae81ff',
-      system: '#75715e',
-      rest: '#f8f8f2',
-      method: '#e6db74',
-      error: '#f92672',
-      background: '#292724'
-    })
+describe('paletteFor', () => {
+  it('follows the color mode for the automatic palette', () => {
+    expect(paletteFor(AUTO_THEME, 'light')).toBe(logThemes.light)
+    expect(paletteFor(AUTO_THEME, 'dark')).toBe(logThemes.dark)
+    expect(paletteFor(undefined, 'dark')).toBe(logThemes.dark)
+  })
+
+  it('keeps a picked palette in either mode', () => {
+    expect(paletteFor('monokai', 'light')).toBe(logThemes.monokai)
+    expect(paletteFor('emacs', 'dark')).toBe(logThemes.light)
   })
 })
 
-describe('migrateAppTheme', () => {
-  it('renames a saved legacy theme and keeps edited colors', () => {
-    const saved = { ...appTheme('light'), themeName: 'light', debug: '#123456' }
-    expect(migrateAppTheme(saved)).toEqual({
-      ...appTheme('emacs'),
-      debug: '#123456'
+describe('withCustomColors', () => {
+  it("replaces only the user's colors and keeps fonts", () => {
+    const theme = withCustomColors(logThemes.light, {
+      debug: '#123456',
+      background: '#fafafa'
+    })
+    expect(theme.categories.debug).toEqual({
+      color: '#123456',
+      fontWeight: '600'
+    })
+    expect(theme.categories.soql).toBe(logThemes.light.categories.soql)
+    expect(theme.background).toBe('#fafafa')
+    expect(withCustomColors(logThemes.dark, null)).toBe(logThemes.dark)
+  })
+})
+
+describe('migrateSavedTheme', () => {
+  // The app saved its theme flattened, with every color.
+  const saved = (name: string, colors: Record<string, string> = {}) => ({
+    themeName: name,
+    ...legacyThemeColors[name],
+    ...colors
+  })
+
+  it('keeps a palette that still exists and drops unedited old colors', () => {
+    expect(migrateSavedTheme(saved('monokai'))).toEqual({
+      theme: 'monokai',
+      colors: {}
     })
   })
 
-  it('fills in a missing theme', () => {
-    expect(migrateAppTheme(undefined)).toEqual(appTheme(DEFAULT_THEME))
+  it('maps the old "dark" and "light" names', () => {
+    expect(migrateSavedTheme(saved('dark')).theme).toBe('dark')
+    expect(migrateSavedTheme(saved('light')).theme).toBe('light')
+    expect(migrateSavedTheme(saved('emacs')).theme).toBe('light')
+    expect(migrateSavedTheme(saved('bw')).theme).toBe('light')
+  })
+
+  it('keeps the colors the user edited', () => {
+    expect(
+      migrateSavedTheme(saved('dark', { debug: '#123456', background: '#000' }))
+    ).toEqual({
+      theme: 'dark',
+      colors: { debug: '#123456', background: '#000' }
+    })
+  })
+
+  it('ignores unknown keys and missing themes', () => {
+    expect(migrateSavedTheme({ themeName: 'bw', foo: '#fff' })).toEqual({
+      theme: 'light',
+      colors: {}
+    })
+    expect(migrateSavedTheme(undefined)).toEqual({
+      theme: AUTO_THEME,
+      colors: {}
+    })
+    expect(migrateSavedTheme({ themeName: 'solarized' }).theme).toBe(AUTO_THEME)
   })
 })
 
 describe('classic page styles', () => {
-  it('sets a variable for the background and each category style', () => {
-    const variables = themeCssVariables(logThemes.emacs)
-    expect(variables['--log-background']).toBe('#ffffcc')
-    expect(variables['--log-debug-weight']).toBe('bold')
-    expect(variables['--log-soql-style']).toBe('italic')
+  it('sets a variable for the background, muted text and each category style', () => {
+    const variables = themeCssVariables(logThemes['high-contrast'])
+    expect(variables['--log-background']).toBe('#000000')
+    expect(variables['--log-debug-weight']).toBe('700')
+    expect(variables['--log-callout-style']).toBe('italic')
     expect(variables['--log-rest-weight']).toBe('normal')
-    expect(Object.keys(variables)).toHaveLength(1 + 3 * LOG_CATEGORIES.length)
+    expect(Object.keys(variables)).toHaveLength(2 + 3 * LOG_CATEGORIES.length)
   })
 
   it.each(LOG_CATEGORIES.map(c => [c, CLASSIC_CATEGORY_CLASS[c]]))(
