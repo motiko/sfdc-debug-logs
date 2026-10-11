@@ -23,7 +23,17 @@ cd react && npm run lint && npm run format:check && npm run typecheck && npm tes
 
 The same checks run in CI (`.github/workflows/ci.yml`). If `format:check` fails, run `npm run format` and review the diff. ESLint covers the `.js`/`.mjs` files in `react/`, `e2e/` and `scripts/`; `.ts` files (including every extension script in `react/src/extension` and `react/src/core`) are only type-checked. Unit tests (Vitest) live next to the code as `*.test.ts`; add or update them when changing log parsing, themes, filters, search or Salesforce calls (`core/salesforce/client.test.ts` uses a fake request function).
 
-## 3. End-to-end flow
+## 3. End-to-end flow, offline first
+
+Run the flow against the mock org first (no credentials, no Salesforce API requests; the same job runs in CI):
+
+```sh
+cd e2e && npm install && npm run test:harness && npm run test:mock
+```
+
+UI changes: `npm run ux-audit -- --mock --out <dir>` captures every view with axe-core and the other checks against the mock org; look at the screenshots and the `serious`/`critical` axe counts in `summary.json`. The mock is in `e2e/mock/` (see CLAUDE.md); if a change needs an API call or a page shape the mock doesn't have, extend the mock in the same change.
+
+Then confirm against the real org (each run costs roughly 50 API requests of the org's daily limit, printed at the end; if Salesforce answers `REQUEST_LIMIT_EXCEEDED`, stop and don't retry in a loop, even login fails until the limit resets).
 
 Needs `.env.local` (SF_USER, SF_PASS, SF_TOKEN, optional SF_LOGIN_URL). Never print its values or session ids.
 
