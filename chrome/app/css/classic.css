@@ -99,6 +99,12 @@
   color: var(--ad-text);
 }
 .ad-root .ad-keys { display: inline-flex; gap: 3px }
+/* ⇧ ⌥ ⌘ in the UI font, larger: the mono font's are tiny. */
+.ad-root kbd .ad-key-symbol {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 1.25em;
+  line-height: 1;
+}
 
 .ad-root .ad-muted { color: var(--ad-text-muted) }
 .ad-root .ad-status-line {

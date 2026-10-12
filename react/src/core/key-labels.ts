@@ -49,3 +49,20 @@ export function keyText(key: string, mac = isMac()): string {
 
 // The Ctrl/Cmd modifier alone, for sentences: "⌘" or "Ctrl".
 export const modKeyName = (mac = isMac()) => (mac ? '⌘' : 'Ctrl')
+
+const SPOKEN: Record<string, string> = {
+  '⌘': 'Command',
+  '⌥': 'Option',
+  '⇧': 'Shift',
+  '⌃': 'Control',
+  '↓': 'Down arrow',
+  '↑': 'Up arrow',
+  Esc: 'Escape'
+}
+
+// What a screen reader should say for each part of keyLabel: symbols such as
+// ⇧ are read as "upwards white arrow", so <kbd> elements show the symbol and
+// carry this name as hidden text. null where the label reads well.
+export function keySpokenNames(key: string, mac = isMac()): (string | null)[] {
+  return keyLabel(key, mac).map(part => SPOKEN[part] || null)
+}

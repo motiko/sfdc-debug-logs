@@ -32,3 +32,17 @@ describe('key labels', () => {
     expect(keyLabel('ArrowDown', true)).toEqual(['↓'])
   })
 })
+
+describe('spoken key names', () => {
+  it('names symbols for screen readers', async () => {
+    const { keySpokenNames } = await import('./key-labels')
+    expect(keySpokenNames('Alt+Shift+d', true)).toEqual([
+      'Option',
+      'Shift',
+      null
+    ])
+    expect(keySpokenNames('Mod+s', true)).toEqual(['Command', null])
+    expect(keySpokenNames('Mod+s', false)).toEqual([null, null])
+    expect(keySpokenNames('ArrowDown', false)).toEqual(['Down arrow'])
+  })
+})
