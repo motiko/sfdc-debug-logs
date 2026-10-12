@@ -23,7 +23,7 @@ Key Features
 Getting Started
 ---------------
 
-On a Salesforce tab (Lightning, Lightning Setup or Salesforce Classic), click the Apex Debugger button in the browser toolbar, or press _Shift+W_, to open the log viewer for that org; if it's already open, its tab comes to the front. On any other tab the button opens the extension's options. In the log viewer, choose "Start logging" so Salesforce records your Apex (for 24 hours), run your code, then refresh. A welcome page with these steps opens once, when you install the extension.
+On a Salesforce tab (Lightning, Lightning Setup or Salesforce Classic), click the Apex Debugger button in the browser toolbar, or press _Shift+W_, to open the log viewer for that org; if it's already open, its tab comes to the front. If you aren't logged in to that org, it asks you to log in first. On any other tab the button opens the extension's options. In the log viewer, choose "Start logging" so Salesforce records your Apex (for 24 hours), run your code, then refresh. A welcome page with these steps opens once, when you install the extension.
 
 Keyboard Shortcuts
 ------------------

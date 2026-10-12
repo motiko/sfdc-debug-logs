@@ -8,6 +8,7 @@ import AppearanceSettings from '../pages/settings/appearance-settings'
 import ShortcutsSettings from './shortcuts-settings'
 import SessionSettings from './session-settings'
 import Welcome from './welcome'
+import NoSessionNotice from './no-session-notice'
 
 const hash = () => window.location.hash.slice(1)
 
@@ -16,17 +17,34 @@ function Page() {
   const mode = useResolvedColorMode(preference)
   // #welcome: opened once on install (background.ts).
   const [welcome, setWelcome] = useState(() => hash() === 'welcome')
+  // #no-session: the toolbar button was clicked on an org tab without a
+  // session. The worker may set it on an open options tab, so follow the hash.
+  const [noSession, setNoSession] = useState(() => hash() === 'no-session')
   const titleRef = useRef(null)
+  const noticeRef = useRef(null)
+  useEffect(() => {
+    const onHashChange = () => {
+      if (hash() === 'no-session') {
+        setNoSession(true)
+        window.scrollTo(0, 0)
+        if (noticeRef.current) noticeRef.current.focus()
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
   // A link to a section (options.html#shortcuts): the page is rendered after
   // the browser looked for the anchor, so scroll to it here.
   useEffect(() => {
     const id = hash()
-    if (!id || id === 'welcome') return
+    if (!id || id === 'welcome' || id === 'no-session') return
     const section = document.getElementById(id)
     if (section) section.scrollIntoView()
   }, [])
-  const dismissWelcome = () => {
-    setWelcome(false)
+  // Removes the #welcome or #no-session, so a reload doesn't bring it back,
+  // and moves focus to the page title.
+  const dismiss = setShown => () => {
+    setShown(false)
     history.replaceState(null, '', location.pathname + location.search)
     if (titleRef.current) titleRef.current.focus()
   }
@@ -78,7 +96,10 @@ function Page() {
         maxWidth="lg"
         sx={{ py: 3, display: 'flex', flexDirection: 'column', gap: 3 }}
       >
-        {welcome ? <Welcome onDismiss={dismissWelcome} /> : null}
+        {noSession ? (
+          <NoSessionNotice ref={noticeRef} onClose={dismiss(setNoSession)} />
+        ) : null}
+        {welcome ? <Welcome onDismiss={dismiss(setWelcome)} /> : null}
         <Section
           id="appearance"
           title="Appearance"

@@ -45,10 +45,20 @@ chrome.tabs.onRemoved.addListener(async closedTabId => {
   if (names.length) await tabStorage.remove(names)
 })
 
-async function openOrFocusTab(url: string, name: string) {
+// navigate: also load url in the tab if it's open (the options page follows
+// its hash, e.g. #no-session).
+async function openOrFocusTab(
+  url: string,
+  name: string,
+  { navigate = false } = {}
+) {
   const tabId = await tabIdFor(name)
   if (tabId !== undefined) {
-    focusTab(tabId).catch(() => openTab(url, name))
+    focusTab(tabId)
+      .then(() => {
+        if (navigate) return chrome.tabs.update(tabId, { url })
+      })
+      .catch(() => openTab(url, name))
   } else {
     openTab(url, name)
   }
@@ -95,10 +105,18 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 
 // The toolbar button: on a Salesforce org tab (Classic, Lightning, Lightning
 // Setup) it opens that org's log viewer, or focuses it if it's open, like
-// Shift+W; anywhere else (other sites, public Salesforce Sites, no session) it
-// opens the options page.
+// Shift+W; on an org tab without a session it opens the options page with a
+// notice to log in first (#no-session); anywhere else (other sites, public
+// Salesforce Sites) it opens the options page.
 async function onActionClicked(tab: { url?: string } | undefined) {
-  if (!(await openAppForTab(tab))) {
+  const result = await openAppForTab(tab)
+  if (result === 'no-session') {
+    openOrFocusTab(
+      chrome.runtime.getURL('html/options.html#no-session'),
+      'options_tab',
+      { navigate: true }
+    )
+  } else if (result === 'not-org') {
     openOrFocusTab(chrome.runtime.getURL('html/options.html'), 'options_tab')
   }
 }
@@ -107,22 +125,23 @@ chrome.action.onClicked.addListener(tab => {
   onActionClicked(tab)
 })
 
-// Opens (or focuses) the log viewer for the org of a tab. Resolves false,
-// opening nothing, if the tab isn't on an org host or has no session. The
-// tab's URL is readable because the org hosts are in host_permissions.
+// Opens (or focuses) the log viewer for the org of a tab. Resolves 'not-org'
+// or 'no-session', opening nothing, if the tab isn't on an org host or has no
+// session. The tab's URL is readable because the org hosts are in
+// host_permissions.
 async function openAppForTab(
   tab: { url?: string } | undefined
-): Promise<boolean> {
+): Promise<'opened' | 'not-org' | 'no-session'> {
   const url = tab && tab.url
   let tabHost: string
   try {
     tabHost = new URL(url).hostname
   } catch (e) {
-    return false
+    return 'not-org'
   }
-  if (!isOrgHost(tabHost)) return false
+  if (!isOrgHost(tabHost)) return 'not-org'
   const session = await getSessionForUrl(url)
-  if (!session.token) return false
+  if (!session.token) return 'no-session'
   const host = session.host || apiHostFor(tabHost)
   const ids = await orgIdsFor(tabHost, host, session.token)
   openOrFocusTab(
@@ -132,7 +151,7 @@ async function openAppForTab(
     }),
     appTabName(ids.orgId)
   )
-  return true
+  return 'opened'
 }
 
 // The org and user ids, from Salesforce's disco cookie (as Shift+W reads them

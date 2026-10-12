@@ -20,7 +20,7 @@ export default function Welcome({ onDismiss }) {
   return (
     <Paper
       component="section"
-      id="welcome"
+      id="welcome-panel"
       aria-labelledby="welcome-title"
       variant="outlined"
       sx={{
