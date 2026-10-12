@@ -6,7 +6,7 @@
 // indicators, dialog focus return). Used by the ux-ui-review agent
 // (.claude/agents/ux-ui-review.md), and meant to be rerun after UI changes.
 //
-//   node ux-audit.mjs [--out <dir>] [--views app,classic,options]
+//   node ux-audit.mjs [--out <dir>] [--views app,classic,options,exec]
 //                     [--sizes 1440x900,1024x768] [--compare <previous out dir>]
 //                     [--mock]
 //
@@ -46,7 +46,7 @@ const AXE_PATH = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 const { values: args } = parseArgs({
   options: {
     out: { type: 'string', default: join(HERE, 'ux-artifacts') },
-    views: { type: 'string', default: 'app,classic,options' },
+    views: { type: 'string', default: 'app,classic,options,exec' },
     sizes: { type: 'string', default: '1440x900,1024x768' },
     compare: { type: 'string' },
     mock: { type: 'boolean', default: process.env.SF_MOCK === '1' }
@@ -1423,6 +1423,218 @@ async function appView(ctx) {
   await app.close()
 }
 
+// --- Call tree and timeline (the log viewer's other tabs) -----------------
+
+// The timeline is a canvas, so the DOM contrast check can't see it: count its
+// pixel colors and report each frequent color's contrast with the most
+// frequent one (the background). Bars and their labels must reach 3:1 and
+// 4.5:1 (react/src/ui/contrast.ts).
+function canvasColors() {
+  const canvas = document.querySelector('[data-testid="timeline-canvas"]')
+  if (!canvas || !canvas.width) return { error: 'no timeline canvas' }
+  const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height)
+  const counts = new Map()
+  for (let i = 0; i < data.length; i += 4) {
+    const key = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2]
+    counts.set(key, (counts.get(key) || 0) + 1)
+  }
+  const total = data.length / 4
+  const lum = key => {
+    const c = [16, 8, 0].map(s => ((key >> s) & 255) / 255)
+    const [r, g, b] = c.map(v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const ratio = (a, b) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  const hex = key => `#${key.toString(16).padStart(6, '0')}`
+  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1])
+  const background = sorted[0][0]
+  // Fills: colors covering at least 0.5% of the canvas (anti-aliased text
+  // edges are spread over many rare colors).
+  const fills = sorted
+    .slice(1)
+    .filter(([, n]) => n / total >= 0.005)
+    .map(([key, n]) => ({ color: hex(key), share: Math.round((n / total) * 1000) / 10, ratio: ratio(key, background) }))
+  return {
+    background: hex(background),
+    fills,
+    belowNonText: fills.filter(f => f.ratio < 3)
+  }
+}
+
+// The tree's ARIA: every item has a level, open/closed state on items with
+// children, and the active descendant exists (names: treeItemNames).
+function treeAria() {
+  const tree = document.querySelector('[role="tree"]')
+  if (!tree) return { error: 'no tree' }
+  const items = [...tree.querySelectorAll('[role="treeitem"]')]
+  const active = tree.getAttribute('aria-activedescendant')
+  return {
+    items: items.length,
+    withoutLevel: items.filter(i => !i.getAttribute('aria-level')).length,
+    expandable: items.filter(i => i.hasAttribute('aria-expanded')).length,
+    activeDescendantExists: Boolean(active && document.getElementById(active)),
+    treeName: tree.getAttribute('aria-label')
+  }
+}
+
+// Each tree item's accessible name, from the browser's accessibility tree.
+async function treeItemNames(page) {
+  const names = []
+  for (const el of await page.$$('[role="treeitem"]')) {
+    const node = await page.accessibility.snapshot({ root: el, interestingOnly: false })
+    names.push((node && node.name) || '')
+  }
+  return names
+}
+
+async function clickTab(page, name) {
+  const tab = await page.$(`::-p-aria([name="${name}"][role="tab"])`)
+  if (!tab) return false
+  await tab.click()
+  await delay(600)
+  return true
+}
+
+// The Call tree and Timeline tabs of the open log: default, expanded,
+// keyboard, dark mode, hover, zoomed, and a log without units.
+async function executionViews(ctx) {
+  const V = 'exec'
+  const { logs } = ctx
+  const page = await newPage(ctx)
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+  await page.goto(appUrl(ctx) + `#/logs/${logs.main.Id}`, { waitUntil: 'networkidle2' })
+  await waitForText(page, `Done ${MARKER}`, 60000)
+  await delay(800)
+
+  // Call tree.
+  if (!(await clickTab(page, 'Call tree'))) {
+    summary.errors.push('exec: no Call tree tab')
+    await page.close()
+    return
+  }
+  await page.waitForSelector('[role="tree"]', { timeout: 10000 }).catch(() => {})
+  const tree = await capture(ctx, page, V, 'tree')
+  tree.treeAria = await page.evaluate(treeAria)
+  tree.treeAria.names = await treeItemNames(page)
+  tree.treeAria.withoutName = tree.treeAria.names.filter(n => !n.trim()).length
+  writeJson(`${V}-tree@${ctx.size.label}.json`, tree)
+  summary.states[`${V}-tree@${ctx.size.label}`].treeAria = tree.treeAria
+  if (ctx.primary) {
+    saveKeyboard(`${V}-keyboard-tree`, await tabThrough(page, 'call tree', { maxStops: 40 }))
+    // Arrow keys inside the tree.
+    await page.focus('[role="tree"]')
+    const activeLabel = async () => {
+      const el = await page.evaluateHandle(() => {
+        const t = document.querySelector('[role="tree"]')
+        return document.getElementById(t.getAttribute('aria-activedescendant'))
+      })
+      const node = await page.accessibility.snapshot({ root: el, interestingOnly: false })
+      const state = await el.evaluate(el => `${el.getAttribute('aria-level')} ${el.getAttribute('aria-expanded')}`)
+      return `${state} ${(node && node.name) || ''}`
+    }
+    const keys = []
+    for (const key of ['Home', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowRight', 'End', 'ArrowLeft']) {
+      await page.keyboard.press(key)
+      await delay(120)
+      keys.push({ key, active: await activeLabel() })
+    }
+    writeJson(`${V}-keyboard-tree-arrows.json`, keys)
+    await capture(ctx, page, V, 'tree-keyboard-focus')
+  }
+  const expandAll = await byName(page, [/^expand all$/i])
+  if (expandAll) {
+    await safeClick(expandAll)
+    await delay(400)
+    await capture(ctx, page, V, 'tree-expanded')
+  } else summary.errors.push('exec: no Expand all button')
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+  await delay(600)
+  await capture(ctx, page, V, 'tree-dark')
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+  await delay(400)
+
+  // Timeline.
+  for (const mode of ['light', 'dark']) {
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: mode }])
+    await clickTab(page, 'Timeline')
+    await page.waitForSelector('[data-testid="timeline-canvas"]', { timeout: 10000 }).catch(() => {})
+    await delay(400)
+    const suffix = mode === 'dark' ? '-dark' : ''
+    const result = await capture(ctx, page, V, `timeline${suffix}`)
+    result.canvas = await page.evaluate(canvasColors)
+    writeJson(`${V}-timeline${suffix}@${ctx.size.label}.json`, result)
+    summary.states[`${V}-timeline${suffix}@${ctx.size.label}`].canvasBelowNonText = (
+      result.canvas.belowNonText || []
+    ).length
+    // Hover a bar (level 2, the code unit) for the details card.
+    const group = await page.$('::-p-aria([name="Timeline"][role="group"])')
+    if (group) {
+      const box = await group.boundingBox()
+      await page.mouse.move(box.x + box.width / 3, box.y + 22 + 20 + 10)
+      await delay(300)
+      const hover = await capture(ctx, page, V, `timeline-hover${suffix}`)
+      hover.canvas = await page.evaluate(canvasColors)
+      writeJson(`${V}-timeline-hover${suffix}@${ctx.size.label}.json`, hover)
+      await page.mouse.move(box.x + box.width - 5, box.y + box.height - 5)
+    }
+    if (mode === 'light') {
+      if (ctx.primary) saveKeyboard(`${V}-keyboard-timeline`, await tabThrough(page, 'timeline', { maxStops: 40 }))
+      const zoomIn = await byName(page, [/^zoom in/i])
+      if (zoomIn) {
+        await safeClick(zoomIn)
+        await safeClick(zoomIn)
+        await delay(400)
+        const zoomed = await capture(ctx, page, V, 'timeline-zoomed')
+        zoomed.canvas = await page.evaluate(canvasColors)
+        writeJson(`${V}-timeline-zoomed@${ctx.size.label}.json`, zoomed)
+        const reset = await byName(page, [/^show the whole run/i])
+        if (reset) await safeClick(reset)
+        await page.mouse.move(1, 1)
+      } else summary.errors.push('exec: no Zoom in button')
+    }
+  }
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+  if (ctx.primary) {
+    // The ? overlay lists the tree and timeline keys.
+    await page.evaluate(() => document.activeElement && document.activeElement.blur())
+    await page.keyboard.type('?')
+    await delay(600)
+    await capture(ctx, page, V, 'shortcuts-overlay', { fullPage: false })
+    await closeDialog(page)
+  }
+  summary.pageErrors = { ...(summary.pageErrors || {}), [`exec@${ctx.size.label}`]: page.errors.map(redact) }
+  await page.close()
+
+  // A log without units: the main log's body with only its header and
+  // USER_DEBUG lines (served to this page only).
+  {
+    const empty = await newPage(ctx)
+    const body = logs.main.body
+      .split('\n')
+      .filter(l => !/\|(EXECUTION_|CODE_UNIT_|METHOD_|SYSTEM_METHOD_|SOQL_|DML_|CONSTRUCTOR_)/.test(l))
+      .join('\n')
+    await empty.setRequestInterception(true)
+    empty.on('request', req => {
+      if (req.url().includes(`/ApexLog/${logs.main.Id}/Body`))
+        req.respond({ status: 200, contentType: 'text/plain', body }).catch(() => {})
+      else req.continue().catch(() => {})
+    })
+    await empty.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await empty.goto(appUrl(ctx) + `#/logs/${logs.main.Id}`, { waitUntil: 'networkidle2' })
+    await waitForText(empty, `Done ${MARKER}`, 60000).catch(() => {})
+    await delay(600)
+    if (await clickTab(empty, 'Call tree')) await capture(ctx, empty, V, 'tree-empty')
+    if (await clickTab(empty, 'Timeline')) await capture(ctx, empty, V, 'timeline-empty')
+    await empty.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await delay(500)
+    await capture(ctx, empty, V, 'timeline-empty-dark')
+    await empty.close()
+  }
+}
+
 // --- Classic Salesforce pages enhanced by content scripts -----------------
 
 const CLASSIC_LOG_SCOPE = [
@@ -1646,7 +1858,7 @@ async function main() {
     for (const [i, size] of SIZES.entries()) {
       const ctx = { ext, session, sf, logs, size, primary: i === 0 }
       for (const view of VIEWS) {
-        const fn = { app: appView, classic: classicViews, options: optionsView }[view]
+        const fn = { app: appView, classic: classicViews, options: optionsView, exec: executionViews }[view]
         if (!fn) throw new Error(`unknown view ${view}`)
         log(`--- ${view} @ ${size.label}`)
         try {
