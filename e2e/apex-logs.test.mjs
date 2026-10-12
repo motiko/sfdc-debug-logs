@@ -1066,7 +1066,7 @@ test('trace flags: debug level, duration and target', { skip: !MOCK && 'mock org
       assert.ok(await page.$(button('Stop tracing You (Mock Developer)')), 'my flag has a named Stop button')
       const row = (await flagRows()).find(r => r.includes('You (Mock Developer)'))
       assert.match(row, /\d+ (h|min)( \d+ min)? left/, 'the flag shows the time left')
-      assert.match(row, /until \d/, 'and when it ends')
+      assert.match(row, /until (tomorrow |[A-Z][a-z]{2} \d{1,2}, )?\d{1,2}:\d{2}/, 'and when it ends')
       await delay(500)
       assert.equal(await allFlags(), before, 'opening the dialog creates no trace flag')
     })
