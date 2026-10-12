@@ -241,31 +241,31 @@ const classicUrl = id => `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=$
 // Installing opens a welcome on the options page, once (background.ts
 // runtime.onInstalled, reason "install"): every run's profile is new.
 test('first run: a welcome explains how to start, once', async t => {
-  const target = await ext.browser.waitForTarget(t => t.url().includes('/html/options.html#welcome'), {
-    timeout: 15000
-  })
-  const page = await target.page()
+  // launchWithExtension waited for the tab the install opened.
+  const page = ext.welcome
+  assert.ok(page, 'installing opened the welcome')
   const errors = collectPageErrors(page)
   const WELCOME = '::-p-aria([name="Welcome to Apex Debugger"][role="region"])'
   try {
     await t.test('it says how to open the viewer, start logging and find the settings', async () => {
       await page.waitForSelector(WELCOME, { timeout: 10000 })
-      const text = await page.$eval('#welcome', el => el.innerText)
+      const text = await page.$eval('#welcome-panel', el => el.innerText)
       assert.match(text, /browser toolbar/, 'the toolbar button')
       assert.match(text, /Shift|⇧/, 'the shortcut')
       assert.match(text, /Start logging/)
       assert.match(text, /Settings/)
       const first = await page.$eval('main', m => m.firstElementChild && m.firstElementChild.id)
-      assert.equal(first, 'welcome', 'it comes before the settings')
+      assert.equal(first, 'welcome-panel', 'it comes before the settings')
+      assert.equal(await page.evaluate(() => window.scrollY), 0, 'the page title stays in view')
     })
 
     await t.test('"Got it" dismisses it for good', async () => {
       await page.click('::-p-xpath(//button[normalize-space()="Got it"])')
-      await page.waitForSelector('#welcome', { hidden: true })
+      await page.waitForSelector('#welcome-panel', { hidden: true })
       assert.equal(new URL(page.url()).hash, '', 'no #welcome left to bring it back')
       await page.reload({ waitUntil: 'networkidle0' })
       await page.waitForSelector('::-p-aria(Key for Debug Logs)', { timeout: 10000 })
-      assert.equal(await page.$('#welcome'), null, 'not shown after a reload')
+      assert.equal(await page.$('#welcome-panel'), null, 'not shown after a reload')
     })
   } finally {
     if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
@@ -317,6 +317,25 @@ test('toolbar button opens the log viewer from Lightning Setup', async t => {
       await clickToolbarButton(page.url())
       await delay(1500)
       assert.equal((await appPages()).length, 1, 'no second app tab')
+    })
+
+    await t.test('on an org tab without a session it says to log in first', async () => {
+      const optionsTarget = ext.browser.waitForTarget(t => t.url().includes('/html/options.html#no-session'), {
+        timeout: 15000
+      })
+      // No sid cookie for this org host (and no saved token): no request is made.
+      await clickToolbarButton('https://apexdbgr-nosession.my.salesforce.com/lightning/page/home')
+      const options = await (await optionsTarget).page()
+      try {
+        const notice = '::-p-aria([name="Log in to Salesforce first"][role="alert"])'
+        await options.waitForSelector(notice, { timeout: 10000 })
+        assert.equal((await appPages()).length, 1, 'no app tab without a session')
+        await options.click('::-p-aria([name="Close this notice"][role="button"])')
+        await options.waitForSelector('#no-session-notice', { hidden: true })
+        assert.equal(new URL(options.url()).hash, '', 'no #no-session left to bring it back')
+      } finally {
+        await options.close()
+      }
     })
 
     await t.test('on a public Site or another site it opens the options, never the app', async () => {
