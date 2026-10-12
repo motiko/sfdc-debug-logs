@@ -4,9 +4,10 @@ import { Box, Button, Typography } from '@mui/material'
 import ExpandIcon from '@mui/icons-material/ChevronRight'
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore'
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess'
+import TreeIcon from '@mui/icons-material/AccountTreeOutlined'
+import StatePanel from '../../../ui/components/state-panel'
 import {
   allExpandable,
-  describeNode,
   expandedToDepth,
   formatNanos,
   UNIT_KIND_LABELS,
@@ -18,14 +19,21 @@ const ROW_HEIGHT = 28
 const INDENT = 16
 // Levels open when a log's tree is first shown.
 const INITIAL_DEPTH = 3
-const COLUMNS = 'minmax(0, 1fr) 96px 88px 56px 56px 72px'
+const COLUMNS = 'minmax(0, 1fr) 88px 80px 48px 48px 64px'
+
+// A log without units (the call tree and the timeline say the same).
+export const NO_UNITS_TITLE = 'No calls to show'
+export const NO_UNITS_HINT =
+  'This log has no code units, methods, queries or DML. Method calls are logged when the Apex Code log level is Fine or finer.'
 
 // The call tree (core/log/execution-tree.ts): one row per unit, nested as
 // called, with total and own time, SOQL and DML counts and the log line.
 // An ARIA treeview with one Tab stop (aria-activedescendant): Up/Down move,
 // Right opens or goes to the first child, Left closes or goes to the parent,
 // Home/End, Page Up/Down, Enter (or a double click, or the line number) goes
-// to the unit's line in the log. Rows are virtualized, and only open units'
+// to the unit's line in the log. Each row's accessible name is its text,
+// with the column names added for screen readers ("Method Foo.bar(), total
+// 2 ms, self 1 ms, 1 SOQL, line 12"). Rows are virtualized, and only open units'
 // children are listed, so a 20 MB log's tree stays responsive.
 export default function ExecutionTreeView({ tree, onJump }) {
   const [expanded, setExpanded] = useState(() =>
@@ -134,6 +142,19 @@ export default function ExecutionTreeView({ tree, onJump }) {
 
   const items = virtualizer.getVirtualItems()
   const units = tree.nodes.length
+  if (!units) {
+    return (
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        <StatePanel
+          icon={<TreeIcon />}
+          title={NO_UNITS_TITLE}
+          data-testid="tree-empty"
+        >
+          {NO_UNITS_HINT}
+        </StatePanel>
+      </Box>
+    )
+  }
   return (
     <Box
       sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
@@ -154,9 +175,7 @@ export default function ExecutionTreeView({ tree, onJump }) {
           color="text.secondary"
           data-testid="tree-summary"
         >
-          {units
-            ? `${units.toLocaleString()} ${units === 1 ? 'unit' : 'units'} · ${formatNanos(tree.end - tree.start)}`
-            : 'No units'}
+          {`${units.toLocaleString()} ${units === 1 ? 'unit' : 'units'} · ${formatNanos(tree.end - tree.start)}`}
         </Typography>
         <Box sx={{ flex: 1 }} />
         <Button
@@ -164,7 +183,6 @@ export default function ExecutionTreeView({ tree, onJump }) {
           color="inherit"
           startIcon={<UnfoldMoreIcon />}
           onClick={() => setExpanded(allExpandable(tree))}
-          disabled={!units}
         >
           Expand all
         </Button>
@@ -179,92 +197,81 @@ export default function ExecutionTreeView({ tree, onJump }) {
             while (top && top.parent) top = top.parent
             if (top) setActiveId(top.id)
           }}
-          disabled={!units}
         >
           Collapse all
         </Button>
       </Box>
-      {units === 0 ? (
-        <Typography sx={{ p: 2 }} color="text.secondary">
-          This log has no code units, methods, queries or DML to show. Logs list
-          methods when the Apex Code log level is Fine or finer.
-        </Typography>
-      ) : (
-        <>
-          {/* Column labels; each row's accessible name says the same. */}
-          <Box
-            aria-hidden
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: COLUMNS,
-              px: 2,
-              py: 0.5,
-              fontSize: 12,
-              fontWeight: 600,
-              color: 'text.secondary',
-              borderBottom: 1,
-              borderColor: 'divider',
-              '& > :not(:first-of-type)': { textAlign: 'right' }
-            }}
-          >
-            <span>Unit</span>
-            <span>Total</span>
-            <span>Self</span>
-            <span>SOQL</span>
-            <span>DML</span>
-            <span>Line</span>
-          </Box>
-          <Box
-            ref={scrollRef}
-            role="tree"
-            aria-label="Call tree"
-            aria-activedescendant={
-              rows.length ? `exec-node-${rows[activeRow].id}` : undefined
-            }
-            tabIndex={0}
-            onKeyDown={onKeyDown}
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              overflow: 'auto',
-              position: 'relative',
-              outline: 'none',
-              // The focus ring is on the active row.
-              '&:focus-visible [aria-selected="true"]': {
-                outline: '2px solid var(--ad-focus)',
-                outlineOffset: -2
-              }
-            }}
-          >
-            <Box
-              sx={{ height: virtualizer.getTotalSize(), position: 'relative' }}
-            >
-              {items.map(item => {
-                const node = rows[item.index]
-                const siblings = node.parent ? node.parent.children : tree.roots
-                return (
-                  <TreeRow
-                    key={node.id}
-                    node={node}
-                    top={item.start}
-                    open={expanded.has(node.id)}
-                    active={item.index === activeRow}
-                    setSize={siblings.length}
-                    position={node.position}
-                    share={node.total / longest}
-                    onSelect={() => {
-                      setActiveId(node.id)
-                      scrollRef.current && scrollRef.current.focus()
-                    }}
-                    onToggle={() => setOpen(node, !expanded.has(node.id))}
-                    onJump={() => onJump(node.line)}
-                  />
-                )
-              })}
-            </Box>
-          </Box>
-        </>
-      )}
+      {/* Column labels; each row's accessible name says the same. */}
+      <Box
+        aria-hidden
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: COLUMNS,
+          columnGap: 2,
+          px: 2,
+          py: 0.5,
+          fontSize: 12,
+          fontWeight: 600,
+          color: 'text.secondary',
+          borderBottom: 1,
+          borderColor: 'divider',
+          '& > :not(:first-of-type)': { textAlign: 'right' }
+        }}
+      >
+        <span>Unit</span>
+        <span>Total</span>
+        <span>Self</span>
+        <span>SOQL</span>
+        <span>DML</span>
+        <span>Line</span>
+      </Box>
+      <Box
+        ref={scrollRef}
+        role="tree"
+        aria-label="Call tree"
+        aria-activedescendant={
+          rows.length ? `exec-node-${rows[activeRow].id}` : undefined
+        }
+        tabIndex={0}
+        onKeyDown={onKeyDown}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflow: 'auto',
+          position: 'relative',
+          outline: 'none',
+          // The focus ring is on the active row.
+          '&:focus-visible [aria-selected="true"]': {
+            outline: '2px solid var(--ad-focus)',
+            outlineOffset: -2
+          }
+        }}
+      >
+        <Box sx={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+          {items.map(item => {
+            const node = rows[item.index]
+            const siblings = node.parent ? node.parent.children : tree.roots
+            return (
+              <TreeRow
+                key={node.id}
+                node={node}
+                top={item.start}
+                open={expanded.has(node.id)}
+                active={item.index === activeRow}
+                setSize={siblings.length}
+                position={node.position}
+                share={node.total / longest}
+                onSelect={() => {
+                  setActiveId(node.id)
+                  scrollRef.current && scrollRef.current.focus()
+                }}
+                onToggle={() => setOpen(node, !expanded.has(node.id))}
+                onJump={() => onJump(node.line)}
+              />
+            )
+          })}
+        </Box>
+      </Box>
     </Box>
   )
 }
@@ -293,7 +300,6 @@ function TreeRow({
       aria-posinset={position}
       aria-expanded={hasChildren ? open : undefined}
       aria-selected={active}
-      aria-label={describeNode(node)}
       data-line={node.line}
       onClick={onSelect}
       onDoubleClick={onJump}
@@ -306,6 +312,7 @@ function TreeRow({
         transform: `translateY(${top}px)`,
         display: 'grid',
         gridTemplateColumns: COLUMNS,
+        columnGap: 2,
         alignItems: 'center',
         px: 2,
         fontSize: 13,
@@ -367,7 +374,7 @@ function TreeRow({
             color: 'text.secondary'
           }}
         >
-          {kindLabel === node.name ? null : kindLabel}
+          {kindLabel === node.name ? null : `${kindLabel} `}
         </Box>
         <Box
           component="span"
@@ -389,7 +396,7 @@ function TreeRow({
             title="The log has no end entry for this unit (truncated or unbalanced log)"
             sx={{ flex: 'none', ml: 1, fontSize: 12, color: 'warning.main' }}
           >
-            no end
+            <span className="sr-only">, </span>no end
           </Box>
         ) : null}
       </Box>
@@ -399,12 +406,38 @@ function TreeRow({
           background: `linear-gradient(to left, color-mix(in srgb, var(--ad-accent) 22%, transparent) ${pct}, transparent ${pct})`
         }}
       >
+        <span className="sr-only">, total </span>
         {formatNanos(node.total)}
       </span>
-      <span className="num">{formatNanos(node.self)}</span>
-      <span className="num">{node.soql || ''}</span>
-      <span className="num">{node.dml || ''}</span>
       <span className="num">
+        <span className="sr-only">, self </span>
+        {formatNanos(node.self)}
+      </span>
+      <span className="num">
+        {node.soql ? (
+          <>
+            <span className="sr-only">, </span>
+            {node.soql}
+            <span className="sr-only"> SOQL</span>
+          </>
+        ) : null}
+        {node.rows !== undefined ? (
+          <span className="sr-only">
+            , {node.rows} {node.rows === 1 ? 'row' : 'rows'}
+          </span>
+        ) : null}
+      </span>
+      <span className="num">
+        {node.dml ? (
+          <>
+            <span className="sr-only">, </span>
+            {node.dml}
+            <span className="sr-only"> DML</span>
+          </>
+        ) : null}
+      </span>
+      <span className="num">
+        <span className="sr-only">, line {node.line}</span>
         <Box
           component="button"
           type="button"

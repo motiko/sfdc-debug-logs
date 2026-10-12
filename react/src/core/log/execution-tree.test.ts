@@ -4,7 +4,6 @@ import { buildLines } from './log-lines'
 import {
   allExpandable,
   buildExecutionTree,
-  describeNode,
   type ExecNode,
   expandedToDepth,
   formatNanos,
@@ -270,12 +269,6 @@ describe('tree view helpers', () => {
     expect(timelineBars(t.roots, 1, 8, 7, 4).map(b => b.node.name)).toEqual([
       'A'
     ])
-  })
-
-  it('describes a node for screen readers', () => {
-    expect(describeNode(t.roots[0])).toBe(
-      'Code unit A, total 7 ns, self 3 ns, line 1'
-    )
   })
 })
 

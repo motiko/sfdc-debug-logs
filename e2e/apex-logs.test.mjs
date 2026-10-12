@@ -683,14 +683,23 @@ test('React log viewer', async t => {
   })
 
   // The call tree and the timeline (core/log/execution-tree.ts).
-  const treeItems = () =>
-    app.$$eval('[role="treeitem"]', els =>
-      els.map(el => ({
-        label: el.getAttribute('aria-label'),
+  // Each row's accessible name comes from its text (with the column names
+  // for screen readers), so it is read from the accessibility tree.
+  const nameOf = async el => {
+    const node = await app.accessibility.snapshot({ root: el, interestingOnly: false })
+    return ((node && node.name) || '').replace(/\s+,/g, ',').replace(/\s+/g, ' ').trim()
+  }
+  const treeItems = async () => {
+    const items = []
+    for (const el of await app.$$('[role="treeitem"]')) {
+      const { level, line } = await el.evaluate(el => ({
         level: Number(el.getAttribute('aria-level')),
         line: Number(el.dataset.line)
       }))
-    )
+      items.push({ label: await nameOf(el), level, line })
+    }
+    return items
+  }
   const activeLogLine = line =>
     app.waitForFunction(
       line => {
@@ -731,11 +740,12 @@ test('React log viewer', async t => {
     await app.focus('[role="tree"]')
     await app.keyboard.press('Home')
     await app.keyboard.press('ArrowDown')
-    const active = () =>
-      app.$eval('[role="tree"]', tree => {
-        const el = document.getElementById(tree.getAttribute('aria-activedescendant'))
-        return { label: el.getAttribute('aria-label'), expanded: el.getAttribute('aria-expanded') }
-      })
+    const active = async () => {
+      const el = await app
+        .$('[role="tree"]')
+        .then(tree => tree.evaluateHandle(tree => document.getElementById(tree.getAttribute('aria-activedescendant'))))
+      return { label: await nameOf(el), expanded: await el.evaluate(el => el.getAttribute('aria-expanded')) }
+    }
     assert.match((await active()).label, /^Code unit execute_anonymous_apex/)
     await app.keyboard.press('ArrowLeft')
     assert.equal((await active()).expanded, 'false', 'Left closes the unit')
@@ -763,6 +773,14 @@ test('React log viewer', async t => {
     await app.click('::-p-aria([name="Zoom in"][role="button"])')
     await app.waitForFunction(() => / of /.test(document.querySelector('[data-testid="timeline-window"]').textContent))
     await app.click('::-p-aria([name="Show the whole run"][role="button"])')
+    await app.waitForFunction(() =>
+      /^Whole run/.test(document.querySelector('[data-testid="timeline-window"]').textContent)
+    )
+    // The keys the ? overlay lists: + zooms in, 0 shows the whole run.
+    await app.focus('[role="group"][aria-label="Timeline"]')
+    await app.keyboard.type('+')
+    await app.waitForFunction(() => / of /.test(document.querySelector('[data-testid="timeline-window"]').textContent))
+    await app.keyboard.press('0')
     await app.waitForFunction(() =>
       /^Whole run/.test(document.querySelector('[data-testid="timeline-window"]').textContent)
     )

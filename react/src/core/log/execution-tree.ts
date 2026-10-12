@@ -415,22 +415,6 @@ const round = (n: number) =>
       ? n.toFixed(1).replace(/\.0$/, '')
       : n.toFixed(2).replace(/\.?0+$/, '')
 
-// What a screen reader says for a node (the tree's rows show it as columns).
-export function describeNode(node: ExecNode): string {
-  const parts = [
-    `${UNIT_KIND_LABELS[node.kind]} ${node.name}`,
-    `total ${formatNanos(node.total)}`,
-    `self ${formatNanos(node.self)}`
-  ]
-  if (node.soql) parts.push(`${node.soql} SOQL`)
-  if (node.dml) parts.push(`${node.dml} DML`)
-  if (node.rows !== undefined)
-    parts.push(`${node.rows} ${node.rows === 1 ? 'row' : 'rows'}`)
-  parts.push(`line ${node.line}`)
-  if (node.unclosed) parts.push('no end in the log')
-  return parts.join(', ')
-}
-
 // The row of `lines` (the visible lines) that shows log line `number`, or
 // the first one after it if that line is hidden; -1 if none.
 export function rowForLine(lines: readonly LogLine[], number: number): number {
