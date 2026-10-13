@@ -307,13 +307,14 @@ function fillShortcutsPanel(panel: HTMLElement, enabled: boolean) {
 }
 
 // The log, as one div per entry. Rebuilt when timestamps are turned on or
-// off; expanded values collapse again.
+// off; expanded values collapse again. Built in a fragment: spreading every
+// entry into one call overflows the stack for logs of 100k+ entries.
 function renderLog() {
-  const nodes: Node[] = []
+  const log = document.createDocumentFragment()
   for (const block of logToBlocks(rawLog, state.timestamps)) {
-    nodes.push(...renderBlock(block))
+    log.append(...renderBlock(block))
   }
-  debugText.replaceChildren(...nodes)
+  debugText.replaceChildren(log)
   state.expanded = false
   updateExpandAllButton()
   const userDebugDivs = [...debugText.getElementsByClassName('debug')]
