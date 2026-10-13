@@ -146,15 +146,15 @@ const block = (selector: string, vars: Record<string, string>) =>
 
 // A stylesheet that defines the tokens on `selector` (e.g. ":root" or a
 // content script's own container): light by default, dark when the OS prefers
-// it, and either one forced with data-ad-color-mode="light|dark" on the
+// it, and either one forced with data-apexdbg-color-mode="light|dark" on the
 // element. Insert it as a <style> element's textContent.
 export function designTokensCss(selector = ':root'): string {
   const forced = (mode: ColorMode) =>
-    `${selector}[data-ad-color-mode="${mode}"]`
+    `${selector}[data-apexdbg-color-mode="${mode}"]`
   return [
     block(selector, tokenCssVariables('light')),
     `@media (prefers-color-scheme: dark) {\n${block(
-      `${selector}:not([data-ad-color-mode="light"])`,
+      `${selector}:not([data-apexdbg-color-mode="light"])`,
       tokenCssVariables('dark')
     )}\n}`,
     block(forced('light'), tokenCssVariables('light')),

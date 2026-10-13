@@ -828,7 +828,7 @@ test('React log viewer', async t => {
       body: getComputedStyle(document.body).backgroundColor,
       header: getComputedStyle(document.querySelector('header')).backgroundColor,
       headerText: getComputedStyle(document.querySelector('header h1')).color,
-      mode: document.documentElement.dataset.adColorMode
+      mode: document.documentElement.dataset.apexdbgColorMode
     }))
     assert.equal(colors.mode, 'dark')
     assert.equal(colors.body, toRgb(uiColors.dark.bg), 'page background')
@@ -1007,10 +1007,10 @@ test('classic log page toolbar', async t => {
   const errors = collectPageErrors(page)
   await page.setViewport({ width: 1200, height: 800 })
   await page.goto(frontdoorUrl(session, classicUrl(log.Id)), { waitUntil: 'networkidle2' })
-  await page.waitForSelector('#adToolbar', { timeout: 20000 })
+  await page.waitForSelector('#apexdbgToolbar', { timeout: 20000 })
 
   await t.test('every control has a label', async () => {
-    const unlabeled = await page.$$eval('#adToolbar select, #adToolbar input', els =>
+    const unlabeled = await page.$$eval('#apexdbgToolbar select, #apexdbgToolbar input', els =>
       els.filter(el => !(el.labels && el.labels.length && el.labels[0].textContent.trim())).map(el => el.id)
     )
     assert.deepEqual(unlabeled, [])
@@ -1019,7 +1019,7 @@ test('classic log page toolbar', async t => {
   await t.test('the toolbar stays in view while the log scrolls', async () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2))
     await delay(200)
-    const top = await page.$eval('#adToolbar', el => el.getBoundingClientRect().top)
+    const top = await page.$eval('#apexdbgToolbar', el => el.getBoundingClientRect().top)
     assert.ok(top >= -1 && top < 5, `toolbar top at ${top}px`)
     await page.evaluate(() => window.scrollTo(0, 0))
   })
@@ -1073,26 +1073,26 @@ test('classic log list: delete asks with scope and count; search reports results
     await page.evaluate(() => document.activeElement && document.activeElement.blur())
     await page.keyboard.press('KeyA')
     await delay(300)
-    assert.equal(await page.$('#adDeleteDialog'), null)
+    assert.equal(await page.$('#apexdbgDeleteDialog'), null)
   })
 
   await t.test('the dialog defaults to my logs, shows counts, and Cancel deletes nothing', async () => {
     const before = (await sf.query('SELECT Id FROM ApexLog')).length
     await page.click('#real_delete_all')
     await page.waitForFunction(
-      () => /Only my logs \(\d[\d,]*\)/.test((document.querySelector('#adDeleteDialog') || {}).innerText || ''),
+      () => /Only my logs \(\d[\d,]*\)/.test((document.querySelector('#apexdbgDeleteDialog') || {}).innerText || ''),
       { timeout: 30000 }
     )
-    const state = await page.$eval('#adDeleteDialog', d => ({
+    const state = await page.$eval('#apexdbgDeleteDialog', d => ({
       open: d.open,
-      mine: d.querySelector('#adDeleteMine').checked,
+      mine: d.querySelector('#apexdbgDeleteMine').checked,
       confirm: [...d.querySelectorAll('button')].map(b => b.textContent).find(t => /^Delete/.test(t))
     }))
     assert.equal(state.open, true)
     assert.equal(state.mine, true, 'only my logs by default')
     assert.match(state.confirm, /^Delete [\d,]+ logs?$/)
     await page.keyboard.press('Escape')
-    await page.waitForFunction(() => !document.querySelector('#adDeleteDialog'))
+    await page.waitForFunction(() => !document.querySelector('#apexdbgDeleteDialog'))
     assert.equal((await sf.query('SELECT Id FROM ApexLog')).length, before, 'nothing deleted')
   })
 
@@ -1105,12 +1105,12 @@ test('classic log list: delete asks with scope and count; search reports results
       },
       MARKER
     )
-    await page.waitForFunction(() => /contain/.test(document.querySelector('#adSearchStatus').textContent), {
+    await page.waitForFunction(() => /contain/.test(document.querySelector('#apexdbgSearchStatus').textContent), {
       timeout: 60000
     })
-    const status = await page.$eval('#adSearchStatus', el => el.textContent)
+    const status = await page.$eval('#apexdbgSearchStatus', el => el.textContent)
     assert.match(status, /^\d+ of \d+ logs contain/)
-    assert.ok((await page.$$('tr.ad-match')).length >= 1, 'matching rows are marked')
+    assert.ok((await page.$$('tr.apexdbg-match')).length >= 1, 'matching rows are marked')
   })
 
   if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
@@ -1171,7 +1171,7 @@ test('options page', async t => {
 
   await t.test('color mode is shared with the classic pages', async () => {
     await page.click('::-p-xpath(//button[normalize-space()="Dark"])')
-    await page.waitForFunction(() => document.documentElement.dataset.adColorMode === 'dark')
+    await page.waitForFunction(() => document.documentElement.dataset.apexdbgColorMode === 'dark')
     const { appearance } = await ext.background.evaluate(() => chrome.storage.local.get('appearance'))
     assert.deepEqual(appearance, { colorMode: 'dark' })
     await page.click('::-p-xpath(//button[normalize-space()="System"])')
