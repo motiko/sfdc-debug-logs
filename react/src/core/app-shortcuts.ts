@@ -19,6 +19,7 @@ export type ShortcutId =
   | 'find'
   | 'nextMatch'
   | 'previousMatch'
+  | 'download'
   | 'treeMove'
   | 'treeOpen'
   | 'treeClose'
@@ -121,6 +122,12 @@ export const APP_SHORTCUTS: Shortcut[] = [
     id: 'nextDebug',
     keys: ['d'],
     description: 'Go to the next debug line',
+    group: 'Log'
+  },
+  {
+    id: 'download',
+    keys: ['Shift+D'],
+    description: 'Download this log as a .log file',
     group: 'Log'
   },
   // The call tree and the timeline handle these keys themselves while they

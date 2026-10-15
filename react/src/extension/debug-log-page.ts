@@ -30,6 +30,7 @@ import {
 } from '../core/log/themes'
 import { cached } from '../core/cached'
 import { CLASSIC_LOG_PAGE_SHORTCUTS } from '../core/page-shortcuts'
+import { logFileName, saveTextFile } from '../core/log/download'
 import {
   checkbox,
   followColorMode,
@@ -265,15 +266,27 @@ function buildToolbar(): HTMLElement {
         },
         'T'
       ),
-      h('span', { className: 'apexdbg-spacer' }),
-      expandAllButton,
-      h('button', {
-        type: 'button',
-        className: 'apexdbg-button apexdbg-button-primary',
-        text: 'Open in Apex Debugger',
-        onclick: openInApp
-      }),
-      anchor
+      // The actions wrap to the next row together, never one by one.
+      h(
+        'div',
+        { className: 'apexdbg-toolbar-actions' },
+        expandAllButton,
+        h('button', {
+          type: 'button',
+          id: 'apexdbgDownloadLog',
+          className: 'apexdbg-button',
+          text: 'Download',
+          title: 'Download this log as a .log file',
+          onclick: downloadLog
+        }),
+        h('button', {
+          type: 'button',
+          className: 'apexdbg-button apexdbg-button-primary',
+          text: 'Open in Apex Debugger',
+          onclick: openInApp
+        }),
+        anchor
+      )
     )
   )
 }
@@ -347,6 +360,14 @@ function toggleExpandAll() {
     .forEach(button => toggleValue(button))
   state.expanded = expand
   updateExpandAllButton()
+}
+
+// The log text as the page had it, before any rendering, as a .log file.
+// The page doesn't show the start time in a form we can rely on, so the
+// file is named by the log id only.
+function downloadLog() {
+  const logId = new URLSearchParams(location.search).get('apex_log_id') || ''
+  saveTextFile(logFileName({ id: logId }), rawLog)
 }
 
 async function openInApp() {

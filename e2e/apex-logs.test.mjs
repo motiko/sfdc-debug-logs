@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { startRun, MOCK } from './lib/run.mjs'
 import { gotoLightning } from './lib/lightning.mjs'
+import { captureDownload } from './lib/downloads.mjs'
 import { launchWithExtension } from './lib/browser.mjs'
 import {
   logThemes,
@@ -682,6 +683,7 @@ test('React log viewer', async t => {
     await app.waitForSelector(HELP, { visible: true })
     const text = await app.$eval(HELP, d => d.innerText)
     assert.match(text, /Refresh the list of logs/)
+    assert.match(text, /Download this log/)
     assert.doesNotMatch(text, /delete all/i)
     await app.keyboard.press('Escape')
     await app.waitForSelector(HELP, { hidden: true })
@@ -748,6 +750,42 @@ test('React log viewer', async t => {
     const errorLines = await app.$$eval('pre > div[data-category="error"]', els => els.length)
     assert.ok(errorLines > 0, 'the log has an error line (the caught exception)')
     assert.equal(markers, errorLines, 'each error line has an error marker')
+  })
+
+  await t.test('Download saves the raw log, whatever the view hides', async () => {
+    // Hide the debug lines (the marker's own lines) in the view.
+    const EVENTS = '::-p-xpath(//button[starts-with(normalize-space(), "Events")])'
+    const setDebugShown = async shown => {
+      await app.click(EVENTS)
+      await app.waitForSelector(dialog('Event types'), { visible: true })
+      await app.evaluate(shown => {
+        const box = [...document.querySelectorAll('[role="dialog"] label')]
+          .find(l => l.innerText.startsWith('Debug output'))
+          .querySelector('input')
+        if (box.checked !== shown) box.click()
+      }, shown)
+      await app.click('::-p-xpath(//button[normalize-space()="Done"])')
+      await app.waitForSelector(dialog('Event types'), { hidden: true })
+    }
+    await setDebugShown(false)
+    await app.waitForFunction(() => !document.querySelector('pre > div[data-category="debug"]'))
+    const button = '::-p-aria([name="Download log"][role="button"])'
+    assert.equal(await app.$eval(button, b => b.getAttribute('aria-keyshortcuts')), 'Shift+D')
+    const clicked = await captureDownload(app, () => app.click(button))
+    assert.equal(clicked.text, log.body, 'the file is the raw body, debug lines included')
+    assert.match(clicked.name, /^\d{4}-\d\d-\d\dT\d\d-\d\d-\d\dZ_.+_[A-Za-z0-9]+\.log$/)
+    assert.ok(clicked.name.endsWith(`_${log.Id}.log`), `file name ${clicked.name} has the log id`)
+    await setDebugShown(true)
+
+    // Shift+D does the same.
+    await app.evaluate(() => document.activeElement && document.activeElement.blur())
+    const pressed = await captureDownload(app, async () => {
+      await app.keyboard.down('Shift')
+      await app.keyboard.press('KeyD')
+      await app.keyboard.up('Shift')
+    })
+    assert.equal(pressed.name, clicked.name)
+    assert.equal(pressed.text, log.body)
   })
 
   await t.test('summary shows limits, the exception, SOQL and DML, and jumps to their lines', async () => {
@@ -1479,6 +1517,13 @@ test('classic log page toolbar', async t => {
     await button.click()
     const after = await button.evaluate(b => [b.getAttribute('aria-label'), b.getAttribute('aria-expanded')])
     assert.deepEqual(after, ['Collapse value', 'true'])
+  })
+
+  await t.test('Download log saves the log text as a .log file', async () => {
+    const { name, text } = await captureDownload(page, () => page.click('#apexdbgDownloadLog'))
+    assert.equal(name, `${log.Id}.log`)
+    assert.ok(text.includes(MARKER), 'the file has the log text')
+    assert.ok(text.includes(XSS), 'markup is kept as text')
   })
 
   await t.test('"Match color mode" follows dark mode', async () => {
