@@ -44,7 +44,11 @@ export function createAppTheme(mode: ColorMode, reducedMotion = false): Theme {
         dark: c.accentHover,
         contrastText: c.onAccent
       },
-      error: { main: c.danger, contrastText: c.onDanger },
+      error: {
+        main: c.danger,
+        dark: c.dangerHover,
+        contrastText: c.onDanger
+      },
       success: { main: c.success },
       warning: { main: c.warning },
       info: { main: c.focus },

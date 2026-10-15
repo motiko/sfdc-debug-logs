@@ -24,7 +24,7 @@ const RULES: [string, string[], number][] = [
   ['success', ['bg', 'surface'], CONTRAST.text],
   ['warning', ['bg', 'surface'], CONTRAST.text],
   ['onAccent', ['accent', 'accentHover'], CONTRAST.text],
-  ['onDanger', ['danger'], CONTRAST.text],
+  ['onDanger', ['danger', 'dangerHover'], CONTRAST.text],
   ['text', ['matchBg', 'currentMatchBg'], CONTRAST.text],
   ['border', ['bg', 'surface', 'surfaceHover'], CONTRAST.nonText],
   ['focus', ['bg', 'surface', 'surfaceHover', 'selected'], CONTRAST.nonText]

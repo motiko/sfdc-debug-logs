@@ -626,6 +626,80 @@ test('React log viewer', async t => {
     assert.ok((await rowIds()).includes(log.Id), 'the log is still listed')
   })
 
+  // Mock only: it deletes logs, so it works on throwaway logs of the mock org.
+  await t.test(
+    'delete selected and the open log: exactly those, after a confirmation',
+    { skip: !run.mock },
+    async () => {
+      const org = run.mock.org
+      const body = 'Throwaway log\n12:00:00.000 (1)|USER_DEBUG|[1]|DEBUG|e2e delete\n'
+      const [a, b, c] = ['A', 'B', 'C'].map(n =>
+        org.addLog({ body, operation: `/apex/E2eDelete${n}`, start: new Date(Date.now() + 1000) })
+      )
+      const orgIds = () => org.logs.map(l => l.Id)
+      const deletesBefore = org.compositeDeletes.length
+      await app.click('::-p-aria([name="Refresh logs"][role="button"])')
+      await app.waitForSelector(`[role="grid"] [data-log-id="${c}"]`, { timeout: 30000 })
+      const row = id => `[role="grid"] [data-log-id="${id}"]`
+      const selectedText = () => app.$eval('[data-testid="selected-count"]', el => el.textContent).catch(() => null)
+
+      // Space on the focused row checks it; a click on a checkbox doesn't open the log.
+      await app.focus(row(a))
+      await app.keyboard.press('Space')
+      assert.equal(await app.$eval(row(a), r => r.getAttribute('aria-selected')), 'true', 'Space checks the row')
+      await app.click(`${row(b)} input[type="checkbox"]`)
+      assert.equal(await selectedText(), '2 logs selected')
+      assert.equal(await app.evaluate(() => location.hash), '#/', 'checking a log does not open it')
+      const name = await app.$eval(`${row(b)} input[type="checkbox"]`, el => el.getAttribute('aria-label'))
+      assert.match(name, /^Select log .*E2eDeleteB/, 'each checkbox is named after its log')
+
+      // Select all checks every shown log; unchecking it clears them, deleting nothing.
+      const ALL = '::-p-aria([name="Select all shown logs"])'
+      await app.click(ALL)
+      assert.equal(await selectedText(), `${(await rowIds()).length} logs selected`)
+      await app.click(ALL)
+      assert.equal(await selectedText(), null, 'nothing is selected')
+      assert.equal(org.compositeDeletes.length, deletesBefore, 'selecting deleted nothing')
+
+      await app.focus(row(a))
+      await app.keyboard.press('x')
+      await app.click(`${row(b)} input[type="checkbox"]`)
+      await app.click('::-p-aria([name="Delete selected…"][role="button"])')
+      const CONFIRM = dialog('Delete 2 logs?')
+      await app.waitForSelector(CONFIRM, { visible: true })
+      const state = await app.$eval(CONFIRM, d => ({
+        focused: document.activeElement.textContent,
+        buttons: [...d.querySelectorAll('button')].map(b => b.textContent)
+      }))
+      assert.equal(state.focused, 'Cancel', 'Cancel has the focus')
+      assert.deepEqual(state.buttons, ['Cancel', 'Delete 2 logs'], 'the confirm button names the count')
+      assert.equal(org.compositeDeletes.length, deletesBefore, 'nothing is deleted before confirming')
+      await app.click(`${CONFIRM} ::-p-aria([name="Delete 2 logs"][role="button"])`)
+      await app.waitForSelector(CONFIRM, { hidden: true, timeout: 30000 })
+      assert.deepEqual(org.compositeDeletes.slice(deletesBefore), [[a, b]], 'one request with exactly those ids')
+      assert.ok(!orgIds().includes(a) && !orgIds().includes(b), 'both logs are gone from the org')
+      assert.ok(orgIds().includes(c) && orgIds().includes(log.Id), 'the other logs remain')
+      const listed = await rowIds()
+      assert.ok(!listed.includes(a) && !listed.includes(b) && listed.includes(c), 'the list drops exactly those')
+      await app.waitForSelector('::-p-text(Deleted 2 logs)')
+
+      // The open log: "Delete log…" asks, deletes it and returns to the list.
+      await app.evaluate(id => (location.hash = `#/logs/${id}`), c)
+      await app.click('::-p-aria([name="Delete log…"][role="button"])')
+      const ONE = dialog('Delete this log?')
+      await app.waitForSelector(ONE, { visible: true })
+      await app.click(`${ONE} ::-p-aria([name="Delete 1 log"][role="button"])`)
+      await app.waitForSelector(ONE, { hidden: true, timeout: 30000 })
+      await app.waitForFunction(() => location.hash === '#/' || location.hash === '', { timeout: 5000 })
+      assert.ok(!orgIds().includes(c), 'the open log is gone from the org')
+      await app.waitForSelector('[role="grid"] thead')
+      assert.ok(!(await rowIds()).includes(c), 'and from the list')
+      // The confirmation toast sits where the More actions menu opens: let it
+      // go before the next steps use the menu.
+      await app.waitForFunction(() => !document.body.innerText.includes('Deleted 1 log'), { timeout: 10000 })
+    }
+  )
+
   await t.test('a confirmation toast covers no header control, and the menu opens under it', async () => {
     // Extending logging (on since ensureLogging) shows a confirmation.
     await app.click('::-p-xpath(//header//button[starts-with(normalize-space(), "Logging on")])')

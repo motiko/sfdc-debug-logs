@@ -11,6 +11,7 @@ import {
   formatStartTime,
   NO_FILTERS,
   shortOperation,
+  shownSelection,
   sortLogs,
   type ApexLog
 } from './utils'
@@ -191,5 +192,29 @@ describe('formats', () => {
   it('says how long ago the list was updated', () => {
     expect(formatRelative(1000, 5000)).toBe('just now')
     expect(formatRelative(0, 125_000)).toBe('2 min ago')
+  })
+})
+
+describe('shownSelection', () => {
+  const shown = ['07L1', '07L2', '07L3'].map(Id => apexLog({ Id }))
+
+  it('lists only the checked logs that are shown, in list order', () => {
+    expect(
+      shownSelection(shown, { '07L3': true, '07L1': true, '07L9': true })
+    ).toEqual({ ids: ['07L1', '07L3'], all: false, some: true })
+  })
+
+  it('tells when every shown log or none is checked', () => {
+    const every = { '07L1': true, '07L2': true, '07L3': true } as const
+    expect(shownSelection(shown, every)).toMatchObject({
+      all: true,
+      some: false
+    })
+    expect(shownSelection(shown, {})).toEqual({
+      ids: [],
+      all: false,
+      some: false
+    })
+    expect(shownSelection([], {}).all).toBe(false)
   })
 })

@@ -5,7 +5,7 @@ import {
   useRef,
   useState
 } from 'react'
-import { Box, ButtonBase, Skeleton, Tooltip } from '@mui/material'
+import { Box, ButtonBase, Checkbox, Skeleton, Tooltip } from '@mui/material'
 import SuccessIcon from '@mui/icons-material/CheckCircleOutlined'
 import ErrorIcon from '@mui/icons-material/ErrorOutlined'
 import UpIcon from '@mui/icons-material/ArrowUpward'
@@ -65,6 +65,7 @@ export function StatusLabel({ log, compact = false }) {
 }
 
 const COLUMNS = [
+  { key: 'select', label: 'Select', width: 44 },
   { key: 'time', label: 'Time', sortable: true, width: 150 },
   { key: 'operation', label: 'Operation' },
   { key: 'status', label: 'Status', width: '22%' },
@@ -82,10 +83,26 @@ const COLUMNS = [
 
 // The log list as a grid: one Tab stop (the current row), ↑/↓ or j/k to
 // move, Home/End, Enter to open (docs/ux/baseline-review.md B2). `compact`
-// is the narrow list next to an opened log; otherwise a sortable table.
+// is the narrow list next to an opened log; otherwise a sortable table with
+// a checkbox per row (Space or x checks the focused row) and one in the
+// header for every shown log, for "Delete selected". Checking never deletes.
 // The ref offers focusRow() and moveFocus(delta) for the page shortcuts.
 const LogList = forwardRef(function LogList(
-  { logs, openId, compact, sort, onSort, newIds, matches, showUser, loading },
+  {
+    logs,
+    openId,
+    compact,
+    sort,
+    onSort,
+    newIds,
+    matches,
+    showUser,
+    loading,
+    selectedIds = {},
+    selection = { all: false, some: false },
+    onToggleSelected = () => {},
+    onSelectAll = () => {}
+  },
   ref
 ) {
   const rowRefs = useRef([])
@@ -125,6 +142,8 @@ const LogList = forwardRef(function LogList(
     if (e.key in moves) focusAt(index + moves[e.key])
     else if (e.key === 'Home') focusAt(0)
     else if (e.key === 'End') focusAt(logs.length - 1)
+    else if (!compact && (e.key === ' ' || e.key === 'x'))
+      onToggleSelected(logs[index].Id)
     else if (e.key === 'Enter' || e.key === ' ') openLog(logs[index].Id)
     else return
     e.preventDefault()
@@ -144,13 +163,15 @@ const LogList = forwardRef(function LogList(
   }
   const rows = logs.map((log, index) => {
     const isOpen = log.Id === openId
+    const isChecked = Boolean(selectedIds[log.Id])
     const isNew = Boolean(newIds[log.Id])
     const start = formatStartTime(log.StartTime)
     const rowProps = {
       ref: el => (rowRefs.current[index] = el),
       role: 'row',
       tabIndex: index === current ? 0 : -1,
-      'aria-selected': isOpen,
+      // The open log in the compact list; the checked logs in the table.
+      'aria-selected': compact ? isOpen : isChecked,
       'data-log-id': log.Id,
       onClick: () => {
         setActive(index)
@@ -257,15 +278,49 @@ const LogList = forwardRef(function LogList(
       ),
       duration: formatDuration(log.DurationMilliseconds),
       size: formatBytes(log.LogLength),
-      matches: matches ? matches[log.Id] || 0 : null
+      matches: matches ? matches[log.Id] || 0 : null,
+      // Not a Tab stop: the row is (Space or x checks it).
+      select: (
+        <Checkbox
+          size="small"
+          checked={isChecked}
+          onChange={() => onToggleSelected(log.Id)}
+          onClick={e => {
+            e.stopPropagation()
+            setActive(index)
+          }}
+          slotProps={{
+            input: {
+              tabIndex: -1,
+              'aria-label': `Select log ${start} ${shortOperation(log.Operation)}`
+            }
+          }}
+          sx={{ p: 0.5, m: -0.5 }}
+        />
+      )
     }
     return (
-      <Box component="tr" key={log.Id} {...rowProps} sx={rowSx(isOpen)}>
+      <Box
+        component="tr"
+        key={log.Id}
+        {...rowProps}
+        sx={rowSx(isOpen || isChecked)}
+      >
         {columns.map(c => (
           <Box
             component="td"
             role="gridcell"
             key={c.key}
+            // A click anywhere in the checkbox cell checks, not opens.
+            onClick={
+              c.key === 'select'
+                ? e => {
+                    e.stopPropagation()
+                    setActive(index)
+                    onToggleSelected(log.Id)
+                  }
+                : undefined
+            }
             sx={{
               ...cell,
               textAlign: c.align || 'left',
@@ -295,6 +350,7 @@ const LogList = forwardRef(function LogList(
       role="grid"
       aria-label="Debug logs"
       aria-rowcount={logs.length}
+      aria-multiselectable={compact ? undefined : true}
       aria-busy={loading || undefined}
       sx={{
         width: '100%',
@@ -340,7 +396,18 @@ const LogList = forwardRef(function LogList(
                   whiteSpace: 'nowrap'
                 }}
               >
-                {c.sortable ? (
+                {c.key === 'select' ? (
+                  <Checkbox
+                    size="small"
+                    checked={selection.all}
+                    indeterminate={selection.some}
+                    onChange={e => onSelectAll(e.target.checked)}
+                    slotProps={{
+                      input: { 'aria-label': 'Select all shown logs' }
+                    }}
+                    sx={{ p: 0.5, m: -0.5 }}
+                  />
+                ) : c.sortable ? (
                   <ButtonBase
                     onClick={() => onSort(c.key)}
                     sx={{

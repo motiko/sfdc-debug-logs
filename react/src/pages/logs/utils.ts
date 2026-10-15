@@ -136,6 +136,21 @@ export function filtersToWhereClause(filters: ListFilters): string {
   return conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 }
 
+// The checked logs among those shown, in list order, and the state of the
+// "select all shown logs" box. Checked logs hidden by the search or a filter
+// are left out: only what the list shows is ever deleted.
+export function shownSelection(
+  shown: ApexLog[],
+  selectedIds: Record<string, true>
+): { ids: string[]; all: boolean; some: boolean } {
+  const ids = shown.filter(log => selectedIds[log.Id]).map(log => log.Id)
+  return {
+    ids,
+    all: shown.length > 0 && ids.length === shown.length,
+    some: ids.length > 0 && ids.length < shown.length
+  }
+}
+
 export type SortKey = 'time' | 'duration' | 'size'
 export interface Sort {
   key: SortKey
