@@ -620,6 +620,55 @@ test('React log viewer', async t => {
     assert.ok((await rowIds()).includes(log.Id), 'the log is still listed')
   })
 
+  await t.test('a confirmation toast covers no header control, and the menu opens under it', async () => {
+    // Extending logging (on since ensureLogging) shows a confirmation.
+    await app.click('::-p-xpath(//header//button[starts-with(normalize-space(), "Logging on")])')
+    const extend = '::-p-aria([name="Extend to 24 hours from now"][role="menuitem"])'
+    await app.waitForSelector(extend, { visible: true })
+    await app.click(extend)
+    await app.waitForSelector('[role="menu"]', { hidden: true })
+    const TOAST = '[data-testid="toast"]'
+    await app.waitForSelector(TOAST, { visible: true, timeout: 30000 })
+    const state = await app.evaluate(() => {
+      const toast = document.querySelector('[data-testid="toast"]')
+      const rect = toast.getBoundingClientRect()
+      const header = document.querySelector('header').getBoundingClientRect()
+      // Buttons in view (header, list footer, ...) whose middle the toast covers.
+      const covered = [...document.querySelectorAll('button')].filter(b => {
+        const r = b.getBoundingClientRect()
+        if (!r.width || !r.height || r.bottom <= 0 || r.top >= window.innerHeight) return false
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return toast.contains(hit)
+      })
+      const style = getComputedStyle(toast)
+      const live = [...document.querySelectorAll('[role="status"][aria-live="polite"]')].map(el => el.textContent)
+      return {
+        belowHeader: rect.top >= header.bottom,
+        atBottom: window.innerHeight - rect.bottom < 120,
+        covered: covered.map(b => b.getAttribute('aria-label') || b.textContent),
+        rootPointerEvents: getComputedStyle(toast.parentElement).pointerEvents,
+        color: style.color,
+        background: style.backgroundColor,
+        live
+      }
+    })
+    assert.ok(state.belowHeader && state.atBottom, 'the toast is near the bottom, clear of the header')
+    assert.deepEqual(state.covered, [], 'every button in view can still be clicked')
+    assert.equal(state.rootPointerEvents, 'none', 'only the message itself takes clicks')
+    assert.equal(state.color, toRgb(uiColors.light.surface), 'toast text')
+    assert.equal(state.background, toRgb(uiColors.light.text), 'toast background')
+    assert.ok(
+      state.live.some(text => /^Logging extended until /.test(text)),
+      `the confirmation is in a polite live region (${state.live.join(' | ')})`
+    )
+    // While the toast shows, the overflow menu opens and its items work.
+    await openMenuItem('Appearance…')
+    await app.waitForSelector(dialog('Appearance'), { visible: true })
+    await app.click(`${dialog('Appearance')} ::-p-aria([name="Close appearance"][role="button"])`)
+    await app.waitForSelector(dialog('Appearance'), { hidden: true })
+    await app.waitForSelector(TOAST, { hidden: true, timeout: 15000 })
+  })
+
   await t.test('help overlay lists the shortcuts', async () => {
     await app.evaluate(() => document.activeElement && document.activeElement.blur())
     await app.keyboard.press('?')
