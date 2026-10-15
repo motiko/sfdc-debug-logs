@@ -37,6 +37,7 @@ import ReportIcon from '@mui/icons-material/ReportProblemOutlined'
 import ParsedLog from './parsed-log'
 import ExecutionTreeView from './execution-tree-view'
 import ExecutionTimeline from './execution-timeline'
+import MethodsNotice from './methods-notice'
 import globalSf from '../../../global-sf'
 import { StatusLabel } from './log-list'
 import IconAction from '../../../ui/components/icon-action'
@@ -54,6 +55,11 @@ import {
   visibleLines
 } from '../../../core/log/log-lines'
 import { CATEGORY_LABELS } from '../../../core/log/categories'
+import {
+  apexCodeLevel,
+  methodsLogged,
+  parseLogLevels
+} from '../../../core/log/log-levels'
 import {
   buildExecutionTree,
   rowForLine
@@ -125,6 +131,9 @@ const LogViewer = forwardRef(function LogViewer(
     () => (treeWanted && body ? buildExecutionTree(allLines) : null),
     [treeWanted, body, allLines]
   )
+  // Written below Apex Code FINE: no method calls (the tree says so).
+  const levels = useMemo(() => parseLogLevels(allLines[0]?.text), [allLines])
+  const methodsMissing = Boolean(body) && !methodsLogged(levels)
   // The log until the tree can be built (its body is loading).
   const view = tree ? chosenView : 'log'
   const hiddenCount = hidden.reduce((n, c) => n + (counts[c] || 0), 0)
@@ -616,6 +625,12 @@ const LogViewer = forwardRef(function LogViewer(
                   flexDirection: 'column'
                 }}
               >
+                {methodsMissing ? (
+                  <MethodsNotice
+                    level={apexCodeLevel(levels)}
+                    host={globalSf.hostname}
+                  />
+                ) : null}
                 {value === 'tree' ? (
                   <ExecutionTreeView
                     key={logId}

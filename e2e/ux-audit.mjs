@@ -1550,6 +1550,18 @@ async function executionViews(ctx) {
     await delay(400)
     await capture(ctx, page, V, 'tree-expanded')
   } else summary.errors.push('exec: no Expand all button')
+  // The notice for a log below Apex Code FINE and its "Log methods…" dialog
+  // (the Trace flags dialog with the Apex FINEST levels; closed, not started).
+  const logMethods = await byName(page, [/^log methods…$/i])
+  if (logMethods) {
+    await safeClick(logMethods)
+    await page.waitForSelector('::-p-aria([name="Trace flags"][role="dialog"])', { visible: true, timeout: 10000 })
+    await delay(600)
+    await capture(ctx, page, V, 'tree-log-methods-dialog')
+    const close = await byName(page, [/^close$/i])
+    if (close) await safeClick(close)
+    await delay(400)
+  } else summary.errors.push('exec: no Log methods… button')
   await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
   await delay(600)
   await capture(ctx, page, V, 'tree-dark')

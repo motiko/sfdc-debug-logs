@@ -791,6 +791,44 @@ test('React log viewer', async t => {
     await activeLogLine(unitLine)
   })
 
+  // The extension's debug level is DEBUG for every category, and
+  // Salesforce writes method calls from Apex Code FINE up, so this log has a
+  // notice above its tree and timeline. "Log methods…" opens the Trace flags
+  // dialog with the "Apex FINEST" custom levels; nothing is started.
+  await t.test('call tree says methods are missing and offers to log them', async () => {
+    const TRACE = '::-p-aria([name="Trace flags"][role="dialog"])'
+    await app.click('::-p-aria([name="Call tree"][role="tab"])')
+    // Each shown panel keeps its own notice: look in the one in view.
+    const notice = '#log-view-panel-tree [data-testid="methods-notice"]'
+    await app.waitForSelector(notice, { visible: true, timeout: 10000 })
+    const text = await app.$eval(notice, el => el.textContent)
+    assert.match(text, /No method calls in this log: its Apex Code level is DEBUG/, 'the notice names the level')
+    const logMethods = `${notice} ::-p-aria([name="Log methods…"][role="button"])`
+    await app.click(logMethods)
+    await app.waitForSelector(TRACE, { visible: true })
+    assert.equal(
+      await app.$eval(`${TRACE} ::-p-aria([name="Debug level"][role="combobox"])`, el => el.textContent),
+      'Custom levels…',
+      'opens with custom levels'
+    )
+    assert.equal(
+      await app.$eval(`${TRACE} ::-p-aria([name="Apex code"][role="combobox"])`, el => el.textContent),
+      'FINEST',
+      'Apex code at FINEST'
+    )
+    await app.click(`${TRACE} ::-p-aria([name="Close"][role="button"])`)
+    await app.waitForSelector(TRACE, { hidden: true })
+    await app.waitForFunction(
+      sel => document.activeElement === document.querySelector(sel),
+      { timeout: 3000 },
+      logMethods.replace(/ ::-p-aria.*$/, ' button')
+    )
+    await app.click('::-p-aria([name="Timeline"][role="tab"])')
+    await app.waitForSelector('#log-view-panel-timeline [data-testid="methods-notice"]', { visible: true })
+    await app.click('::-p-aria([name="Log"][role="tab"])')
+    await app.waitForSelector('pre > div[data-index="0"]', { visible: true, timeout: 5000 })
+  })
+
   await t.test('indent toggle beautifies a debugged SObject', async () => {
     // "<marker> users (User:{Id=…, Name=…})" is pretty-printed with js-beautify.
     const line = () =>

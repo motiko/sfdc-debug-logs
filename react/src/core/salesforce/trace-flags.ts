@@ -52,6 +52,10 @@ const allAt = (level: LogLevel): CategoryLevels =>
     DEBUG_LEVEL_CATEGORIES.map(category => [category, level])
   ) as CategoryLevels
 
+// The preset that adds method calls to the logs (the call tree's "Log
+// methods…").
+export const METHODS_PRESET_ID = 'apex-finest'
+
 // Starting points for "Custom levels".
 export const LEVEL_PRESETS: {
   id: string

@@ -64,11 +64,13 @@ const DEFAULT_DURATION = TRACE_DURATIONS[1].ms
 // button each, and a form to trace me, another user, Automated Process or an
 // Apex class or trigger with a debug level (the extension's, one of the
 // org's, or custom levels per category) for a chosen duration. Nothing is
-// traced until "Start tracing" is pressed.
+// traced until "Start tracing" is pressed. `preset` (an id of LEVEL_PRESETS)
+// opens it with those custom levels chosen.
 export default function TraceFlagsDialog({
   open,
   onClose,
   host,
+  preset = null,
   disableRestoreFocus = false
 }) {
   const dispatch = useDispatch()
@@ -88,15 +90,16 @@ export default function TraceFlagsDialog({
 
   useEffect(() => {
     if (!open) return
+    const chosen = preset && LEVEL_PRESETS.find(p => p.id === preset)
     setTarget('me')
     setPicked(null)
-    setLevel('default')
-    setCustom(LEVEL_PRESETS[0].levels)
+    setLevel(chosen ? 'custom' : 'default')
+    setCustom((chosen || LEVEL_PRESETS[0]).levels)
     setDurationMs(DEFAULT_DURATION)
     setRunning(null)
     setError(null)
     setPickMissing(false)
-  }, [open])
+  }, [open, preset])
 
   useEffect(() => {
     if (!open) return
