@@ -7,6 +7,8 @@
 //
 //   const mock = await startMockOrg()
 //   mock.session        { sessionId, instance, userId, orgId } like login()
+//   mock.jwtEnv         credentials for login() with the JWT bearer flow
+//                       against the mock org (its External Client App)
 //   mock.org            the MockOrg (data, stats(), delays)
 //   mock.resolverRules  for Chrome's --host-resolver-rules
 //   await mock.close()
@@ -162,6 +164,7 @@ export async function startMockOrg({ org = new MockOrg() } = {}) {
     org,
     port,
     hosts: MOCK_HOSTS,
+    jwtEnv: org.createJwtApp(),
     session: {
       sessionId: org.sessionId,
       instance: `https://${MOCK_HOSTS.api}`,

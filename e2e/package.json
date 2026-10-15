@@ -10,7 +10,8 @@
     "ux-audit": "npm --prefix ../react run build --silent && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ux-audit.mjs",
     "test:mock": "npm --prefix ../react run build --silent && SF_MOCK=1 node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --test-concurrency=1 --test-timeout=300000 apex-logs.test.mjs",
     "ux-audit:mock": "npm --prefix ../react run build --silent && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ux-audit.mjs --mock",
-    "test:harness": "npm --prefix ../react run build --silent && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --test-concurrency=1 mock/*.test.mjs"
+    "test:harness": "npm --prefix ../react run build --silent && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --test-concurrency=1 mock/*.test.mjs ../scripts/lib/*.test.mjs",
+    "test:login": "node --test mock/jwt-login.test.mjs ../scripts/lib/*.test.mjs"
   },
   "devDependencies": {
     "@puppeteer/browsers": "^3.2.4",

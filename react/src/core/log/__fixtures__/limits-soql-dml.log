@@ -1,0 +1,55 @@
+62.0 APEX_CODE,FINE;APEX_PROFILING,INFO;CALLOUT,INFO;DB,INFO;NBA,INFO;SYSTEM,DEBUG;VALIDATION,INFO;VISUALFORCE,INFO;WAVE,INFO;WORKFLOW,INFO
+Execute Anonymous: for (Integer i = 0; i < 3; i++) {
+Execute Anonymous:   List<Contact> cs = [SELECT Id FROM Contact WHERE AccountId = :accId];
+Execute Anonymous: }
+Execute Anonymous: insert new List<Account>{ new Account(Name = 'A'), new Account(Name = 'B') };
+Execute Anonymous: Integer x = 1 / 0;
+10:15:00.001 (1000000)|USER_INFO|[EXTERNAL]|005Hn00000ABCDEIA3|admin@example.com|(GMT+02:00) Central European Summer Time (Europe/Berlin)|GMT+02:00
+10:15:00.001 (1100000)|EXECUTION_STARTED
+10:15:00.001 (1200000)|CODE_UNIT_STARTED|[EXTERNAL]|execute_anonymous_apex
+10:15:00.002 (2000000)|SOQL_EXECUTE_BEGIN|[2]|Aggregations:0|SELECT Id FROM Contact WHERE AccountId = :tmpVar1
+10:15:00.004 (4000000)|SOQL_EXECUTE_END|[2]|Rows:2
+10:15:00.005 (5000000)|SOQL_EXECUTE_BEGIN|[2]|Aggregations:0|SELECT Id FROM Contact WHERE AccountId = :tmpVar1
+10:15:00.006 (6500000)|SOQL_EXECUTE_END|[2]|Rows:3
+10:15:00.007 (7000000)|SOQL_EXECUTE_BEGIN|[2]|Aggregations:0|SELECT Id FROM Contact WHERE AccountId = :tmpVar1
+10:15:00.008 (8000000)|SOQL_EXECUTE_END|[2]|Rows:0
+10:15:00.009 (9000000)|SOQL_EXECUTE_BEGIN|[7]|Aggregations:1|SELECT Id, (SELECT Id FROM Contacts) FROM   Account
+  WHERE Name = 'Acme'
+10:15:00.019 (19000000)|SOQL_EXECUTE_END|[7]|Rows:1
+10:15:00.020 (20000000)|DML_BEGIN|[4]|Op:Insert|Type:Account|Rows:2
+10:15:00.030 (30000000)|DML_END|[4]
+10:15:00.031 (31000000)|DML_BEGIN|[9]|Op:Update|Type:Contact|Rows:5
+10:15:00.035 (35000000)|DML_END|[9]
+10:15:00.036 (36000000)|DML_BEGIN|[9]|Op:Update|Type:Contact|Rows:1
+10:15:00.037 (37000000)|DML_END|[9]
+10:15:00.038 (38000000)|EXCEPTION_THROWN|[11]|System.NullPointerException: Attempt to de-reference a null object
+10:15:00.039 (39000000)|EXCEPTION_THROWN|[5]|System.MathException: Divide by 0
+10:15:00.040 (40000000)|FATAL_ERROR|System.MathException: Divide by 0
+
+AnonymousBlock: line 5, column 1
+AnonymousBlock: line 5, column 1
+10:15:00.041 (41000000)|CUMULATIVE_LIMIT_USAGE
+10:15:00.041 (41000000)|LIMIT_USAGE_FOR_NS|(default)|
+  Number of SOQL queries: 4 out of 100
+  Number of query rows: 6 out of 50000
+  Number of SOSL queries: 0 out of 20
+  Number of DML statements: 3 out of 150
+  Number of Publish Immediate DML: 0 out of 150
+  Number of DML rows: 8 out of 10000
+  Maximum CPU time: 9200 out of 10000 ******* CLOSE TO LIMIT
+  Maximum heap size: 4500000 out of 6000000
+  Number of callouts: 0 out of 100
+  Number of Email Invocations: 0 out of 10
+  Number of future calls: 0 out of 50
+  Number of queueable jobs added to the queue: 0 out of 50
+  Number of Mobile Apex push calls: 0 out of 10
+
+10:15:00.041 (41000000)|LIMIT_USAGE_FOR_NS|acme|
+  Number of SOQL queries: 2 out of 100
+  Number of query rows: 0 out of 50000
+  Number of DML statements: 0 out of 150
+
+10:15:00.041 (41100000)|CUMULATIVE_LIMIT_USAGE_END
+
+10:15:00.042 (42000000)|CODE_UNIT_FINISHED|execute_anonymous_apex
+10:15:00.043 (43000000)|EXECUTION_FINISHED

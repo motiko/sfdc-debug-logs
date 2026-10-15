@@ -16,7 +16,7 @@ import {
   loadPageShortcuts
 } from '../../../core/page-shortcuts'
 
-const GROUPS = ['General', 'Log list', 'Log']
+const GROUPS = ['General', 'Log list', 'Log', 'Call tree', 'Timeline']
 
 // The user's shortcuts on Salesforce pages (null until read, or when the
 // page can't read extension storage).

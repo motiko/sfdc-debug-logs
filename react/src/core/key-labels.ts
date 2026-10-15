@@ -24,21 +24,29 @@ const OTHER_MODIFIERS: Record<string, string> = {
 const KEYS: Record<string, string> = {
   Escape: 'Esc',
   ArrowDown: '↓',
-  ArrowUp: '↑'
+  ArrowUp: '↑',
+  ArrowLeft: '←',
+  ArrowRight: '→'
+}
+
+// "Shift+Enter" -> ["Shift", "Enter"]; the plus key itself is "+" (or
+// "Mod++").
+export function keyParts(key: string): string[] {
+  if (key === '+') return ['+']
+  if (key.endsWith('++')) return [...key.slice(0, -2).split('+'), '+']
+  return key.split('+')
 }
 
 // "Mod+f" -> ["⌘", "F"] on macOS, ["Ctrl", "F"] elsewhere; one entry per
 // key, for <kbd> elements.
 export function keyLabel(key: string, mac = isMac()): string[] {
   const modifiers = mac ? MAC_MODIFIERS : OTHER_MODIFIERS
-  return key
-    .split('+')
-    .map(
-      part =>
-        modifiers[part] ||
-        KEYS[part] ||
-        (part.length === 1 ? part.toUpperCase() : part)
-    )
+  return keyParts(key).map(
+    part =>
+      modifiers[part] ||
+      KEYS[part] ||
+      (part.length === 1 ? part.toUpperCase() : part)
+  )
 }
 
 // The same as plain text: "⌥⇧D" on macOS (as its menus show keys),
@@ -57,6 +65,8 @@ const SPOKEN: Record<string, string> = {
   '⌃': 'Control',
   '↓': 'Down arrow',
   '↑': 'Up arrow',
+  '←': 'Left arrow',
+  '→': 'Right arrow',
   Esc: 'Escape'
 }
 

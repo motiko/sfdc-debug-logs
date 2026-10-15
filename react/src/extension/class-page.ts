@@ -15,7 +15,7 @@ const EXPLANATION =
 function seeAllButton(label: string, parameter: string) {
   return h('button', {
     type: 'button',
-    className: 'ad-button',
+    className: 'apexdbg-button',
     text: label,
     onclick: () => {
       if (location.search.indexOf('rowsperpage=') > -1) {
@@ -32,8 +32,8 @@ const toolsSpan = (...children: Node[]) =>
   h(
     'span',
     {
-      className: 'ad-root ad-inline-tools',
-      dataset: { adColorMode: 'light' }
+      className: 'apexdbg-root apexdbg-inline-tools',
+      dataset: { apexdbgColorMode: 'light' }
     },
     ...children
   )
@@ -68,14 +68,14 @@ function addButtons() {
   }
 }
 
-const status = () => document.getElementById('adDontLogStatus')
+const status = () => document.getElementById('apexdbgDontLogStatus')
 
 function addHeader() {
   const headerRow = document.querySelector('.headerRow')
   if (!headerRow) return false
   const selectAll = h('input', {
     type: 'checkbox',
-    id: 'adDontLogAll',
+    id: 'apexdbgDontLogAll',
     title: EXPLANATION
   })
   selectAll.setAttribute('aria-label', 'Don’t log any class on this page')
@@ -86,16 +86,19 @@ function addHeader() {
   })
   const header = h(
     'th',
-    { className: 'ad-root ad-dont-log', dataset: { adColorMode: 'light' } },
+    {
+      className: 'apexdbg-root apexdbg-dont-log',
+      dataset: { apexdbgColorMode: 'light' }
+    },
     h(
       'span',
-      { className: 'ad-check' },
+      { className: 'apexdbg-check' },
       selectAll,
       h('span', { text: 'Don’t log (24 h)', title: EXPLANATION })
     ),
     h('span', {
-      id: 'adDontLogStatus',
-      className: 'ad-status-line',
+      id: 'apexdbgDontLogStatus',
+      className: 'apexdbg-status-line',
       attrs: { role: 'status' }
     })
   )
@@ -124,7 +127,10 @@ function addCheckbox(row: HTMLElement) {
   row.appendChild(
     h(
       'td',
-      { className: 'ad-root ad-dont-log', dataset: { adColorMode: 'light' } },
+      {
+        className: 'apexdbg-root apexdbg-dont-log',
+        dataset: { apexdbgColorMode: 'light' }
+      },
       checkbox
     )
   )

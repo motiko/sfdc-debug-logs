@@ -78,8 +78,9 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.{js,ts}'],
     environment: 'node',
-    // Let tests import chrome/app/css/debug.css?raw (themes.test.ts); Vitest
-    // otherwise replaces CSS with an empty module.
-    css: { include: [/debug\.css/] }
+    // Let tests import chrome/app/css/*.css?raw (themes.test.ts,
+    // ad-blocker-names.test.ts); Vitest otherwise replaces CSS with an empty
+    // module.
+    css: { include: [/chrome\/app\/css\//] }
   }
 })

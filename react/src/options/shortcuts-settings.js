@@ -39,6 +39,9 @@ import {
 import { APP_SHORTCUTS } from '../core/app-shortcuts'
 import { keyText } from '../core/key-labels'
 
+// The log viewer's call tree and timeline keys, listed apart.
+const VIEWER_PANES = ['Call tree', 'Timeline']
+
 const EFFECT_TEXT = { newTab: 'new tab', sameTab: 'same tab', run: '' }
 
 // What gets saved: trimmed names, paths starting with "/".
@@ -466,8 +469,16 @@ export default function ShortcutsSettings() {
         <ShortcutList
           title="Log viewer (Apex Debugger)"
           headingLevel={4}
-          items={APP_SHORTCUTS}
+          items={APP_SHORTCUTS.filter(s => !VIEWER_PANES.includes(s.group))}
         />
+        {VIEWER_PANES.map(group => (
+          <ShortcutList
+            key={group}
+            title={`Log viewer: ${group.toLowerCase()}`}
+            headingLevel={4}
+            items={APP_SHORTCUTS.filter(s => s.group === group)}
+          />
+        ))}
       </Box>
 
       <Dialog

@@ -3,6 +3,7 @@
 import { createSalesforceClient } from './salesforce/client'
 import { createRequest } from './salesforce/request'
 import { appPageUrl, appTabName, parseDisco } from './app-tab'
+import { requireExtensionContext } from './extension-context'
 
 export interface Session {
   token: string | undefined
@@ -21,12 +22,14 @@ export function readCookie(name: string): string | null {
 // Returns { token, host }: the API session id and the host it belongs to.
 // Salesforce's sid cookie is HttpOnly, so it usually can't be read here; the
 // service worker reads it with chrome.cookies (falling back to the token saved
-// on the options page).
+// on the options page). Throws ExtensionContextLostError once the extension
+// was reloaded under this page.
 export async function getSession(): Promise<Session> {
   const sid = readCookie('sid')
   if (sid) {
     return { token: sid, host: location.hostname }
   }
+  requireExtensionContext()
   const session = await chrome.runtime.sendMessage({ command: 'getToken' })
   if (!session || !session.token) {
     console.log(

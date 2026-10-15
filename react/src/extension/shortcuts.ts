@@ -1,8 +1,13 @@
 // Content script on every Salesforce page: binds the user's page shortcuts
 // (core/page-shortcuts.ts; edited on the options page, fetched through the
 // service worker). Shift+W opens the log viewer. Rebinds when the user saves
-// other shortcuts.
+// other shortcuts. Once the extension is reloaded or updated under an open
+// page, the keys are unbound and the console says to reload the page.
 import Mousetrap from 'mousetrap'
+import {
+  EXTENSION_CONTEXT_LOST,
+  extensionContextAlive
+} from '../core/extension-context'
 import {
   activeShortcuts,
   bindingsFor,
@@ -44,6 +49,10 @@ function bindShortcuts(settings: PageShortcutSettings) {
 // default) only when it did something.
 function run(shortcut: PageShortcut, inNewTab: boolean): boolean | void {
   if (inFlashObject()) return
+  if (!extensionContextAlive()) {
+    contextLost()
+    return
+  }
   switch (shortcut.action) {
     case 'openApp':
       openApp()
@@ -62,7 +71,17 @@ function run(shortcut: PageShortcut, inNewTab: boolean): boolean | void {
   }
 }
 
+// The extension was reloaded or updated: this copy of the script can't reach
+// it any more. Let the keys go (the page's own handlers take over) and say so
+// once.
+function contextLost() {
+  Mousetrap.reset()
+  inFields.clear()
+  console.log('Apex Debugger:', EXTENSION_CONTEXT_LOST)
+}
+
 async function loadShortcuts() {
+  if (!extensionContextAlive()) return contextLost()
   const response = await chrome.runtime.sendMessage({
     command: 'getShortcuts'
   })
