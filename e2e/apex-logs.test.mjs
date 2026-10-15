@@ -238,6 +238,19 @@ async function openAppWithShiftW(sfPage, consoleLog, name) {
 
 const classicUrl = id => `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${id}`
 
+test('logs in with the OAuth 2.0 JWT bearer flow', { skip: !MOCK && 'mock org only' }, () => {
+  // startRun() logged in to the mock org through scripts/lib/sf-auth.mjs
+  // login() with an External Client App's key, the way the real org is
+  // reached once SF_CLIENT_ID is set; the browser uses that session through
+  // frontdoor.jsp in every test below.
+  const { byKind } = run.mock.org.stats()
+  assert.equal(byKind['oauth token'], 1, 'one token request')
+  assert.equal(byKind['soap login'], undefined, 'no SOAP login')
+  assert.equal(session.sessionId, run.mock.org.sessionId, 'the access token is the session')
+  assert.equal(session.userId, run.mock.org.user.Id, 'user id from the identity URL')
+  assert.equal(session.orgId, run.mock.org.orgId, 'org id from the identity URL')
+})
+
 test('classic log view', async t => {
   const page = await ext.browser.newPage()
   const errors = collectPageErrors(page)

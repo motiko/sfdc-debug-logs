@@ -3,15 +3,16 @@
 //
 // Against the real org (default): logs in with .env.local, reusing a recent
 // session (scripts/lib/sf-auth.mjs loginReusingSession).
-// Offline (mock: true, or SF_MOCK=1): starts the mock org (e2e/mock/), and
-// Chrome reaches only that; nothing goes to Salesforce.
+// Offline (mock: true, or SF_MOCK=1): starts the mock org (e2e/mock/) and logs
+// in to it with the JWT bearer flow (login() with its app's key); Chrome
+// reaches only the mock org, and nothing goes to Salesforce.
 //
 //   const run = await startRun()
 //   run.session, run.sf, run.mock (null for the real org)
 //   const ext = await run.launch()
 //   ... run.report() prints the request counts; await run.close()
 
-import { loginReusingSession } from '../../scripts/lib/sf-auth.mjs'
+import { login, loginReusingSession } from '../../scripts/lib/sf-auth.mjs'
 import { Salesforce } from './salesforce.mjs'
 import { launchWithExtension } from './browser.mjs'
 import { createRequestCounter, formatSummary } from './request-counter.mjs'
@@ -39,7 +40,9 @@ export async function startRun({ mock = MOCK } = {}) {
       unwrap()
       globalThis.fetch = original
     }
-    session = mockOrg.session
+    // The same login code as against the real org, without the session
+    // cache (it's for real sessions).
+    session = await login(mockOrg.jwtEnv)
   } else {
     restoreFetch = counter.wrapFetch()
     session = await loginReusingSession()
