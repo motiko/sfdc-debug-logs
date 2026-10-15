@@ -7,6 +7,8 @@ import {
   loadLogs,
   searchLogs,
   startLogging,
+  startTrace,
+  stopTrace,
   checkLogging
 } from './actions'
 import logsPage, {
@@ -274,5 +276,120 @@ describe('selection', () => {
       expect(state().logs).toHaveLength(3)
       expect(state().toast).toBe(null)
     })
+  })
+})
+
+describe('trace flags', () => {
+  const AUTOMATED = '005000000000009AAA'
+  const flag = {
+    id: '7tf000000000001AAA',
+    logType: 'USER_DEBUG',
+    entityId: AUTOMATED,
+    entityKind: 'user',
+    entityName: 'Automated Process',
+    startDate: null,
+    expiresAt: '2026-01-02T05:00:00.000Z',
+    debugLevel: 'ApexDbgrCustom'
+  }
+  const traceSf = (flags = [flag]) => ({
+    traceStatus: vi.fn(async () => ({ active: false })),
+    automatedProcessUser: vi.fn(async () => ({
+      id: AUTOMATED,
+      name: 'Automated Process',
+      username: 'autoproc'
+    })),
+    saveCustomDebugLevel: vi.fn(async () => '7dl000000000009AAA'),
+    getOrCreateDebugLevel: vi.fn(async () => '7dl000000000001AAA'),
+    setTraceFlag: vi.fn(async () => ({ id: flag.id, updated: false })),
+    activeTraceFlags: vi.fn(async () => flags),
+    deleteTraceFlag: vi.fn(async () => {})
+  })
+
+  it('traces the Automated Process user with the custom levels', async () => {
+    const sf = traceSf()
+    const { store, state } = setup({ sf })
+    const levels = { ApexCode: 'FINEST' }
+    const flags = await store.dispatch(
+      startTrace({
+        target: { kind: 'automated' },
+        level: { kind: 'custom', levels: levels as never },
+        durationMs: 3600_000
+      }) as never
+    )
+    expect(sf.saveCustomDebugLevel).toHaveBeenCalledWith(levels)
+    expect(sf.setTraceFlag).toHaveBeenCalledWith({
+      entityId: AUTOMATED,
+      logType: 'USER_DEBUG',
+      debugLevelId: '7dl000000000009AAA',
+      durationMs: 3600_000
+    })
+    expect(flags).toEqual([flag])
+    expect(state().toast.message).toMatch(/^Tracing Automated Process until /)
+    // The header's status is read again.
+    expect(sf.traceStatus).toHaveBeenCalled()
+  })
+
+  it('traces a class with CLASS_TRACING and the default level', async () => {
+    const sf = traceSf()
+    const { store } = setup({ sf })
+    await store.dispatch(
+      startTrace({
+        target: { kind: 'code', id: '01p000000000001AAA', name: 'Svc' },
+        level: { kind: 'default' },
+        durationMs: 60_000
+      }) as never
+    )
+    expect(sf.getOrCreateDebugLevel).toHaveBeenCalled()
+    expect(sf.setTraceFlag).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: '01p000000000001AAA',
+        logType: 'CLASS_TRACING',
+        debugLevelId: '7dl000000000001AAA'
+      })
+    )
+  })
+
+  it('traces the current user with an existing level', async () => {
+    const sf = traceSf()
+    const { store, state } = setup({ sf })
+    await store.dispatch(
+      startTrace({
+        target: { kind: 'me' },
+        level: { kind: 'existing', id: '7dl000000000005AAA' },
+        durationMs: 60_000
+      }) as never
+    )
+    expect(sf.setTraceFlag).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: USER,
+        logType: 'USER_DEBUG',
+        debugLevelId: '7dl000000000005AAA'
+      })
+    )
+    expect(state().toast.message).toMatch(/^Logging your actions/)
+  })
+
+  it('refuses when the org has no Automated Process user', async () => {
+    const sf = { ...traceSf(), automatedProcessUser: vi.fn(async () => null) }
+    const { store } = setup({ sf })
+    await expect(
+      store.dispatch(
+        startTrace({
+          target: { kind: 'automated' },
+          level: { kind: 'default' },
+          durationMs: 60_000
+        }) as never
+      )
+    ).rejects.toThrow(/no Automated Process user/)
+    expect(sf.setTraceFlag).not.toHaveBeenCalled()
+  })
+
+  it('stops one flag and confirms it', async () => {
+    const sf = traceSf([])
+    const { store, state } = setup({ sf })
+    const flags = await store.dispatch(stopTrace(flag as never) as never)
+    expect(sf.deleteTraceFlag).toHaveBeenCalledWith(flag.id)
+    expect(flags).toEqual([])
+    expect(state().toast.message).toBe('Stopped tracing Automated Process')
   })
 })

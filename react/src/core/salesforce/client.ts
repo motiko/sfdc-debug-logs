@@ -5,6 +5,16 @@
 // and from the extension's own page.
 import { API } from './api-version'
 import type { SfRequest } from './request'
+import {
+  DEBUG_LEVEL_CATEGORIES,
+  entityKind,
+  MAX_TRACE_MS,
+  soqlContains,
+  traceDurationMs,
+  type CategoryLevels,
+  type EntityKind,
+  type TraceLogType
+} from './trace-flags'
 
 const TOOLING = `${API}/tooling`
 
@@ -18,6 +28,9 @@ export const LEGACY_DEBUG_LEVEL_NAME = 'ApexDebugger'
 // Debug level of the class trace flags set by "Dont Log Class" on the class
 // list: NONE for every category, which silences the class.
 export const NO_LOG_DEBUG_LEVEL_NAME = 'ApexDbgrNoLog'
+// Debug level of "Custom levels" in the app's trace flag dialog: updated to
+// the chosen levels each time it is used.
+export const CUSTOM_DEBUG_LEVEL_NAME = 'ApexDbgrCustom'
 
 const LOG_CATEGORIES = [
   'Workflow',
@@ -30,8 +43,8 @@ const LOG_CATEGORIES = [
   'Database'
 ]
 
-// Salesforce allows trace flags of at most 24 hours.
-const TRACE_MS = 24 * 60 * 60 * 1000
+// Salesforce allows trace flags of at most 24 hours (MAX_TRACE_MS).
+const TRACE_MS = MAX_TRACE_MS
 
 export const APEX_LOG_FIELDS = [
   'LogUser.Name',
@@ -63,6 +76,39 @@ export interface ApexLogRecord {
   StartTime?: string
   Status?: string
   SystemModstamp?: string
+}
+
+// A debug level of the org, with its level per category.
+export interface DebugLevelInfo {
+  id: string
+  name: string
+  label: string
+  levels: Partial<CategoryLevels>
+}
+
+// An active trace flag of the org, for any user, class or trigger.
+export interface TraceFlagInfo {
+  id: string
+  logType: string
+  entityId: string
+  entityKind: EntityKind
+  // The user's, class's or trigger's name; null if it couldn't be read.
+  entityName: string | null
+  startDate: string | null
+  expiresAt: string
+  debugLevel: string | null
+}
+
+export interface UserMatch {
+  id: string
+  name: string
+  username: string
+}
+
+export interface ApexCodeMatch {
+  id: string
+  name: string
+  kind: 'class' | 'trigger'
 }
 
 export interface SaveResult {
@@ -368,6 +414,242 @@ export function createSalesforceClient(
     return traceStatus(userId)
   }
 
+  // All records of a REST API query (for objects the Tooling API doesn't
+  // have, like User).
+  async function query<T = any>(soql: string): Promise<T[]> {
+    let page = await request(`${API}/query?q=${encodeURIComponent(soql)}`)
+    const records: T[] = [...page.records]
+    while (page.nextRecordsUrl) {
+      page = await request(page.nextRecordsUrl)
+      records.push(...page.records)
+    }
+    return records
+  }
+
+  // The org's debug levels, by name, with their level per category.
+  async function debugLevels(): Promise<DebugLevelInfo[]> {
+    const levels = await toolingQuery(
+      `SELECT Id, DeveloperName, MasterLabel, ${DEBUG_LEVEL_CATEGORIES.join(', ')} ` +
+        `FROM DebugLevel ORDER BY DeveloperName`
+    )
+    return levels.map(level => ({
+      id: level.Id,
+      name: level.DeveloperName,
+      label: level.MasterLabel || level.DeveloperName,
+      levels: Object.fromEntries(
+        DEBUG_LEVEL_CATEGORIES.filter(c => level[c]).map(c => [c, level[c]])
+      )
+    }))
+  }
+
+  // Sets the extension's custom debug level (CUSTOM_DEBUG_LEVEL_NAME) to
+  // these levels, creating it if needed. Resolves with its id.
+  async function saveCustomDebugLevel(levels: CategoryLevels): Promise<string> {
+    const fields = Object.fromEntries(
+      DEBUG_LEVEL_CATEGORIES.map(c => [c, levels[c] || 'NONE'])
+    )
+    const [existing] = await toolingQuery<{ Id: string }>(
+      `SELECT Id FROM DebugLevel WHERE DeveloperName = ${soqlString(CUSTOM_DEBUG_LEVEL_NAME)}`
+    )
+    if (existing) {
+      await request(`${TOOLING}/sobjects/DebugLevel/${existing.Id}`, {
+        method: 'PATCH',
+        body: fields
+      })
+      return existing.Id
+    }
+    const created: SaveResult = await request(
+      `${TOOLING}/sobjects/DebugLevel`,
+      {
+        method: 'POST',
+        body: {
+          DeveloperName: CUSTOM_DEBUG_LEVEL_NAME,
+          MasterLabel: CUSTOM_DEBUG_LEVEL_NAME,
+          Language: 'en_US',
+          ...fields
+        }
+      }
+    )
+    return created.id
+  }
+
+  // Names of users, classes and triggers by id. Ids it can't name are left
+  // out (a failed lookup only costs the names).
+  async function entityNames(ids: string[]): Promise<Record<string, string>> {
+    const byKind = (kind: EntityKind) =>
+      [...new Set(ids.filter(id => entityKind(id) === kind))].map(soqlId)
+    const lookups: Promise<{ Id: string; Name: string }[]>[] = []
+    const users = byKind('user')
+    const classes = byKind('class')
+    const triggers = byKind('trigger')
+    if (users.length)
+      lookups.push(
+        query(`SELECT Id, Name FROM User WHERE Id IN (${users.join(',')})`)
+      )
+    if (classes.length)
+      lookups.push(
+        toolingQuery(
+          `SELECT Id, Name FROM ApexClass WHERE Id IN (${classes.join(',')})`
+        )
+      )
+    if (triggers.length)
+      lookups.push(
+        toolingQuery(
+          `SELECT Id, Name FROM ApexTrigger WHERE Id IN (${triggers.join(',')})`
+        )
+      )
+    const results = await Promise.all(lookups.map(l => l.catch(() => [])))
+    return Object.fromEntries(results.flat().map(r => [r.Id, r.Name]))
+  }
+
+  // Every trace flag of the org that hasn't expired, longest-running first,
+  // with what it traces.
+  async function activeTraceFlags(): Promise<TraceFlagInfo[]> {
+    const flags = await toolingQuery<{
+      Id: string
+      LogType: string
+      TracedEntityId: string
+      StartDate?: string | null
+      ExpirationDate: string
+      DebugLevel?: { DeveloperName: string } | null
+    }>(
+      `SELECT Id, LogType, TracedEntityId, StartDate, ExpirationDate, ` +
+        `DebugLevel.DeveloperName FROM TraceFlag ` +
+        `WHERE ExpirationDate > ${now().toISOString()} ORDER BY ExpirationDate DESC`
+    )
+    const names = await entityNames(flags.map(f => f.TracedEntityId))
+    return flags.map(flag => ({
+      id: flag.Id,
+      logType: flag.LogType,
+      entityId: flag.TracedEntityId,
+      entityKind: entityKind(flag.TracedEntityId),
+      entityName: names[flag.TracedEntityId] || null,
+      startDate: flag.StartDate || null,
+      expiresAt: flag.ExpirationDate,
+      debugLevel: (flag.DebugLevel && flag.DebugLevel.DeveloperName) || null
+    }))
+  }
+
+  // Active users whose name or username contains the term.
+  async function searchUsers(term: string, limit = 20): Promise<UserMatch[]> {
+    const text = String(term || '').trim()
+    if (!text) return []
+    const pattern = soqlContains(text)
+    const users = await query(
+      `SELECT Id, Name, Username FROM User WHERE IsActive = true ` +
+        `AND (Name LIKE ${pattern} OR Username LIKE ${pattern}) ` +
+        `ORDER BY Name LIMIT ${Math.max(1, Math.floor(limit))}`
+    )
+    return users.map(u => ({ id: u.Id, name: u.Name, username: u.Username }))
+  }
+
+  // The org's Automated Process user (runs platform event triggers and some
+  // async work), or null.
+  async function automatedProcessUser(): Promise<UserMatch | null> {
+    const [user] = await query(
+      `SELECT Id, Name, Username FROM User WHERE UserType = 'AutomatedProcess' LIMIT 1`
+    )
+    return user
+      ? { id: user.Id, name: user.Name, username: user.Username }
+      : null
+  }
+
+  // Apex classes and triggers whose name contains the term, by name.
+  async function searchApexCode(
+    term: string,
+    limit = 20
+  ): Promise<ApexCodeMatch[]> {
+    const text = String(term || '').trim()
+    if (!text) return []
+    const pattern = soqlContains(text)
+    const count = Math.max(1, Math.floor(limit))
+    const find = (object: string) =>
+      toolingQuery<{ Id: string; Name: string; NamespacePrefix?: string }>(
+        `SELECT Id, Name, NamespacePrefix FROM ${object} ` +
+          `WHERE Name LIKE ${pattern} ORDER BY Name LIMIT ${count}`
+      )
+    const [classes, triggers] = await Promise.all([
+      find('ApexClass'),
+      find('ApexTrigger')
+    ])
+    const named = (r: { Name: string; NamespacePrefix?: string }) =>
+      r.NamespacePrefix ? `${r.NamespacePrefix}.${r.Name}` : r.Name
+    return [
+      ...classes.map(r => ({
+        id: r.Id,
+        name: named(r),
+        kind: 'class' as const
+      })),
+      ...triggers.map(r => ({
+        id: r.Id,
+        name: named(r),
+        kind: 'trigger' as const
+      }))
+    ]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, count)
+  }
+
+  // Traces a user (USER_DEBUG) or a class or trigger (CLASS_TRACING) from
+  // now for durationMs (at most 24 hours) with this debug level. Salesforce
+  // allows one active flag per entity and log type, so an active one is
+  // updated to the new level and window instead. Resolves with the flag's id
+  // and whether it was an existing flag.
+  async function setTraceFlag({
+    entityId,
+    logType,
+    debugLevelId,
+    durationMs
+  }: {
+    entityId: string
+    logType: TraceLogType
+    debugLevelId: string
+    durationMs: number
+  }): Promise<{ id: string; updated: boolean }> {
+    soqlId(entityId)
+    soqlId(debugLevelId)
+    if (logType !== 'USER_DEBUG' && logType !== 'CLASS_TRACING') {
+      throw new Error(`Unsupported trace flag type: ${logType}`)
+    }
+    const start = now()
+    const window = {
+      StartDate: start.toISOString(),
+      ExpirationDate: new Date(
+        start.getTime() + traceDurationMs(durationMs)
+      ).toISOString()
+    }
+    const [active] = await toolingQuery<{ Id: string }>(
+      `SELECT Id FROM TraceFlag WHERE TracedEntityId = ${soqlId(entityId)} ` +
+        `AND LogType = ${soqlString(logType)} ` +
+        `AND ExpirationDate > ${start.toISOString()} ORDER BY ExpirationDate DESC`
+    )
+    if (active) {
+      await request(`${TOOLING}/sobjects/TraceFlag/${active.Id}`, {
+        method: 'PATCH',
+        body: { DebugLevelId: debugLevelId, ...window }
+      })
+      return { id: active.Id, updated: true }
+    }
+    const created: SaveResult = await request(`${TOOLING}/sobjects/TraceFlag`, {
+      method: 'POST',
+      body: {
+        TracedEntityId: entityId,
+        LogType: logType,
+        DebugLevelId: debugLevelId,
+        ...window
+      }
+    })
+    return { id: created.id, updated: false }
+  }
+
+  // Ends one trace flag.
+  async function deleteTraceFlag(flagId: string): Promise<void> {
+    soqlId(flagId)
+    await request(`${TOOLING}/sobjects/TraceFlag/${flagId}`, {
+      method: 'DELETE'
+    })
+  }
+
   // The SOQL condition for a scope. A user scope needs a valid user id
   // (soqlId throws otherwise), so it can't turn into all users' logs; any
   // other value is refused too.
@@ -506,6 +788,7 @@ export function createSalesforceClient(
     request,
     currentUser,
     toolingQuery,
+    query,
     logBody,
     recentLogs,
     newestLog,
@@ -518,6 +801,14 @@ export function createSalesforceClient(
     removeTraceFlags,
     traceUser,
     setClassLogging,
+    debugLevels,
+    saveCustomDebugLevel,
+    activeTraceFlags,
+    searchUsers,
+    automatedProcessUser,
+    searchApexCode,
+    setTraceFlag,
+    deleteTraceFlag,
     countLogs,
     deleteLogs,
     deleteLogsById,

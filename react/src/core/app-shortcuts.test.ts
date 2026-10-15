@@ -47,5 +47,19 @@ describe('app shortcuts', () => {
     expect(keyLabel('Mod+f', true)).toEqual(['⌘', 'F'])
     expect(keyLabel('Mod+f', false)).toEqual(['Ctrl', 'F'])
     expect(shortcutHint('refresh')).toBe('R')
+    expect(keyLabel('+')).toEqual(['+'])
+    expect(keyLabel('ArrowLeft')).toEqual(['←'])
+  })
+
+  it('handles the plus key', () => {
+    expect(matchesKey(key('+', { shiftKey: true }), '+')).toBe(true)
+    expect(matchesKey(key('-'), '+')).toBe(false)
+    expect(shortcutFor(key('='), ['timelineZoomIn'])).toBe('timelineZoomIn')
+  })
+
+  it('lists the call tree and timeline keys', () => {
+    const groups = new Set(APP_SHORTCUTS.map(s => s.group))
+    expect(groups.has('Call tree')).toBe(true)
+    expect(groups.has('Timeline')).toBe(true)
   })
 })

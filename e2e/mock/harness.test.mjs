@@ -32,6 +32,13 @@ try { Integer x = 1 / 0; } catch (Exception e) { System.debug(LoggingLevel.ERROR
   ]) {
     assert.ok(log.includes(event), event)
   }
+  const dml = runAnonymousApex(`insert new List<Account>{ new Account(Name = 'A'), new Account(Name = 'B') };`, {
+    user,
+    data: {}
+  })
+  assert.ok(dml.log.includes('DML_BEGIN|[1]|Op:Insert|Type:Account|Rows:2'))
+  assert.ok(dml.log.includes('Number of DML statements: 1 out of 150'))
+  assert.ok(dml.log.includes('Number of DML rows: 2 out of 10000'))
   const failed = runAnonymousApex('Integer y = 1 / 0;', { user, data: {} })
   assert.equal(failed.success, false)
   assert.ok(failed.log.includes('FATAL_ERROR|System.MathException: Divide by 0'))
@@ -46,6 +53,56 @@ test('the mock API needs the session and counts every request', async () => {
   const count = await org.handle({ url: `/services/data/v62.0/tooling/query?q=${q}`, headers: auth })
   assert.equal(JSON.parse(count.body).totalSize, 2)
   assert.deepEqual(org.stats().byKind, { 'describe global': 1, 'tooling query': 1 })
+})
+
+test('the mock org finds users, classes and triggers by name, and limits trace flags to 24 hours', async () => {
+  const org = new MockOrg()
+  const auth = { authorization: `Bearer ${org.sessionId}`, 'content-type': 'application/json' }
+  const query = async (path, soql) =>
+    JSON.parse(
+      (await org.handle({ url: `/services/data/v62.0${path}?q=${encodeURIComponent(soql)}`, headers: auth })).body
+    ).records
+  const users = await query(
+    '/query',
+    "SELECT Id, Name FROM User WHERE IsActive = true AND (Name LIKE '%other%' OR Username LIKE '%other%') ORDER BY Name LIMIT 20"
+  )
+  assert.deepEqual(
+    users.map(u => u.Name),
+    ['Other Developer']
+  )
+  const [automated] = await query('/query', "SELECT Id FROM User WHERE UserType = 'AutomatedProcess' LIMIT 1")
+  assert.equal(automated.Id, org.automatedProcess.Id)
+  // An escaped wildcard matches itself only.
+  const none = await query('/tooling/query', "SELECT Id, Name FROM ApexClass WHERE Name LIKE '%Lead\\_%' ORDER BY Name")
+  assert.deepEqual(none, [])
+  const handlers = await query(
+    '/tooling/query',
+    "SELECT Id, Name FROM ApexClass WHERE Name LIKE '%lead%' ORDER BY Name"
+  )
+  assert.deepEqual(
+    handlers.map(c => c.Name),
+    ['LeadTriggerHandler']
+  )
+  const start = Date.now()
+  const post = await org.handle({
+    method: 'POST',
+    url: '/services/data/v62.0/tooling/sobjects/TraceFlag',
+    headers: auth,
+    body: JSON.stringify({
+      TracedEntityId: handlers[0].Id,
+      LogType: 'CLASS_TRACING',
+      StartDate: new Date(start).toISOString(),
+      ExpirationDate: new Date(start + 3600_000).toISOString()
+    })
+  })
+  const { id } = JSON.parse(post.body)
+  const tooLong = await org.handle({
+    method: 'PATCH',
+    url: `/services/data/v62.0/tooling/sobjects/TraceFlag/${id}`,
+    headers: auth,
+    body: JSON.stringify({ ExpirationDate: new Date(start + 25 * 3600_000).toISOString() })
+  })
+  assert.equal(tooLong.status, 400)
 })
 
 let run, ext

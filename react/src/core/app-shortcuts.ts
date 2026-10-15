@@ -20,13 +20,23 @@ export type ShortcutId =
   | 'find'
   | 'nextMatch'
   | 'previousMatch'
+  | 'treeMove'
+  | 'treeOpen'
+  | 'treeClose'
+  | 'treeEnds'
+  | 'treeOpenSiblings'
+  | 'treeGoToLine'
+  | 'timelineZoomIn'
+  | 'timelineZoomOut'
+  | 'timelineWholeRun'
+  | 'timelinePan'
 
 export interface Shortcut {
   id: ShortcutId
   // Alternatives; each is one key, optionally with modifiers ("Shift+R").
   keys: string[]
   description: string
-  group: 'General' | 'Log list' | 'Log'
+  group: 'General' | 'Log list' | 'Log' | 'Call tree' | 'Timeline'
 }
 
 export const APP_SHORTCUTS: Shortcut[] = [
@@ -119,12 +129,82 @@ export const APP_SHORTCUTS: Shortcut[] = [
     keys: ['d'],
     description: 'Go to the next debug line',
     group: 'Log'
+  },
+  // The call tree and the timeline handle these keys themselves while they
+  // have focus (execution-tree-view.js, execution-timeline.js).
+  {
+    id: 'treeMove',
+    keys: ['ArrowDown', 'ArrowUp'],
+    description: 'Next or previous unit',
+    group: 'Call tree'
+  },
+  {
+    id: 'treeOpen',
+    keys: ['ArrowRight'],
+    description: 'Open the unit, or go to its first call',
+    group: 'Call tree'
+  },
+  {
+    id: 'treeClose',
+    keys: ['ArrowLeft'],
+    description: 'Close the unit, or go to its caller',
+    group: 'Call tree'
+  },
+  {
+    id: 'treeEnds',
+    keys: ['Home', 'End'],
+    description: 'First or last unit',
+    group: 'Call tree'
+  },
+  {
+    id: 'treeOpenSiblings',
+    keys: ['*'],
+    description: 'Open the unit and the others at its level',
+    group: 'Call tree'
+  },
+  {
+    id: 'treeGoToLine',
+    keys: ['Enter'],
+    description: 'Go to the unit’s line in the log',
+    group: 'Call tree'
+  },
+  {
+    id: 'timelineZoomIn',
+    keys: ['+', '='],
+    description: 'Zoom in (or Ctrl/⌘ and the mouse wheel)',
+    group: 'Timeline'
+  },
+  {
+    id: 'timelineZoomOut',
+    keys: ['-'],
+    description: 'Zoom out',
+    group: 'Timeline'
+  },
+  {
+    id: 'timelineWholeRun',
+    keys: ['0'],
+    description: 'Show the whole run',
+    group: 'Timeline'
+  },
+  {
+    id: 'timelinePan',
+    keys: ['ArrowLeft', 'ArrowRight'],
+    description: 'Move earlier or later (or Shift and the mouse wheel)',
+    group: 'Timeline'
   }
 ]
 
 export const isMac = (
   platform = typeof navigator === 'undefined' ? '' : navigator.platform
 ) => /mac|iphone|ipad/i.test(platform)
+
+// "Shift+Enter" -> ["Shift", "Enter"]; the plus key itself is "+" (or
+// "Mod++").
+function keyParts(key: string): string[] {
+  if (key === '+') return ['+']
+  if (key.endsWith('++')) return [...key.slice(0, -2).split('+'), '+']
+  return key.split('+')
+}
 
 // How a key is shown: "Mod+f" -> "⌘ F" on macOS, "Ctrl F" elsewhere.
 export function keyLabel(key: string, mac = isMac()): string[] {
@@ -135,11 +215,13 @@ export function keyLabel(key: string, mac = isMac()): string[] {
     ArrowDown: '↓',
     ArrowUp: '↑',
     ' ': 'Space',
+    ArrowLeft: '←',
+    ArrowRight: '→',
     Enter: 'Enter'
   }
-  return key
-    .split('+')
-    .map(part => names[part] || (part.length === 1 ? part.toUpperCase() : part))
+  return keyParts(key).map(
+    part => names[part] || (part.length === 1 ? part.toUpperCase() : part)
+  )
 }
 
 // The first key of a shortcut, for tooltips: "Refresh (R)".
@@ -165,7 +247,7 @@ export function matchesKey(
   key: string,
   mac = isMac()
 ): boolean {
-  const parts = key.split('+')
+  const parts = keyParts(key)
   const main = parts.pop()
   const mod = mac ? event.metaKey : event.ctrlKey
   const otherMod = mac ? event.ctrlKey : event.metaKey
