@@ -89,7 +89,7 @@ function init() {
   rawLog = codeBlock.textContent
   debugText = h('div', { id: 'debugText' })
   logBox = codeBlock
-  logBox.classList.add('ad-root', 'ad-log')
+  logBox.classList.add('apexdbg-root', 'apexdbg-log')
   logBox.setAttribute('role', 'region')
   logBox.setAttribute('aria-label', 'Debug log')
   logBox.tabIndex = 0
@@ -114,9 +114,9 @@ function init() {
 // Applies everything but the palette and the log's content.
 function applySettings() {
   debugText.style.fontSize = `${state.fontSize}px`
-  logBox.classList.toggle('ad-wrap', state.wrap)
-  logBox.classList.toggle('ad-show-system', state.systemMethods)
-  logBox.classList.toggle('ad-hide-user', !state.userMethods)
+  logBox.classList.toggle('apexdbg-wrap', state.wrap)
+  logBox.classList.toggle('apexdbg-show-system', state.systemMethods)
+  logBox.classList.toggle('apexdbg-hide-user', !state.userMethods)
 }
 
 // Sets the palette's colors and fonts as CSS custom properties, which the
@@ -156,21 +156,24 @@ function buildToolbar(): HTMLElement {
   expandAllButton = h('button', {
     type: 'button',
     id: 'collapseAllButton',
-    className: 'ad-button',
+    className: 'apexdbg-button',
     text: 'Expand all values',
     onclick: toggleExpandAll
   })
   expandAllButton.setAttribute('aria-keyshortcuts', 'E')
   const shortcutsPanel = h('div', {
-    id: 'adShortcutsPanel',
-    className: 'ad-popover',
+    id: 'apexdbgShortcutsPanel',
+    className: 'apexdbg-popover',
     hidden: true
   })
   const shortcutsButton = h('button', {
     type: 'button',
-    className: 'ad-button',
+    className: 'apexdbg-button',
     text: 'Shortcuts',
-    attrs: { 'aria-expanded': 'false', 'aria-controls': 'adShortcutsPanel' }
+    attrs: {
+      'aria-expanded': 'false',
+      'aria-controls': 'apexdbgShortcutsPanel'
+    }
   })
   const setOpen = (open: boolean) => {
     shortcutsPanel.hidden = !open
@@ -182,7 +185,7 @@ function buildToolbar(): HTMLElement {
   // Escape (on the button or in the panel) and a click elsewhere close it.
   const anchor = h(
     'span',
-    { className: 'ad-popover-anchor' },
+    { className: 'apexdbg-popover-anchor' },
     shortcutsButton,
     shortcutsPanel
   )
@@ -199,13 +202,13 @@ function buildToolbar(): HTMLElement {
   return h(
     'div',
     {
-      id: 'adToolbar',
-      className: 'ad-root ad-toolbar',
+      id: 'apexdbgToolbar',
+      className: 'apexdbg-root apexdbg-toolbar',
       attrs: { role: 'region', 'aria-label': 'Apex Debugger log tools' }
     },
     h(
       'div',
-      { className: 'ad-toolbar-row' },
+      { className: 'apexdbg-toolbar-row' },
       select('styleSelection', 'Log colors', themeOptions, themeValue, v => {
         setSetting('theme', v)
         applyTheme()
@@ -231,7 +234,7 @@ function buildToolbar(): HTMLElement {
         'W'
       ),
       h('span', {
-        className: 'ad-separator',
+        className: 'apexdbg-separator',
         attrs: { 'aria-hidden': 'true' }
       }),
       checkbox(
@@ -264,11 +267,11 @@ function buildToolbar(): HTMLElement {
         },
         'T'
       ),
-      h('span', { className: 'ad-spacer' }),
+      h('span', { className: 'apexdbg-spacer' }),
       expandAllButton,
       h('button', {
         type: 'button',
-        className: 'ad-button ad-button-primary',
+        className: 'apexdbg-button apexdbg-button-primary',
         text: 'Open in Apex Debugger',
         onclick: openInApp
       }),
@@ -279,7 +282,7 @@ function buildToolbar(): HTMLElement {
 
 function fillShortcutsPanel(panel: HTMLElement, enabled: boolean) {
   const heading = h('p', {
-    className: 'ad-popover-title',
+    className: 'apexdbg-popover-title',
     text: 'Keyboard shortcuts on this page'
   })
   if (!enabled) {
@@ -302,20 +305,21 @@ function fillShortcutsPanel(panel: HTMLElement, enabled: boolean) {
       ])
     ),
     h('p', {
-      className: 'ad-muted',
+      className: 'apexdbg-muted',
       text: 'They work while no field has focus. Change or turn off shortcuts in the extension options.'
     })
   )
 }
 
 // The log, as one div per entry. Rebuilt when timestamps are turned on or
-// off; expanded values collapse again.
+// off; expanded values collapse again. Built in a fragment: spreading every
+// entry into one call overflows the stack for logs of 100k+ entries.
 function renderLog() {
-  const nodes: Node[] = []
+  const log = document.createDocumentFragment()
   for (const block of logToBlocks(rawLog, state.timestamps)) {
-    nodes.push(...renderBlock(block))
+    log.append(...renderBlock(block))
   }
-  debugText.replaceChildren(...nodes)
+  debugText.replaceChildren(log)
   state.expanded = false
   updateExpandAllButton()
   const valueDivs = [...debugText.querySelectorAll('.debug, .callout')]
@@ -361,7 +365,7 @@ async function openInApp() {
 async function bindShortcuts() {
   const settings = await pageShortcutSettings()
   const enabled = !settings || settings.enabled
-  fillShortcutsPanel(document.getElementById('adShortcutsPanel'), enabled)
+  fillShortcutsPanel(document.getElementById('apexdbgShortcutsPanel'), enabled)
   if (!enabled) return
   const click = (id: string) => () => {
     document.getElementById(id).click()

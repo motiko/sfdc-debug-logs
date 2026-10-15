@@ -105,7 +105,7 @@ export default function AppHeader({
         </Tooltip>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <LoggingControl />
+        <LoggingControl host={host} />
         <IconAction
           label="Refresh logs"
           shortcut={shortcutHint('refresh')}

@@ -43,15 +43,23 @@ jobs:
       - name: Run end-to-end flow
         working-directory: e2e
         env:
+          # OAuth 2.0 JWT bearer flow (docs/e2e-jwt-setup.md): SF_JWT_KEY is
+          # the PEM private key of the External Client App's certificate.
           SF_USER: ${{ secrets.SF_USER }}
+          SF_CLIENT_ID: ${{ secrets.SF_CLIENT_ID }}
+          SF_JWT_KEY: ${{ secrets.SF_JWT_KEY }}
+          SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
+          # Deprecated SOAP login, used only while SF_CLIENT_ID and SF_JWT_KEY
+          # aren't set; remove these secrets after switching.
           SF_PASS: ${{ secrets.SF_PASS }}
           SF_TOKEN: ${{ secrets.SF_TOKEN }}
-          SF_LOGIN_URL: ${{ secrets.SF_LOGIN_URL }}
           # Optional second org, used when the first is near its daily API limit.
           SF_USER_2: ${{ secrets.SF_USER_2 }}
+          SF_CLIENT_ID_2: ${{ secrets.SF_CLIENT_ID_2 }}
+          SF_JWT_KEY_2: ${{ secrets.SF_JWT_KEY_2 }}
+          SF_LOGIN_URL_2: ${{ secrets.SF_LOGIN_URL_2 }}
           SF_PASS_2: ${{ secrets.SF_PASS_2 }}
           SF_TOKEN_2: ${{ secrets.SF_TOKEN_2 }}
-          SF_LOGIN_URL_2: ${{ secrets.SF_LOGIN_URL_2 }}
         run: npm test
 
       - uses: actions/upload-artifact@v7

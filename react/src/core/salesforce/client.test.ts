@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   createSalesforceClient,
+  CUSTOM_DEBUG_LEVEL_NAME,
   DEBUG_LEVEL_NAME,
   NO_LOG_DEBUG_LEVEL_NAME,
   soqlId,
@@ -529,5 +530,332 @@ describe('currentUser', () => {
       userId: USER,
       orgId: '00D000000000001AAA'
     })
+  })
+})
+
+describe('debug levels', () => {
+  it('lists the org’s levels with their categories', async () => {
+    const { client, calls } = fakeSalesforce([
+      [
+        isQuery(/FROM DebugLevel/),
+        () =>
+          records({
+            Id: '7dl1',
+            DeveloperName: 'SFDC_DevConsole',
+            MasterLabel: 'SFDC_DevConsole',
+            ApexCode: 'FINEST',
+            Database: 'INFO'
+          })
+      ]
+    ])
+    expect(await client.debugLevels()).toEqual([
+      {
+        id: '7dl1',
+        name: 'SFDC_DevConsole',
+        label: 'SFDC_DevConsole',
+        levels: { ApexCode: 'FINEST', Database: 'INFO' }
+      }
+    ])
+    expect(soqlOf(calls[0])).toMatch(
+      /^SELECT Id, DeveloperName, MasterLabel, ApexCode, .*, Nba FROM DebugLevel ORDER BY DeveloperName$/
+    )
+  })
+
+  const levels = {
+    ApexCode: 'FINEST',
+    ApexProfiling: 'INFO',
+    Callout: 'INFO',
+    Database: 'INFO',
+    System: 'DEBUG',
+    Validation: 'INFO',
+    Visualforce: 'INFO',
+    Workflow: 'INFO',
+    Wave: 'INFO',
+    Nba: 'INFO'
+  } as const
+
+  it('creates the custom level with every category', async () => {
+    const { client, calls } = fakeSalesforce([
+      [isQuery(/FROM DebugLevel/), () => records()],
+      [
+        is('POST', `${API}/tooling/sobjects/DebugLevel`),
+        () => ({ id: '7dl9', success: true })
+      ]
+    ])
+    expect(await client.saveCustomDebugLevel(levels)).toBe('7dl9')
+    expect(soqlOf(calls[0])).toBe(
+      `SELECT Id FROM DebugLevel WHERE DeveloperName = '${CUSTOM_DEBUG_LEVEL_NAME}'`
+    )
+    expect(calls[1].init.body).toEqual({
+      DeveloperName: CUSTOM_DEBUG_LEVEL_NAME,
+      MasterLabel: CUSTOM_DEBUG_LEVEL_NAME,
+      Language: 'en_US',
+      ...levels
+    })
+  })
+
+  it('updates the custom level when it exists', async () => {
+    const { client, calls } = fakeSalesforce([
+      [isQuery(/FROM DebugLevel/), () => records({ Id: '7dl9' })],
+      [is('PATCH', `${API}/tooling/sobjects/DebugLevel/7dl9`), () => null]
+    ])
+    expect(await client.saveCustomDebugLevel(levels)).toBe('7dl9')
+    expect(calls[1].init.body).toEqual(levels)
+  })
+})
+
+describe('trace flags', () => {
+  const CLASS = '01p000000000001AAA'
+  const TRIGGER = '01q000000000001AAA'
+  const LEVEL = '7dl000000000001AAA'
+
+  it('lists active flags of every entity, with names', async () => {
+    const { client, calls } = fakeSalesforce([
+      [
+        isQuery(/FROM TraceFlag/),
+        () =>
+          records(
+            {
+              Id: '7tf1',
+              LogType: 'USER_DEBUG',
+              TracedEntityId: USER,
+              StartDate: '2026-01-02T03:00:00.000+0000',
+              ExpirationDate: '2026-01-02T05:00:00.000+0000',
+              DebugLevel: { DeveloperName: DEBUG_LEVEL_NAME }
+            },
+            {
+              Id: '7tf2',
+              LogType: 'CLASS_TRACING',
+              TracedEntityId: CLASS,
+              ExpirationDate: '2026-01-02T04:00:00.000+0000',
+              DebugLevel: null
+            },
+            {
+              Id: '7tf3',
+              LogType: 'CLASS_TRACING',
+              TracedEntityId: TRIGGER,
+              ExpirationDate: '2026-01-02T04:00:00.000+0000'
+            }
+          )
+      ],
+      [
+        is('GET', /\/data\/v62\.0\/query\?q=.*FROM%20User/),
+        () => records({ Id: USER, Name: 'Ada Admin' })
+      ],
+      [
+        isQuery(/FROM ApexClass/),
+        () => records({ Id: CLASS, Name: 'AccountService' })
+      ],
+      // The trigger lookup fails: only its name is missing.
+      [
+        isQuery(/FROM ApexTrigger/),
+        () => {
+          throw new Error('403')
+        }
+      ]
+    ])
+    const flags = await client.activeTraceFlags()
+    expect(soqlOf(calls[0])).toBe(
+      'SELECT Id, LogType, TracedEntityId, StartDate, ExpirationDate, ' +
+        'DebugLevel.DeveloperName FROM TraceFlag ' +
+        'WHERE ExpirationDate > 2026-01-02T03:04:05.000Z ORDER BY ExpirationDate DESC'
+    )
+    expect(soqlOf(calls.find(c => /User/.test(soqlOf(c) || '')))).toBe(
+      `SELECT Id, Name FROM User WHERE Id IN ('${USER}')`
+    )
+    expect(flags).toEqual([
+      {
+        id: '7tf1',
+        logType: 'USER_DEBUG',
+        entityId: USER,
+        entityKind: 'user',
+        entityName: 'Ada Admin',
+        startDate: '2026-01-02T03:00:00.000+0000',
+        expiresAt: '2026-01-02T05:00:00.000+0000',
+        debugLevel: DEBUG_LEVEL_NAME
+      },
+      {
+        id: '7tf2',
+        logType: 'CLASS_TRACING',
+        entityId: CLASS,
+        entityKind: 'class',
+        entityName: 'AccountService',
+        startDate: null,
+        expiresAt: '2026-01-02T04:00:00.000+0000',
+        debugLevel: null
+      },
+      {
+        id: '7tf3',
+        logType: 'CLASS_TRACING',
+        entityId: TRIGGER,
+        entityKind: 'trigger',
+        entityName: null,
+        startDate: null,
+        expiresAt: '2026-01-02T04:00:00.000+0000',
+        debugLevel: null
+      }
+    ])
+  })
+
+  it('creates a flag for the chosen duration', async () => {
+    const { client, calls } = fakeSalesforce([
+      [isQuery(/FROM TraceFlag/), () => records()],
+      [
+        is('POST', `${API}/tooling/sobjects/TraceFlag`),
+        () => ({ id: '7tf9', success: true })
+      ]
+    ])
+    expect(
+      await client.setTraceFlag({
+        entityId: CLASS,
+        logType: 'CLASS_TRACING',
+        debugLevelId: LEVEL,
+        durationMs: 3600_000
+      })
+    ).toEqual({ id: '7tf9', updated: false })
+    expect(soqlOf(calls[0])).toBe(
+      `SELECT Id FROM TraceFlag WHERE TracedEntityId = '${CLASS}' ` +
+        `AND LogType = 'CLASS_TRACING' AND ExpirationDate > 2026-01-02T03:04:05.000Z ` +
+        `ORDER BY ExpirationDate DESC`
+    )
+    expect(calls[1].init.body).toEqual({
+      TracedEntityId: CLASS,
+      LogType: 'CLASS_TRACING',
+      DebugLevelId: LEVEL,
+      StartDate: '2026-01-02T03:04:05.000Z',
+      ExpirationDate: '2026-01-02T04:04:05.000Z'
+    })
+  })
+
+  it('updates the active flag instead of creating an overlapping one', async () => {
+    const { client, calls } = fakeSalesforce([
+      [isQuery(/FROM TraceFlag/), () => records({ Id: '7tf1' })],
+      [is('PATCH', `${API}/tooling/sobjects/TraceFlag/7tf1`), () => null]
+    ])
+    expect(
+      await client.setTraceFlag({
+        entityId: USER,
+        logType: 'USER_DEBUG',
+        debugLevelId: LEVEL,
+        durationMs: 48 * 3600_000
+      })
+    ).toEqual({ id: '7tf1', updated: true })
+    // At most 24 hours.
+    expect(calls[1].init.body).toEqual({
+      DebugLevelId: LEVEL,
+      StartDate: '2026-01-02T03:04:05.000Z',
+      ExpirationDate: '2026-01-03T03:04:05.000Z'
+    })
+    expect(calls.some(c => c.init.method === 'POST')).toBe(false)
+  })
+
+  it('refuses bad ids and log types before any request', async () => {
+    const { client, calls } = fakeSalesforce([])
+    await expect(
+      client.setTraceFlag({
+        entityId: "005' OR Id != '",
+        logType: 'USER_DEBUG',
+        debugLevelId: LEVEL,
+        durationMs: 1
+      })
+    ).rejects.toThrow(/Not a Salesforce id/)
+    await expect(
+      client.setTraceFlag({
+        entityId: USER,
+        logType: 'DEVELOPER_LOG' as 'USER_DEBUG',
+        debugLevelId: LEVEL,
+        durationMs: 1
+      })
+    ).rejects.toThrow(/Unsupported/)
+    await expect(client.deleteTraceFlag('x')).rejects.toThrow()
+    expect(calls).toHaveLength(0)
+  })
+
+  it('deletes one flag', async () => {
+    const { client, calls } = fakeSalesforce([
+      [
+        is('DELETE', `${API}/tooling/sobjects/TraceFlag/7tf000000000001AAA`),
+        () => null
+      ]
+    ])
+    await client.deleteTraceFlag('7tf000000000001AAA')
+    expect(calls).toHaveLength(1)
+  })
+})
+
+describe('trace targets', () => {
+  it('searches active users by name or username, escaping the term', async () => {
+    const { client, calls } = fakeSalesforce([
+      [
+        is('GET', /\/data\/v62\.0\/query\?q=/),
+        () =>
+          records({ Id: USER, Name: 'Ada Admin', Username: 'ada@example.com' })
+      ]
+    ])
+    expect(await client.searchUsers(" ad'a% ")).toEqual([
+      { id: USER, name: 'Ada Admin', username: 'ada@example.com' }
+    ])
+    expect(soqlOf(calls[0])).toBe(
+      `SELECT Id, Name, Username FROM User WHERE IsActive = true ` +
+        `AND (Name LIKE '%ad\\'a\\%%' OR Username LIKE '%ad\\'a\\%%') ` +
+        `ORDER BY Name LIMIT 20`
+    )
+    expect(await client.searchUsers('  ')).toEqual([])
+    expect(calls).toHaveLength(1)
+  })
+
+  it('finds the Automated Process user', async () => {
+    const { client, calls } = fakeSalesforce([
+      [
+        is('GET', /\/data\/v62\.0\/query\?q=/),
+        () =>
+          records({
+            Id: '005000000000009AAA',
+            Name: 'Automated Process',
+            Username: 'autoproc@00d'
+          })
+      ]
+    ])
+    expect(await client.automatedProcessUser()).toEqual({
+      id: '005000000000009AAA',
+      name: 'Automated Process',
+      username: 'autoproc@00d'
+    })
+    expect(soqlOf(calls[0])).toBe(
+      `SELECT Id, Name, Username FROM User WHERE UserType = 'AutomatedProcess' LIMIT 1`
+    )
+  })
+
+  it('has no Automated Process user when the query finds none', async () => {
+    const { client } = fakeSalesforce([
+      [is('GET', /\/query\?q=/), () => records()]
+    ])
+    expect(await client.automatedProcessUser()).toBeNull()
+  })
+
+  it('searches classes and triggers by name', async () => {
+    const { client, calls } = fakeSalesforce([
+      [
+        isQuery(/FROM ApexClass/),
+        () =>
+          records(
+            { Id: '01p1', Name: 'AccountService' },
+            { Id: '01p2', Name: 'Util', NamespacePrefix: 'pkg' }
+          )
+      ],
+      [
+        isQuery(/FROM ApexTrigger/),
+        () => records({ Id: '01q1', Name: 'AccountTrigger' })
+      ]
+    ])
+    expect(await client.searchApexCode('acc')).toEqual([
+      { id: '01p1', name: 'AccountService', kind: 'class' },
+      { id: '01q1', name: 'AccountTrigger', kind: 'trigger' },
+      { id: '01p2', name: 'pkg.Util', kind: 'class' }
+    ])
+    expect(soqlOf(calls[0])).toBe(
+      `SELECT Id, Name, NamespacePrefix FROM ApexClass WHERE Name LIKE '%acc%' ORDER BY Name LIMIT 20`
+    )
+    expect(calls[0].path).toContain('/tooling/query')
   })
 })

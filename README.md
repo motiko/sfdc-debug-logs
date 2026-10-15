@@ -14,11 +14,14 @@ Key Features
 
   * Search in logs
   * Improved view of logs, with the same color palettes in the log viewer and on Salesforce's log page: Light, Dark, Monokai and High contrast, following your light or dark mode.
+  * Log summary in the log viewer: governor limits per namespace, exceptions and fatal errors, SOQL queries (count, rows, time, likely queries in loops) and DML by operation and object; click an entry to jump to its line. It opens by itself for a failed run.
   * Click any Id to go to Object (Class, Trigger, Validation Rule e.t.c).
   * Indent User Debug (sObject, List, XML or JSON)
   * Expand long HTTP callout requests and responses, such as Named Credential callouts (one field per line, JSON and XML pretty-printed)
+  * Call tree and timeline of a log: code units, methods, SOQL, DML, callouts and flows nested as they ran, with total and own time and SOQL/DML counts; choose one to go to its line.
   * Delete logs: only yours, or all users', always confirmed with the count.
   * Start, extend or stop logging (a 24-hour trace flag for the current user).
+  * Trace flags: see the org's active trace flags with their expiry and stop them; trace yourself, another user (found by name), the Automated Process user or an Apex class or trigger, with the extension's debug level, one of the org's, or custom levels per category (presets Default, Apex FINEST, Quiet), for 30 minutes up to 24 hours.
   * Customizable keyboard shortcuts for Salesforce
 
 Keyboard Shortcuts
@@ -77,7 +80,7 @@ cd react
 npm run lint && npm run format:check && npm run typecheck && npm test
 ```
 
-The end-to-end flow also runs offline, against a mock Salesforce org (no credentials, no API requests): `cd e2e && npm install && npm run test:mock`. Against a real org (`.env.local`), `npm test`.
+The end-to-end flow also runs offline, against a mock Salesforce org (no credentials, no API requests): `cd e2e && npm install && npm run test:mock`. Against a real org (`.env.local`, logging in with the OAuth 2.0 JWT bearer flow: see [docs/e2e-jwt-setup.md](docs/e2e-jwt-setup.md)), `npm test`.
 
 `scripts/chrome-dev.sh` builds the app if needed and starts a test Chrome with the extension loaded.
 
