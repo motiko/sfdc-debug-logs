@@ -1,5 +1,6 @@
 // Log the dev Chrome (scripts/chrome-dev.sh) into Salesforce using the
-// credentials in .env.local (see scripts/lib/sf-auth.mjs), via frontdoor.jsp.
+// credentials in .env.local (JWT bearer flow, see scripts/lib/sf-auth.mjs and
+// docs/e2e-jwt-setup.md), via frontdoor.jsp.
 // The session id is sent over CDP so it never appears on a command line.
 //
 // Usage: node scripts/sf-login.mjs [retURL]   (CDP_PORT defaults to 9222)

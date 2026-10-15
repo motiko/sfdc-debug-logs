@@ -58,7 +58,7 @@ describe('CSS custom properties', () => {
     expect(css).toContain(`#apex-debugger {\n  --ad-bg: ${colors.light.bg};`)
     expect(css).toContain('@media (prefers-color-scheme: dark)')
     expect(css).toContain(
-      `#apex-debugger[data-ad-color-mode="dark"] {\n  --ad-bg: ${colors.dark.bg};`
+      `#apex-debugger[data-apexdbg-color-mode="dark"] {\n  --ad-bg: ${colors.dark.bg};`
     )
     expect(css).toContain(':focus-visible')
   })

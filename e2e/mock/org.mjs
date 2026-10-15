@@ -9,6 +9,7 @@
 // counted (stats()), by source and kind, so runs can report how many
 // Salesforce API requests they'd make.
 
+import { generateKeyPairSync, verify } from 'node:crypto'
 import { runAnonymousApex } from './apex.mjs'
 import { API_VERSION } from '../../scripts/lib/sf-auth.mjs'
 
@@ -44,6 +45,7 @@ const sfError = (status, errorCode, message) => json(status, [{ errorCode, messa
 export function requestKind(method, path) {
   if (path.startsWith('/services/Soap/')) return 'soap login'
   if (path.startsWith('/services/oauth2/userinfo')) return 'userinfo'
+  if (path.startsWith('/services/oauth2/token')) return 'oauth token'
   if (/\/tooling\/query/.test(path)) return 'tooling query'
   if (/\/tooling\/sobjects\/ApexLog\/[^/]+\/Body/.test(path)) return 'log body'
   if (/\/tooling\/executeAnonymous/.test(path)) return 'execute anonymous'
@@ -55,14 +57,18 @@ export function requestKind(method, path) {
   return null
 }
 
-// Salesforce API requests count against the org's daily limit; SOAP login and
-// userinfo don't (but login is rate limited, and fails once the limit is hit).
-export const COUNTS_AGAINST_LIMIT = kind => kind && kind !== 'soap login' && kind !== 'userinfo'
+// Salesforce API requests count against the org's daily limit; logins (SOAP
+// or OAuth token) and userinfo don't (but login is rate limited, and fails
+// once the limit is hit).
+const NOT_COUNTED = new Set(['soap login', 'oauth token', 'userinfo'])
+export const COUNTS_AGAINST_LIMIT = kind => Boolean(kind) && !NOT_COUNTED.has(kind)
 
 function parseLiteral(raw) {
   const value = raw.trim()
   if (/^'.*'$/.test(value)) return value.slice(1, -1).replace(/\\(.)/g, '$1')
   if (value.toLowerCase() === 'null') return null
+  if (value.toLowerCase() === 'true') return true
+  if (value.toLowerCase() === 'false') return false
   if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value)
   if (/^\d{4}-\d\d-\d\dT/.test(value)) return new Date(value).getTime()
   return value
@@ -81,6 +87,20 @@ function condition(record, cond, get) {
   if (inMatch) {
     const values = inMatch[2].split(',').map(parseLiteral)
     return values.includes(get(record, inMatch[1]))
+  }
+  const likeMatch = /^([\w.]+)\s+LIKE\s+(.+)$/i.exec(cond)
+  if (likeMatch) {
+    // % and _ are wildcards; \% and \_ match themselves.
+    const pattern = String(likeMatch[2].trim().slice(1, -1))
+    let source = ''
+    for (let i = 0; i < pattern.length; i++) {
+      const c = pattern[i]
+      if (c === '\\') source += escapeRegExp(pattern[++i] || '')
+      else if (c === '%') source += '.*'
+      else if (c === '_') source += '.'
+      else source += escapeRegExp(c)
+    }
+    return new RegExp(`^${source}$`, 'is').test(String(get(record, likeMatch[1]) ?? ''))
   }
   const m = /^([\w.]+)\s*(!=|>=|<=|=|>|<)\s*(.+)$/.exec(cond)
   if (!m) throw new Error(`mock SOQL: can't read condition ${cond}`)
@@ -105,6 +125,8 @@ function condition(record, cond, get) {
   }
 }
 
+const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 export class MockOrg {
   constructor({ apiVersion = API_VERSION } = {}) {
     this.apiVersion = apiVersion
@@ -115,9 +137,31 @@ export class MockOrg {
       Name: 'Mock Developer',
       Username: 'developer@apexdbgr-mock.example',
       IsActive: true,
+      UserType: 'Standard',
       UserPreferencesLightningExperiencePreferred: false
     }
-    this.otherUser = { Id: '005MK0000000002AAA', Name: 'Other Developer' }
+    this.otherUser = {
+      Id: '005MK0000000002AAA',
+      Name: 'Other Developer',
+      Username: 'other@apexdbgr-mock.example',
+      IsActive: true,
+      UserType: 'Standard'
+    }
+    // Runs platform event triggers and some async work; traced like a user.
+    this.automatedProcess = {
+      Id: '005MK0000000003AAA',
+      Name: 'Automated Process',
+      Username: 'autoproc@00dmk0000000001aaa',
+      IsActive: true,
+      UserType: 'AutomatedProcess'
+    }
+    // The same classes as the mock class list page (mock/server.mjs).
+    this.apexClasses = [
+      { Id: '01pMK0000000001AAA', Name: 'AccountService', NamespacePrefix: null },
+      { Id: '01pMK0000000002AAA', Name: 'InvoiceBatch', NamespacePrefix: null },
+      { Id: '01pMK0000000003AAA', Name: 'LeadTriggerHandler', NamespacePrefix: null }
+    ]
+    this.apexTriggers = [{ Id: '01qMK0000000001AAA', Name: 'LeadTrigger', NamespacePrefix: null }]
     this.accounts = [
       { Id: '001MK0000000001AAA', Name: 'Acme', CreatedDate: '2026-10-01T10:00:00.000+0000' },
       { Id: '001MK0000000002AAA', Name: 'Globex', CreatedDate: '2026-10-02T10:00:00.000+0000' }
@@ -131,7 +175,69 @@ export class MockOrg {
     // Optional delay (ms) per path pattern, e.g. to hold the frontdoor
     // redirect to Lightning: [{ pattern: /\/lightning\//, ms: 70000, times: 1 }].
     this.delays = []
+    // The External Client App the JWT bearer flow logs in through
+    // (createJwtApp()); null: the token endpoint refuses every assertion.
+    this.jwtApp = null
     this.addSeedLogs()
+  }
+
+  // Registers an app with a new key pair, its user pre-authorized, and
+  // returns the env that scripts/lib/sf-auth.mjs login() needs to log in
+  // through it with the JWT bearer flow.
+  createJwtApp() {
+    const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
+    this.jwtApp = { clientId: `3MVG9MOCK${Math.random().toString(36).slice(2)}`, publicKey }
+    return {
+      SF_USER: this.user.Username,
+      SF_CLIENT_ID: this.jwtApp.clientId,
+      SF_JWT_KEY: privateKey.export({ type: 'pkcs8', format: 'pem' }),
+      SF_LOGIN_URL: `https://${MOCK_HOSTS.api}`
+    }
+  }
+
+  // POST /services/oauth2/token with the JWT bearer grant, checked like
+  // Salesforce: RS256 signature by the app's key, iss, sub, aud, exp.
+  token(body) {
+    const fail = (error, error_description) => json(400, { error, error_description })
+    const params = new URLSearchParams(body)
+    if (params.get('grant_type') !== 'urn:ietf:params:oauth:grant-type:jwt-bearer') {
+      return fail('unsupported_grant_type', 'grant type not supported')
+    }
+    const parts = (params.get('assertion') || '').split('.')
+    if (parts.length !== 3) return fail('invalid_grant', 'invalid assertion')
+    let header, claims
+    try {
+      header = JSON.parse(Buffer.from(parts[0], 'base64url').toString())
+      claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    } catch {
+      return fail('invalid_grant', 'invalid assertion')
+    }
+    if (header.alg !== 'RS256') return fail('invalid_grant', 'invalid assertion')
+    if (!this.jwtApp || claims.iss !== this.jwtApp.clientId) {
+      return fail('invalid_client_id', 'client identifier invalid')
+    }
+    const signed = verify(
+      'sha256',
+      Buffer.from(`${parts[0]}.${parts[1]}`),
+      this.jwtApp.publicKey,
+      Buffer.from(parts[2], 'base64url')
+    )
+    if (!signed) return fail('invalid_grant', 'invalid assertion')
+    if (!['https://login.salesforce.com', 'https://test.salesforce.com'].includes(claims.aud)) {
+      return fail('invalid_grant', 'audience is invalid')
+    }
+    const now = Date.now() / 1000
+    if (typeof claims.exp !== 'number' || claims.exp < now || claims.exp > now + 300) {
+      return fail('invalid_grant', 'expired authorization code')
+    }
+    if (claims.sub !== this.user.Username) return fail('invalid_grant', "user hasn't approved this consumer")
+    return json(200, {
+      access_token: this.sessionId,
+      scope: 'web api',
+      instance_url: `https://${MOCK_HOSTS.api}`,
+      id: `https://login.salesforce.com/id/${this.orgId}/${this.user.Id}`,
+      token_type: 'Bearer'
+    })
   }
 
   // A few logs that exist before the run, one of another user.
@@ -143,7 +249,8 @@ export class MockOrg {
         user: this.otherUser,
         operation: 'BatchApexWorker',
         status: 'System.LimitException: Too many SOQL queries: 101',
-        apex: "System.debug('batch');"
+        // Uncaught, so the body ends with a FATAL_ERROR like a real failed run.
+        apex: "System.debug('batch'); Integer x = 1 / 0;"
       },
       { user: this.user, operation: '/aura', status: 'Success', apex: "System.debug('aura action');" }
     ]
@@ -212,6 +319,7 @@ export class MockOrg {
     this.record(source, method, path)
     const auth = headers.authorization || ''
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : null
+    if (method === 'POST' && path === '/services/oauth2/token') return this.token(body)
     if (path.startsWith('/services/') && !path.startsWith('/services/Soap/')) {
       if (token !== this.sessionId) {
         return sfError(401, 'INVALID_SESSION_ID', 'Session expired or invalid')
@@ -240,6 +348,10 @@ export class MockOrg {
     let m
     if (method === 'GET' && path === '/tooling/query') return json(200, this.query(params.get('q')))
     if (method === 'GET' && path === '/query') return json(200, this.query(params.get('q')))
+    if (method === 'GET' && path === '/limits') {
+      const max = 15000
+      return json(200, { DailyApiRequests: { Max: max, Remaining: max - this.stats().apiRequests } })
+    }
     if (method === 'GET' && path === '/sobjects') {
       return json(200, {
         sobjects: ['001', '003', '005', '006', '00D', '00Q', '01p', '07L', '7tf', '7dl', 'a00'].map(keyPrefix => ({
@@ -355,6 +467,13 @@ export class MockOrg {
       return { status: 204, headers: {}, body: '' }
     }
     if (method === 'PATCH') {
+      if (object === 'TraceFlag') {
+        const next = { ...table[index], ...body }
+        const span = new Date(next.ExpirationDate).getTime() - new Date(next.StartDate).getTime()
+        if (span > 24 * 3600_000 + 60_000) {
+          return sfError(400, 'FIELD_INTEGRITY_EXCEPTION', 'The trace flag can be at most 24 hours')
+        }
+      }
       Object.assign(table[index], body)
       return { status: 204, headers: {}, body: '' }
     }
@@ -374,7 +493,9 @@ export class MockOrg {
       ApexLog: this.logs,
       DebugLevel: this.debugLevels,
       TraceFlag: this.traceFlags,
-      User: [this.user]
+      User: [this.user, this.otherUser, this.automatedProcess],
+      ApexClass: this.apexClasses,
+      ApexTrigger: this.apexTriggers
     }
     if (!tables[object]) throw new Error(`mock SOQL: no ${object}`)
     const get = (record, field) => {

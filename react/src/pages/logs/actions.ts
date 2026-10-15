@@ -3,7 +3,17 @@
 import type { AppSalesforce } from '../../global-sf'
 import type { AppDispatch, RootState } from '../../store'
 import { explainError } from '../../core/salesforce/errors'
-import type { DeleteProgress } from '../../core/salesforce/client'
+import {
+  DEBUG_LEVEL_NAME,
+  type DebugLevelInfo,
+  type DeleteProgress,
+  type TraceFlagInfo
+} from '../../core/salesforce/client'
+import {
+  entityKind,
+  logTypeFor,
+  type CategoryLevels
+} from '../../core/salesforce/trace-flags'
 import {
   bodyFailed,
   bodyLoaded,
@@ -300,5 +310,137 @@ export function deleteLogs(
     )
     await dispatch(loadLogs())
     return deleted
+  }
+}
+
+// --- Trace flags (the "Trace flags" dialog) ---------------------------------
+
+// Whom or what to trace: the current user, another user, the org's
+// Automated Process user, or an Apex class or trigger.
+export type TraceTarget =
+  | { kind: 'me' }
+  | { kind: 'automated' }
+  | { kind: 'user'; id: string; name: string }
+  | { kind: 'code'; id: string; name: string }
+
+// The debug level of a new flag: the extension's (DEBUG for every
+// category), one of the org's, or the extension's custom level set to
+// these levels.
+export type TraceLevelChoice =
+  | { kind: 'default' }
+  | { kind: 'existing'; id: string }
+  | { kind: 'custom'; levels: CategoryLevels }
+
+// The org's active trace flags and debug levels, and the current user's id
+// (to tell their own flags apart).
+export function loadTraceSetup(): Thunk<
+  Promise<{
+    flags: TraceFlagInfo[]
+    debugLevels: DebugLevelInfo[]
+    userId: string
+  }>
+> {
+  return async (dispatch, getState, sf) => {
+    const [flags, debugLevels, userId] = await Promise.all([
+      sf.activeTraceFlags(),
+      sf.debugLevels(),
+      sf.getUserId()
+    ])
+    return { flags, debugLevels, userId }
+  }
+}
+
+// Users (kind 'user') or Apex classes and triggers (kind 'code') matching
+// the term, as { id, name, detail } options.
+export function findTraceTargets(
+  kind: 'user' | 'code',
+  term: string
+): Thunk<Promise<{ id: string; name: string; detail: string }[]>> {
+  return async (dispatch, getState, sf) => {
+    if (kind === 'user') {
+      return (await sf.searchUsers(term)).map(u => ({
+        id: u.id,
+        name: u.name,
+        detail: u.username
+      }))
+    }
+    return (await sf.searchApexCode(term)).map(c => ({
+      id: c.id,
+      name: c.name,
+      detail: c.kind === 'trigger' ? 'Trigger' : 'Class'
+    }))
+  }
+}
+
+async function resolveTarget(
+  target: TraceTarget,
+  sf: AppSalesforce
+): Promise<{ entityId: string; name: string }> {
+  if (target.kind === 'me') return { entityId: await sf.getUserId(), name: '' }
+  if (target.kind === 'automated') {
+    const user = await sf.automatedProcessUser()
+    if (!user) throw new Error('This org has no Automated Process user')
+    return { entityId: user.id, name: user.name }
+  }
+  return { entityId: target.id, name: target.name }
+}
+
+async function resolveDebugLevel(
+  level: TraceLevelChoice,
+  sf: AppSalesforce
+): Promise<string> {
+  if (level.kind === 'existing') return level.id
+  if (level.kind === 'custom') return sf.saveCustomDebugLevel(level.levels)
+  return sf.getOrCreateDebugLevel(DEBUG_LEVEL_NAME)
+}
+
+// Traces the target from now for durationMs with the chosen debug level
+// (updating its active flag if it has one), confirms it, refreshes the
+// header's logging status and resolves with the active flags. Only ever
+// runs on the user's request. Rejects for the dialog to show.
+export function startTrace({
+  target,
+  level,
+  durationMs
+}: {
+  target: TraceTarget
+  level: TraceLevelChoice
+  durationMs: number
+}): Thunk<Promise<TraceFlagInfo[]>> {
+  return async (dispatch, getState, sf) => {
+    const { entityId, name } = await resolveTarget(target, sf)
+    const debugLevelId = await resolveDebugLevel(level, sf)
+    const kind = entityKind(entityId)
+    const { id } = await sf.setTraceFlag({
+      entityId,
+      logType: logTypeFor(kind),
+      debugLevelId,
+      durationMs
+    })
+    const flags = await sf.activeTraceFlags()
+    const flag = flags.find(f => f.id === id)
+    const until = flag ? ` until ${formatClock(flag.expiresAt)}` : ''
+    dispatch(
+      showToast(
+        target.kind === 'me'
+          ? `Logging your actions${until}`
+          : `Tracing ${name}${until}`
+      )
+    )
+    await dispatch(checkLogging())
+    return flags
+  }
+}
+
+// Ends one trace flag, confirms it, refreshes the header's logging status
+// and resolves with the remaining active flags.
+export function stopTrace(
+  flag: TraceFlagInfo
+): Thunk<Promise<TraceFlagInfo[]>> {
+  return async (dispatch, getState, sf) => {
+    await sf.deleteTraceFlag(flag.id)
+    dispatch(showToast(`Stopped tracing ${flag.entityName || flag.entityId}`))
+    await dispatch(checkLogging())
+    return sf.activeTraceFlags()
   }
 }

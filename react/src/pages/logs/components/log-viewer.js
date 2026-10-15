@@ -16,6 +16,8 @@ import {
   InputAdornment,
   Popover,
   Skeleton,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography
@@ -32,7 +34,12 @@ import CloseIcon from '@mui/icons-material/Close'
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore'
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess'
 import ReportIcon from '@mui/icons-material/ReportProblemOutlined'
+import SummaryIcon from '@mui/icons-material/AssessmentOutlined'
 import ParsedLog from './parsed-log'
+import ExecutionTreeView from './execution-tree-view'
+import ExecutionTimeline from './execution-timeline'
+import MethodsNotice from './methods-notice'
+import LogSummaryPanel from './log-summary-panel'
 import globalSf from '../../../global-sf'
 import { StatusLabel } from './log-list'
 import IconAction from '../../../ui/components/icon-action'
@@ -50,6 +57,16 @@ import {
   visibleLines
 } from '../../../core/log/log-lines'
 import { CATEGORY_LABELS } from '../../../core/log/categories'
+import { rowOfLine, summarizeLog } from '../../../core/log/log-summary'
+import {
+  apexCodeLevel,
+  methodsLogged,
+  parseLogLevels
+} from '../../../core/log/log-levels'
+import {
+  buildExecutionTree,
+  rowForLine
+} from '../../../core/log/execution-tree'
 import {
   paletteFor,
   themeCssVariables,
@@ -68,8 +85,12 @@ const FIND_DELAY_MS = 200
 
 // The opened log (#/logs/<id>): its metadata and actions, a toolbar (find
 // with a match counter, next error / next debug line, event-type toggles
-// with counts, expand all values), and the log body. A failed run opens at
-// its first error, any other log at the top. The ref offers the page's
+// with counts, expand all values, the summary), the summary panel (errors,
+// limits, SOQL, DML; entries jump to their line) and the log body. A failed
+// run opens at its first error with the summary shown, any other log at the
+// top with the summary as the user left it. Tabs switch the body to the
+// call tree or the timeline (built only when first shown); choosing a unit
+// there goes back to the log at its line. The ref offers the page's
 // shortcuts: focusFind(), nextError(), nextDebug().
 const LogViewer = forwardRef(function LogViewer(
   { logId, log, colorMode, initialFind },
@@ -94,6 +115,15 @@ const LogViewer = forwardRef(function LogViewer(
   const [activeRow, setActiveRow] = useState(-1)
   const [expandAll, setExpandAll] = useState(false)
   const [eventsAnchor, setEventsAnchor] = useState(null)
+  // 'log', 'tree' or 'timeline'.
+  const [chosenView, setView] = useState('log')
+  // The views shown so far (the tree is built when one is first shown).
+  const [shown, setShown] = useState({ log: true })
+  const treeWanted = Boolean(shown.tree || shown.timeline)
+  const pendingRow = useRef(null)
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  // A line the summary asked for: { number }, shown once it's visible.
+  const [pendingLine, setPendingLine] = useState(null)
 
   useEffect(() => {
     dispatch(fetchLogBody(logId))
@@ -105,10 +135,24 @@ const LogViewer = forwardRef(function LogViewer(
     [allLines, hidden]
   )
   const counts = useMemo(() => categoryCounts(allLines), [allLines])
+  const tree = useMemo(
+    () => (treeWanted && body ? buildExecutionTree(allLines) : null),
+    [treeWanted, body, allLines]
+  )
+  // Written below Apex Code FINE: no method calls (the tree says so).
+  const levels = useMemo(() => parseLogLevels(allLines[0]?.text), [allLines])
+  const methodsMissing = Boolean(body) && !methodsLogged(levels)
+  // The log until the tree can be built (its body is loading).
+  const view = tree ? chosenView : 'log'
   const hiddenCount = hidden.reduce((n, c) => n + (counts[c] || 0), 0)
   const matches = useMemo(() => findMatches(lines, term), [lines, term])
   const matchRows = useMemo(() => new Set(matches.map(m => m.row)), [matches])
   const errorCount = counts.error
+  // Only parsed while the panel is open; once per log.
+  const summary = useMemo(
+    () => (summaryOpen && body ? summarizeLog(allLines) : null),
+    [summaryOpen, body, allLines]
+  )
   const debugCount = useMemo(
     () => allLines.filter(isDebugLine).length,
     [allLines]
@@ -131,8 +175,8 @@ const LogViewer = forwardRef(function LogViewer(
   }, [findInput])
   useEffect(() => setCurrent(0), [term])
 
-  // A newly opened log starts at the top, or at its first error if the run
-  // failed (docs/ux/baseline-review.md M7).
+  // A newly opened log starts at the top, or at its first error with the
+  // summary open if the run failed (docs/ux/baseline-review.md M7).
   const positioned = useRef(null)
   useEffect(() => {
     if (!scrollElement || !body || positioned.current === logId) return
@@ -142,6 +186,7 @@ const LogViewer = forwardRef(function LogViewer(
       ? isFailed(log)
       : allLines.some(l => l.eventType === 'FATAL_ERROR')
     const firstError = failed ? lines.findIndex(isErrorLine) : -1
+    if (failed) setSummaryOpen(true)
     scrollElement.scrollTop = 0
     if (firstError > 0) {
       setActiveRow(firstError)
@@ -178,6 +223,37 @@ const LogViewer = forwardRef(function LogViewer(
     )
     return firstVisible ? Number(firstVisible.dataset.index) - 1 : -1
   }
+  const showView = next => {
+    setShown(prev => (prev[next] ? prev : { ...prev, [next]: true }))
+    setView(next)
+  }
+  // From the call tree or the timeline: the log, at the unit's line (or the
+  // next line shown, if its event type is hidden).
+  const goToLine = number => {
+    const row = rowForLine(lines, number)
+    if (row < 0) return
+    setActiveRow(row)
+    pendingRow.current = row
+    setView('log')
+  }
+  useEffect(() => {
+    if (view !== 'log' || pendingRow.current === null) return
+    const row = pendingRow.current
+    pendingRow.current = null
+    requestAnimationFrame(() => {
+      parsedRef.current && parsedRef.current.scrollToRow(row)
+      scrollElement && scrollElement.focus({ preventScroll: true })
+    })
+  }, [view, scrollElement])
+  // Shortcuts for the log body bring it back first.
+  const inLog = action => () => {
+    if (view === 'log') action()
+    else {
+      setView('log')
+      requestAnimationFrame(() => requestAnimationFrame(action))
+    }
+  }
+
   const jump = (test, dir = 1) => {
     const row = nextRow(lines, Math.max(-1, startRow()), dir, test)
     if (row < 0) return
@@ -185,16 +261,33 @@ const LogViewer = forwardRef(function LogViewer(
     parsedRef.current && parsedRef.current.scrollToRow(row)
   }
 
+  // Go to a line from the summary; a line of a hidden event type is shown
+  // first.
+  const jumpToLine = number => {
+    const line = allLines[number]
+    if (!line) return
+    if (hidden.includes(line.category)) dispatch(toggleCategory(line.category))
+    setPendingLine({ number })
+  }
+  useEffect(() => {
+    if (!pendingLine) return
+    const row = rowOfLine(lines, pendingLine.number)
+    if (row < 0) return
+    setPendingLine(null)
+    setActiveRow(row)
+    parsedRef.current && parsedRef.current.scrollToRow(row)
+  }, [pendingLine, lines])
+
   useImperativeHandle(ref, () => ({
-    focusFind: () => {
+    focusFind: inLog(() => {
       if (findRef.current) {
         findRef.current.focus()
         findRef.current.select()
       }
-    },
+    }),
     isFindFocused: () => document.activeElement === findRef.current,
-    nextError: () => jump(isErrorLine),
-    nextDebug: () => jump(isDebugLine)
+    nextError: inLog(() => jump(isErrorLine)),
+    nextDebug: inLog(() => jump(isDebugLine))
   }))
 
   const onFindKeyDown = e => {
@@ -328,12 +421,37 @@ const LogViewer = forwardRef(function LogViewer(
         </Box>
       </Box>
 
+      {/* The log, its call tree or its timeline. */}
+      <Tabs
+        value={view}
+        onChange={(_, next) => showView(next)}
+        aria-label="Log views"
+        sx={{
+          minHeight: 36,
+          px: 1,
+          borderBottom: 1,
+          borderColor: 'divider',
+          '& .MuiTab-root': { minHeight: 36, py: 0.5, textTransform: 'none' }
+        }}
+      >
+        {LOG_VIEWS.map(([value, label]) => (
+          <Tab
+            key={value}
+            value={value}
+            label={label}
+            id={`log-view-${value}`}
+            aria-controls={`log-view-panel-${value}`}
+            disabled={value !== 'log' && !body}
+          />
+        ))}
+      </Tabs>
+
       {/* Find, navigation and event types. */}
       <Box
         role="toolbar"
         aria-label="Log tools"
         sx={{
-          display: 'flex',
+          display: view === 'log' ? 'flex' : 'none',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 1,
@@ -443,6 +561,17 @@ const LogViewer = forwardRef(function LogViewer(
         >
           {expandAll ? 'Collapse values' : 'Expand values'}
         </Button>
+        <Button
+          variant="text"
+          color="inherit"
+          startIcon={<SummaryIcon />}
+          aria-expanded={summaryOpen}
+          aria-controls={summaryOpen ? 'log-summary' : undefined}
+          onClick={() => setSummaryOpen(v => !v)}
+          disabled={!body}
+        >
+          {summaryOpen ? 'Hide summary' : 'Summary'}
+        </Button>
         <EventsPopover
           anchor={eventsAnchor}
           onClose={() => setEventsAnchor(null)}
@@ -451,13 +580,27 @@ const LogViewer = forwardRef(function LogViewer(
         />
       </Box>
 
+      {summary && view === 'log' ? (
+        <LogSummaryPanel
+          key={logId}
+          id="log-summary"
+          summary={summary}
+          activeLine={
+            activeRow >= 0 && lines[activeRow] ? lines[activeRow].number : -1
+          }
+          onJump={jumpToLine}
+        />
+      ) : null}
+
       {/* The log body: one Tab stop; arrows and Page keys scroll it. */}
       <Box
         ref={setScrollElement}
         role="region"
         aria-label="Log body"
+        id="log-view-panel-log"
         tabIndex={0}
         sx={{
+          display: view === 'log' ? 'block' : 'none',
           flex: 1,
           minHeight: 0,
           overflow: 'auto',
@@ -520,11 +663,57 @@ const LogViewer = forwardRef(function LogViewer(
           />
         )}
       </Box>
+      {/* Kept once shown, so going to a line and back keeps their state. */}
+      {tree
+        ? LOG_VIEWS.filter(([value]) => value !== 'log' && shown[value]).map(
+            ([value]) => (
+              <Box
+                key={value}
+                role="tabpanel"
+                id={`log-view-panel-${value}`}
+                aria-labelledby={`log-view-${value}`}
+                sx={{
+                  flex: 1,
+                  minHeight: 0,
+                  display: view === value ? 'flex' : 'none',
+                  flexDirection: 'column'
+                }}
+              >
+                {methodsMissing ? (
+                  <MethodsNotice
+                    level={apexCodeLevel(levels)}
+                    host={globalSf.hostname}
+                  />
+                ) : null}
+                {value === 'tree' ? (
+                  <ExecutionTreeView
+                    key={logId}
+                    tree={tree}
+                    onJump={goToLine}
+                  />
+                ) : (
+                  <ExecutionTimeline
+                    key={logId}
+                    tree={tree}
+                    theme={theme}
+                    onJump={goToLine}
+                  />
+                )}
+              </Box>
+            )
+          )
+        : null}
     </Box>
   )
 })
 
 export default LogViewer
+
+const LOG_VIEWS = [
+  ['log', 'Log'],
+  ['tree', 'Call tree'],
+  ['timeline', 'Timeline']
+]
 
 // Which event categories the log body shows, with the number of lines of
 // each (docs/ux/baseline-review.md M6).

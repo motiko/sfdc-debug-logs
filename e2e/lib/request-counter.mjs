@@ -7,7 +7,7 @@
 //     including tabs the extension opens.
 // The service worker only reads cookies, so it makes none. Kinds are those of
 // e2e/mock/org.mjs (requestKind); "API requests" are the ones Salesforce
-// counts against the limit (not SOAP login or userinfo).
+// counts against the limit (not logins or userinfo).
 
 import { COUNTS_AGAINST_LIMIT, requestKind } from '../mock/org.mjs'
 

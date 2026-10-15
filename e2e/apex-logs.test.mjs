@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { startRun, MOCK } from './lib/run.mjs'
 import { gotoLightning } from './lib/lightning.mjs'
+import { launchWithExtension } from './lib/browser.mjs'
 import {
   logThemes,
   CLASSIC_CATEGORY_CLASS,
@@ -40,6 +41,11 @@ List<User> users = [SELECT Id, Name FROM User LIMIT 1];
 System.debug(marker + ' users ' + users);
 System.debug('${XSS} ' + UserInfo.getUserId() + ' xss ' + marker);
 try { Integer x = 1 / 0; } catch (Exception e) { System.debug('caught ' + e.getMessage()); }
+for (Integer i = 0; i < 3; i++) { List<User> again = [SELECT Id FROM User LIMIT 1]; }
+${
+  // DML only in the mock org: it changes no data there.
+  MOCK ? "insert new List<Account>{ new Account(Name = 'E2E A'), new Account(Name = 'E2E B') };" : ''
+}
 `
 // A log long enough that the app renders only the lines in view
 // (RENDER_ALL_UP_TO in react/src/pages/logs/components/parsed-log.js). Its
@@ -237,6 +243,19 @@ async function openAppWithShiftW(sfPage, consoleLog, name) {
 }
 
 const classicUrl = id => `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${id}`
+
+test('logs in with the OAuth 2.0 JWT bearer flow', { skip: !MOCK && 'mock org only' }, () => {
+  // startRun() logged in to the mock org through scripts/lib/sf-auth.mjs
+  // login() with an External Client App's key, the way the real org is
+  // reached once SF_CLIENT_ID is set; the browser uses that session through
+  // frontdoor.jsp in every test below.
+  const { byKind } = run.mock.org.stats()
+  assert.equal(byKind['oauth token'], 1, 'one token request')
+  assert.equal(byKind['soap login'], undefined, 'no SOAP login')
+  assert.equal(session.sessionId, run.mock.org.sessionId, 'the access token is the session')
+  assert.equal(session.userId, run.mock.org.user.Id, 'user id from the identity URL')
+  assert.equal(session.orgId, run.mock.org.orgId, 'org id from the identity URL')
+})
 
 test('classic log view', async t => {
   const page = await ext.browser.newPage()
@@ -682,6 +701,55 @@ test('React log viewer', async t => {
     assert.ok((await rowIds()).includes(log.Id), 'the log is still listed')
   })
 
+  await t.test('a confirmation toast covers no header control, and the menu opens under it', async () => {
+    // Extending logging (on since ensureLogging) shows a confirmation.
+    await app.click('::-p-xpath(//header//button[starts-with(normalize-space(), "Logging on")])')
+    const extend = '::-p-aria([name="Extend to 24 hours from now"][role="menuitem"])'
+    await app.waitForSelector(extend, { visible: true })
+    await app.click(extend)
+    await app.waitForSelector('[role="menu"]', { hidden: true })
+    const TOAST = '[data-testid="toast"]'
+    await app.waitForSelector(TOAST, { visible: true, timeout: 30000 })
+    const state = await app.evaluate(() => {
+      const toast = document.querySelector('[data-testid="toast"]')
+      const rect = toast.getBoundingClientRect()
+      const header = document.querySelector('header').getBoundingClientRect()
+      // Buttons in view (header, list footer, ...) whose middle the toast covers.
+      const covered = [...document.querySelectorAll('button')].filter(b => {
+        const r = b.getBoundingClientRect()
+        if (!r.width || !r.height || r.bottom <= 0 || r.top >= window.innerHeight) return false
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return toast.contains(hit)
+      })
+      const style = getComputedStyle(toast)
+      const live = [...document.querySelectorAll('[role="status"][aria-live="polite"]')].map(el => el.textContent)
+      return {
+        belowHeader: rect.top >= header.bottom,
+        atBottom: window.innerHeight - rect.bottom < 120,
+        covered: covered.map(b => b.getAttribute('aria-label') || b.textContent),
+        rootPointerEvents: getComputedStyle(toast.parentElement).pointerEvents,
+        color: style.color,
+        background: style.backgroundColor,
+        live
+      }
+    })
+    assert.ok(state.belowHeader && state.atBottom, 'the toast is near the bottom, clear of the header')
+    assert.deepEqual(state.covered, [], 'every button in view can still be clicked')
+    assert.equal(state.rootPointerEvents, 'none', 'only the message itself takes clicks')
+    assert.equal(state.color, toRgb(uiColors.light.surface), 'toast text')
+    assert.equal(state.background, toRgb(uiColors.light.text), 'toast background')
+    assert.ok(
+      state.live.some(text => /^Logging extended until /.test(text)),
+      `the confirmation is in a polite live region (${state.live.join(' | ')})`
+    )
+    // While the toast shows, the overflow menu opens and its items work.
+    await openMenuItem('Appearance…')
+    await app.waitForSelector(dialog('Appearance'), { visible: true })
+    await app.click(`${dialog('Appearance')} ::-p-aria([name="Close appearance"][role="button"])`)
+    await app.waitForSelector(dialog('Appearance'), { hidden: true })
+    await app.waitForSelector(TOAST, { hidden: true, timeout: 15000 })
+  })
+
   await t.test('help overlay lists the shortcuts', async () => {
     await app.evaluate(() => document.activeElement && document.activeElement.blur())
     await app.keyboard.press('?')
@@ -755,6 +823,235 @@ test('React log viewer', async t => {
     const errorLines = await app.$$eval('pre > div[data-category="error"]', els => els.length)
     assert.ok(errorLines > 0, 'the log has an error line (the caught exception)')
     assert.equal(markers, errorLines, 'each error line has an error marker')
+  })
+
+  await t.test('summary shows limits, the exception, SOQL and DML, and jumps to their lines', async () => {
+    const activeLine = () =>
+      app.evaluate(() => {
+        const div = document.querySelector('pre > div.is-active')
+        return div ? div.innerText : null
+      })
+    const summaryRows = () =>
+      app.evaluate(() =>
+        [...document.querySelectorAll('#log-summary tbody tr')].map(r => r.innerText.replace(/\s+/g, ' ').trim())
+      )
+    await app.click('::-p-aria([name="Summary"][role="button"])')
+    await app.waitForSelector('::-p-aria([name="Log summary"])', { visible: true })
+
+    // Errors first, since the log has one.
+    const exception = '::-p-xpath(//*[@id="log-summary"]//li//button[contains(., "System.MathException: Divide by 0")])'
+    await app.click(exception)
+    await app.waitForFunction(
+      () =>
+        /EXCEPTION_THROWN\|\[\d+\]\|System\.MathException/.test(
+          (document.querySelector('pre > div.is-active') || {}).innerText || ''
+        ),
+      { timeout: 5000 }
+    )
+
+    await app.click('::-p-xpath(//*[@id="log-summary"]//*[@role="tab"][starts-with(., "Limits")])')
+    const soqlLimit = (await summaryRows()).find(r => r.startsWith('Number of SOQL queries'))
+    assert.match(soqlLimit, /\b4 \/ 100\b/, 'four queries out of 100, as in the log')
+
+    await app.click('::-p-xpath(//*[@id="log-summary"]//*[@role="tab"][starts-with(., "SOQL")])')
+    const loop = (await summaryRows()).find(r => r.includes('SELECT Id FROM User LIMIT 1'))
+    assert.match(loop, /Possible query in loop/)
+    assert.match(loop, / 3 3 /, 'the query ran 3 times and returned 3 rows')
+    await app.click('::-p-aria([name="SELECT Id FROM User LIMIT 1"][role="button"])')
+    await app.waitForFunction(
+      () =>
+        /SOQL_EXECUTE_BEGIN.*SELECT Id FROM User LIMIT 1/.test(
+          (document.querySelector('pre > div.is-active') || {}).innerText || ''
+        ),
+      { timeout: 5000 }
+    )
+    const first = await activeLine()
+    await app.click('::-p-aria([name="SELECT Id FROM User LIMIT 1"][role="button"])')
+    await app.waitForFunction(
+      before => {
+        const text = (document.querySelector('pre > div.is-active') || {}).innerText || ''
+        return text !== before && /SELECT Id FROM User LIMIT 1/.test(text)
+      },
+      { timeout: 5000 },
+      first
+    )
+
+    if (MOCK) {
+      await app.click('::-p-xpath(//*[@id="log-summary"]//*[@role="tab"][starts-with(., "DML")])')
+      const dml = await summaryRows()
+      assert.equal(dml.length, 1)
+      assert.match(dml[0], /^Insert Account 1 2 /, 'one insert of 2 accounts')
+    }
+
+    await app.click('::-p-aria([name="Hide summary"][role="button"])')
+    await app.waitForSelector('#log-summary', { hidden: true })
+  })
+
+  // The mock org seeds a failed log of another user (a LimitException).
+  await t.test('a failed log opens with its summary shown', { skip: !MOCK && 'mock org only' }, async () => {
+    const [failed] = await sf.query("SELECT Id FROM ApexLog WHERE Status != 'Success' LIMIT 1")
+    assert.ok(failed, 'the mock org has a failed log')
+    await app.evaluate(id => (location.hash = `#/logs/${id}`), failed.Id)
+    await app.waitForSelector('::-p-aria([name="Log summary"])', { visible: true, timeout: 30000 })
+    const selected = await app.$eval('#log-summary [role="tab"][aria-selected="true"]', el => el.textContent)
+    assert.match(selected, /^Errors/, 'the Errors tab is selected')
+    await app.click('::-p-aria([name="Hide summary"][role="button"])')
+    await app.waitForSelector('#log-summary', { hidden: true })
+    // Back to the successful log: the summary stays as the user left it.
+    await app.evaluate(id => (location.hash = `#/logs/${id}`), log.Id)
+    await app.waitForFunction(
+      marker => document.querySelector('pre') && document.querySelector('pre').innerText.includes(marker),
+      { timeout: 30000 },
+      MARKER
+    )
+    assert.equal(await app.$('#log-summary'), null, 'the summary is still hidden')
+  })
+
+  // The call tree and the timeline (core/log/execution-tree.ts).
+  // Each row's accessible name comes from its text (with the column names
+  // for screen readers), so it is read from the accessibility tree.
+  const nameOf = async el => {
+    const node = await app.accessibility.snapshot({ root: el, interestingOnly: false })
+    return ((node && node.name) || '').replace(/\s+,/g, ',').replace(/\s+/g, ' ').trim()
+  }
+  const treeItems = async () => {
+    const items = []
+    for (const el of await app.$$('[role="treeitem"]')) {
+      const { level, line } = await el.evaluate(el => ({
+        level: Number(el.getAttribute('aria-level')),
+        line: Number(el.dataset.line)
+      }))
+      items.push({ label: await nameOf(el), level, line })
+    }
+    return items
+  }
+  const activeLogLine = line =>
+    app.waitForFunction(
+      line => {
+        const row = document.querySelector('pre > div.is-active')
+        return row && row.dataset.line === String(line) && row.getBoundingClientRect().height > 0
+      },
+      { timeout: 5000 },
+      line
+    )
+  // The anonymous code unit's line, from the call tree.
+  let unitLine = -1
+
+  await t.test('call tree nests the code unit, counts its SOQL, and Enter goes to its line', async () => {
+    await app.click('::-p-aria([name="Call tree"][role="tab"])')
+    await app.waitForSelector('::-p-aria([name="Call tree"][role="tree"])', { visible: true, timeout: 10000 })
+    const all = await treeItems()
+    const unit = all.find(i => i.label.startsWith('Code unit execute_anonymous_apex'))
+    assert.ok(unit, `the anonymous code unit is listed (${all.map(i => i.label).join(' | ')})`)
+    unitLine = unit.line
+    assert.equal(unit.level, 2, 'inside the execution')
+    const soql = (log.body.match(/\|SOQL_EXECUTE_BEGIN\|/g) || []).length
+    assert.match(unit.label, new RegExp(`, ${soql} SOQL,`), 'counts the queries it ran')
+    assert.match(unit.label, /total [\d.]+ (ns|µs|ms|s), self [\d.]+ (ns|µs|ms|s)/)
+    if (MOCK) {
+      // Real-org logs list methods only at the Fine Apex Code level.
+      const method = all.find(i => i.label.startsWith('Method MockSetup.run()'))
+      assert.ok(method, 'the method the code unit called is listed')
+      assert.equal(method.level, 3, 'nested in the code unit')
+    }
+    const shownLines = await app.$$eval(
+      'pre > div',
+      els => els.filter(el => el.getBoundingClientRect().height > 0).length
+    )
+    assert.equal(shownLines, 0, 'the log body is hidden while the tree is shown')
+
+    // Keyboard: Home, Down to the code unit, Left closes it, Right opens it,
+    // Enter goes to its line in the log.
+    await app.focus('[role="tree"]')
+    await app.keyboard.press('Home')
+    await app.keyboard.press('ArrowDown')
+    const active = async () => {
+      const el = await app
+        .$('[role="tree"]')
+        .then(tree => tree.evaluateHandle(tree => document.getElementById(tree.getAttribute('aria-activedescendant'))))
+      return { label: await nameOf(el), expanded: await el.evaluate(el => el.getAttribute('aria-expanded')) }
+    }
+    assert.match((await active()).label, /^Code unit execute_anonymous_apex/)
+    await app.keyboard.press('ArrowLeft')
+    assert.equal((await active()).expanded, 'false', 'Left closes the unit')
+    await app.keyboard.press('ArrowRight')
+    assert.equal((await active()).expanded, 'true', 'Right opens it again')
+    await app.keyboard.press('Enter')
+    await activeLogLine(unit.line)
+    await app.waitForFunction(() => document.activeElement.getAttribute('aria-label') === 'Log body', {
+      timeout: 2000
+    })
+    assert.equal(await app.$eval('::-p-aria([name="Log"][role="tab"])', el => el.getAttribute('aria-selected')), 'true')
+  })
+
+  await t.test('timeline draws the units, zooms, and a click on a bar goes to its line', async () => {
+    assert.ok(unitLine > 0, 'the call tree check found the code unit')
+    await app.click('::-p-aria([name="Timeline"][role="tab"])')
+    const GROUP = '::-p-aria([name="Timeline"][role="group"])'
+    await app.waitForSelector(GROUP, { visible: true, timeout: 10000 })
+    await app.waitForFunction(() => {
+      const canvas = document.querySelector('[data-testid="timeline-canvas"]')
+      return canvas && canvas.width > 0 && canvas.height > 0
+    })
+    const windowText = () => app.$eval('[data-testid="timeline-window"]', el => el.textContent)
+    assert.match(await windowText(), /^Whole run: /)
+    await app.click('::-p-aria([name="Zoom in"][role="button"])')
+    await app.waitForFunction(() => / of /.test(document.querySelector('[data-testid="timeline-window"]').textContent))
+    await app.click('::-p-aria([name="Show the whole run"][role="button"])')
+    await app.waitForFunction(() =>
+      /^Whole run/.test(document.querySelector('[data-testid="timeline-window"]').textContent)
+    )
+    // The keys the ? overlay lists: + zooms in, 0 shows the whole run.
+    await app.focus('[role="group"][aria-label="Timeline"]')
+    await app.keyboard.type('+')
+    await app.waitForFunction(() => / of /.test(document.querySelector('[data-testid="timeline-window"]').textContent))
+    await app.keyboard.press('0')
+    await app.waitForFunction(() =>
+      /^Whole run/.test(document.querySelector('[data-testid="timeline-window"]').textContent)
+    )
+    // Level 2 (below the 22 px axis, 20 px per level) is the code unit,
+    // which spans nearly the whole run.
+    const box = await (await app.$(GROUP)).boundingBox()
+    await app.mouse.click(box.x + box.width / 2, box.y + 22 + 20 + 10)
+    await activeLogLine(unitLine)
+  })
+
+  // The extension's debug level is DEBUG for every category, and
+  // Salesforce writes method calls from Apex Code FINE up, so this log has a
+  // notice above its tree and timeline. "Log methods…" opens the Trace flags
+  // dialog with the "Apex FINEST" custom levels; nothing is started.
+  await t.test('call tree says methods are missing and offers to log them', async () => {
+    const TRACE = '::-p-aria([name="Trace flags"][role="dialog"])'
+    await app.click('::-p-aria([name="Call tree"][role="tab"])')
+    // Each shown panel keeps its own notice: look in the one in view.
+    const notice = '#log-view-panel-tree [data-testid="methods-notice"]'
+    await app.waitForSelector(notice, { visible: true, timeout: 10000 })
+    const text = await app.$eval(notice, el => el.textContent)
+    assert.match(text, /No method calls in this log: its Apex Code level is DEBUG/, 'the notice names the level')
+    const logMethods = `${notice} ::-p-aria([name="Log methods…"][role="button"])`
+    await app.click(logMethods)
+    await app.waitForSelector(TRACE, { visible: true })
+    assert.equal(
+      await app.$eval(`${TRACE} ::-p-aria([name="Debug level"][role="combobox"])`, el => el.textContent),
+      'Custom levels…',
+      'opens with custom levels'
+    )
+    assert.equal(
+      await app.$eval(`${TRACE} ::-p-aria([name="Apex code"][role="combobox"])`, el => el.textContent),
+      'FINEST',
+      'Apex code at FINEST'
+    )
+    await app.click(`${TRACE} ::-p-aria([name="Close"][role="button"])`)
+    await app.waitForSelector(TRACE, { hidden: true })
+    await app.waitForFunction(
+      sel => document.activeElement === document.querySelector(sel),
+      { timeout: 3000 },
+      logMethods.replace(/ ::-p-aria.*$/, ' button')
+    )
+    await app.click('::-p-aria([name="Timeline"][role="tab"])')
+    await app.waitForSelector('#log-view-panel-timeline [data-testid="methods-notice"]', { visible: true })
+    await app.click('::-p-aria([name="Log"][role="tab"])')
+    await app.waitForSelector('pre > div[data-index="0"]', { visible: true, timeout: 5000 })
   })
 
   await t.test('indent toggle beautifies a debugged SObject', async () => {
@@ -903,7 +1200,7 @@ test('React log viewer', async t => {
       body: getComputedStyle(document.body).backgroundColor,
       header: getComputedStyle(document.querySelector('header')).backgroundColor,
       headerText: getComputedStyle(document.querySelector('header h1')).color,
-      mode: document.documentElement.dataset.adColorMode
+      mode: document.documentElement.dataset.apexdbgColorMode
     }))
     assert.equal(colors.mode, 'dark')
     assert.equal(colors.body, toRgb(uiColors.dark.bg), 'page background')
@@ -1077,15 +1374,150 @@ test('pages without readable ids', async t => {
   })
 })
 
+// Creates and deletes trace flags for other users, Automated Process and an
+// Apex class: on the mock org only, so a run never changes how a real org's
+// other users or classes are logged.
+test('trace flags: debug level, duration and target', { skip: !MOCK && 'mock org only' }, async t => {
+  const page = await ext.browser.newPage()
+  const errors = collectPageErrors(page)
+  await page.setViewport({ width: 1400, height: 1000 })
+  await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }])
+  const host = new URL(session.instance).hostname
+  await page.goto(
+    `chrome-extension://${ext.extensionId}/html/app.html?oid=${session.orgId}&uid=${session.userId}&sid=${encodeURIComponent(session.sessionId)}&host=${host}`
+  )
+  await page.bringToFront()
+  const DIALOG = '::-p-aria([name="Trace flags"][role="dialog"])'
+  const combobox = label => `${DIALOG} ::-p-aria([name="${label}"][role="combobox"])`
+  const button = name => `${DIALOG} ::-p-aria([name="${name}"][role="button"])`
+  const chooseOption = async (label, text) => {
+    await page.click(combobox(label))
+    const option = `::-p-xpath(//li[@role="option" and normalize-space()="${text}"])`
+    await page.waitForSelector(option, { visible: true })
+    await page.click(option)
+    await page.waitForSelector('[role="listbox"]', { hidden: true })
+    await delay(200)
+  }
+  // An Autocomplete: type, then pick the option whose primary text is `name`.
+  const pick = async (label, term, name) => {
+    await page.click(combobox(label))
+    await page.type(combobox(label), term)
+    const option = `::-p-xpath(//li[@role="option" and .//*[normalize-space()="${name}"]])`
+    await page.waitForSelector(option, { visible: true, timeout: 10000 })
+    await page.click(option)
+    await delay(200)
+  }
+  const flagRows = () => page.$$eval('[role="dialog"] li[data-flag-id]', rows => rows.map(r => r.innerText))
+  const waitForRow = (text, present = true) =>
+    page.waitForFunction(
+      (text, present) =>
+        [...document.querySelectorAll('[role="dialog"] li[data-flag-id]')].some(r => r.innerText.includes(text)) ===
+        present,
+      { timeout: 15000 },
+      text,
+      present
+    )
+  const activeFlags = entityId =>
+    sf.query(
+      `SELECT Id, StartDate, ExpirationDate, LogType, DebugLevel.DeveloperName FROM TraceFlag ` +
+        `WHERE TracedEntityId = '${entityId}' AND ExpirationDate > ${new Date().toISOString()}`
+    )
+  const allFlags = async () => (await sf.query('SELECT Id FROM TraceFlag')).length
+
+  try {
+    await t.test('the dialog opens from the logging menu and starts nothing by itself', async () => {
+      const before = await allFlags()
+      const status = '::-p-xpath(//button[starts-with(normalize-space(), "Logging on")])'
+      await page.waitForSelector(status, { timeout: 30000 })
+      await page.click(status)
+      const item = '::-p-xpath(//li[@role="menuitem" and .//*[normalize-space()="Trace flags…"]])'
+      await page.waitForSelector(item, { visible: true })
+      await page.click(item)
+      await page.waitForSelector(DIALOG, { visible: true })
+      await waitForRow('You (Mock Developer)')
+      assert.ok(await page.$(button('Stop tracing You (Mock Developer)')), 'my flag has a named Stop button')
+      const row = (await flagRows()).find(r => r.includes('You (Mock Developer)'))
+      assert.match(row, /\d+ (h|min)( \d+ min)? left/, 'the flag shows the time left')
+      assert.match(row, /until (tomorrow |[A-Z][a-z]{2} \d{1,2}, )?\d{1,2}:\d{2}/, 'and when it ends')
+      await delay(500)
+      assert.equal(await allFlags(), before, 'opening the dialog creates no trace flag')
+    })
+
+    await t.test('a class with custom levels for 1 hour, then stopped', async () => {
+      const classId = '01pMK0000000002AAA'
+      await chooseOption('Trace', 'An Apex class or trigger')
+      await pick('Apex class or trigger', 'invoice', 'InvoiceBatch')
+      await chooseOption('Debug level', 'Custom levels…')
+      await page.click(`${DIALOG} ::-p-aria([name="Apex FINEST"][role="button"])`)
+      const apexLevel = await page.$eval(combobox('Apex code'), el => el.textContent)
+      assert.equal(apexLevel, 'FINEST', 'the preset sets Apex code to FINEST')
+      await chooseOption('Database', 'NONE')
+      await chooseOption('Duration', '1 hour')
+      await page.click(button('Start tracing'))
+      await waitForRow('InvoiceBatch · Class')
+      const [flag] = await activeFlags(classId)
+      assert.equal(flag.LogType, 'CLASS_TRACING')
+      assert.equal(flag.DebugLevel.DeveloperName, 'ApexDbgrCustom')
+      const span = new Date(flag.ExpirationDate) - new Date(flag.StartDate)
+      assert.ok(Math.abs(span - 3600_000) < 5000, `1 hour (was ${span} ms)`)
+      const [level] = await sf.query(
+        "SELECT ApexCode, Database, System FROM DebugLevel WHERE DeveloperName = 'ApexDbgrCustom'"
+      )
+      const { ApexCode, Database, System } = level
+      assert.deepEqual(
+        { ApexCode, Database, System },
+        {
+          ApexCode: 'FINEST',
+          Database: 'NONE',
+          System: 'DEBUG'
+        }
+      )
+      await page.click(button('Stop tracing InvoiceBatch'))
+      await waitForRow('InvoiceBatch', false)
+      assert.deepEqual(await activeFlags(classId), [], 'Stop deletes the flag')
+    })
+
+    await t.test('another user found by name, and Automated Process', async () => {
+      const other = '005MK0000000002AAA'
+      await chooseOption('Trace', 'Another user')
+      await pick('User', 'other', 'Other Developer')
+      await chooseOption('Debug level', 'ApexDbgrExtension (extension default)')
+      await chooseOption('Duration', '30 minutes')
+      await page.click(button('Start tracing'))
+      await waitForRow('Other Developer · User')
+      const [flag] = await activeFlags(other)
+      assert.equal(flag.LogType, 'USER_DEBUG')
+      assert.equal(flag.DebugLevel.DeveloperName, 'ApexDbgrExtension')
+      await chooseOption('Trace', 'Automated Process')
+      await page.click(button('Start tracing'))
+      await waitForRow('Automated Process · User')
+      for (const name of ['Other Developer', 'Automated Process']) {
+        await page.click(button(`Stop tracing ${name}`))
+        await waitForRow(name, false)
+      }
+      assert.deepEqual(await activeFlags(other), [])
+      assert.ok(
+        (await flagRows()).some(r => r.includes('You (Mock Developer)')),
+        'my own flag is untouched'
+      )
+      await page.click(button('Close'))
+      await page.waitForSelector(DIALOG, { hidden: true })
+    })
+  } finally {
+    if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
+    await page.close()
+  }
+})
+
 test('classic log page toolbar', async t => {
   const page = await ext.browser.newPage()
   const errors = collectPageErrors(page)
   await page.setViewport({ width: 1200, height: 800 })
   await page.goto(frontdoorUrl(session, classicUrl(log.Id)), { waitUntil: 'networkidle2' })
-  await page.waitForSelector('#adToolbar', { timeout: 20000 })
+  await page.waitForSelector('#apexdbgToolbar', { timeout: 20000 })
 
   await t.test('every control has a label', async () => {
-    const unlabeled = await page.$$eval('#adToolbar select, #adToolbar input', els =>
+    const unlabeled = await page.$$eval('#apexdbgToolbar select, #apexdbgToolbar input', els =>
       els.filter(el => !(el.labels && el.labels.length && el.labels[0].textContent.trim())).map(el => el.id)
     )
     assert.deepEqual(unlabeled, [])
@@ -1094,7 +1526,7 @@ test('classic log page toolbar', async t => {
   await t.test('the toolbar stays in view while the log scrolls', async () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2))
     await delay(200)
-    const top = await page.$eval('#adToolbar', el => el.getBoundingClientRect().top)
+    const top = await page.$eval('#apexdbgToolbar', el => el.getBoundingClientRect().top)
     assert.ok(top >= -1 && top < 5, `toolbar top at ${top}px`)
     await page.evaluate(() => window.scrollTo(0, 0))
   })
@@ -1148,26 +1580,26 @@ test('classic log list: delete asks with scope and count; search reports results
     await page.evaluate(() => document.activeElement && document.activeElement.blur())
     await page.keyboard.press('KeyA')
     await delay(300)
-    assert.equal(await page.$('#adDeleteDialog'), null)
+    assert.equal(await page.$('#apexdbgDeleteDialog'), null)
   })
 
   await t.test('the dialog defaults to my logs, shows counts, and Cancel deletes nothing', async () => {
     const before = (await sf.query('SELECT Id FROM ApexLog')).length
     await page.click('#real_delete_all')
     await page.waitForFunction(
-      () => /Only my logs \(\d[\d,]*\)/.test((document.querySelector('#adDeleteDialog') || {}).innerText || ''),
+      () => /Only my logs \(\d[\d,]*\)/.test((document.querySelector('#apexdbgDeleteDialog') || {}).innerText || ''),
       { timeout: 30000 }
     )
-    const state = await page.$eval('#adDeleteDialog', d => ({
+    const state = await page.$eval('#apexdbgDeleteDialog', d => ({
       open: d.open,
-      mine: d.querySelector('#adDeleteMine').checked,
+      mine: d.querySelector('#apexdbgDeleteMine').checked,
       confirm: [...d.querySelectorAll('button')].map(b => b.textContent).find(t => /^Delete/.test(t))
     }))
     assert.equal(state.open, true)
     assert.equal(state.mine, true, 'only my logs by default')
     assert.match(state.confirm, /^Delete [\d,]+ logs?$/)
     await page.keyboard.press('Escape')
-    await page.waitForFunction(() => !document.querySelector('#adDeleteDialog'))
+    await page.waitForFunction(() => !document.querySelector('#apexdbgDeleteDialog'))
     assert.equal((await sf.query('SELECT Id FROM ApexLog')).length, before, 'nothing deleted')
   })
 
@@ -1180,12 +1612,12 @@ test('classic log list: delete asks with scope and count; search reports results
       },
       MARKER
     )
-    await page.waitForFunction(() => /contain/.test(document.querySelector('#adSearchStatus').textContent), {
+    await page.waitForFunction(() => /contain/.test(document.querySelector('#apexdbgSearchStatus').textContent), {
       timeout: 60000
     })
-    const status = await page.$eval('#adSearchStatus', el => el.textContent)
+    const status = await page.$eval('#apexdbgSearchStatus', el => el.textContent)
     assert.match(status, /^\d+ of \d+ logs contain/)
-    assert.ok((await page.$$('tr.ad-match')).length >= 1, 'matching rows are marked')
+    assert.ok((await page.$$('tr.apexdbg-match')).length >= 1, 'matching rows are marked')
   })
 
   if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
@@ -1246,7 +1678,7 @@ test('options page', async t => {
 
   await t.test('color mode is shared with the classic pages', async () => {
     await page.click('::-p-xpath(//button[normalize-space()="Dark"])')
-    await page.waitForFunction(() => document.documentElement.dataset.adColorMode === 'dark')
+    await page.waitForFunction(() => document.documentElement.dataset.apexdbgColorMode === 'dark')
     const { appearance } = await ext.background.evaluate(() => chrome.storage.local.get('appearance'))
     assert.deepEqual(appearance, { colorMode: 'dark' })
     await page.click('::-p-xpath(//button[normalize-space()="System"])')
@@ -1308,6 +1740,50 @@ test(
     } finally {
       await ext.background.evaluate(() => chrome.storage.sync.remove('pageShortcuts'))
       await page.close()
+    }
+  }
+)
+
+// Reloading or updating the extension cuts the content scripts of open tabs
+// off from it (chrome.runtime loses its id). The shortcuts script must then
+// unbind its keys and say so, not throw. Its own browser: the reload kills
+// the shared worker handle.
+test(
+  'page shortcuts: after an extension reload the keys say to reload the page',
+  { skip: !MOCK && 'mock org only' },
+  async () => {
+    const own = await launchWithExtension({ mock: run.mock })
+    try {
+      const page = await own.browser.newPage()
+      const messages = []
+      page.on('console', m => messages.push(`${m.type()}: ${m.text()}`))
+      page.on('pageerror', e => messages.push(`error: ${e.message}`))
+      await page.goto(frontdoorUrl(session, '/setup/ui/listApexTraces.apexp'), { waitUntil: 'networkidle2' })
+      await page.waitForFunction(
+        () => location.pathname.includes('listApexTraces') && document.readyState === 'complete'
+      )
+      await delay(1000)
+      await own.background.evaluate(() => chrome.runtime.reload())
+      await page.waitForFunction(() => !(window.chrome && chrome.runtime && chrome.runtime.id), { timeout: 10000 })
+      const before = messages.length
+      await page.bringToFront()
+      await page.keyboard.down('Shift')
+      await page.keyboard.press('KeyW')
+      await page.keyboard.up('Shift')
+      await delay(1500)
+      const after = messages.slice(before)
+      assert.ok(
+        after.some(m => m.startsWith('log:') && m.includes('Reload this page')),
+        `tells the user to reload the page: ${after.join(' | ')}`
+      )
+      assert.ok(!after.some(m => m.startsWith('error:')), `no page error: ${after.join(' | ')}`)
+      assert.equal(
+        (await own.browser.pages()).filter(p => p.url().includes('/html/app.html')).length,
+        0,
+        'no app opened'
+      )
+    } finally {
+      await own.close()
     }
   }
 )

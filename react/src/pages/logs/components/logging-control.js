@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import {
   Box,
@@ -20,15 +20,46 @@ import {
   stopLogging
 } from '../actions'
 import { formatClock } from '../utils'
+import TraceFlagsDialog from '../dialogs/trace-flags-dialog'
 
 // Whether the user's actions are logged (an active USER_DEBUG trace flag),
 // and until when: "Logging on · until 15:42" with Extend and Stop, or
 // "Logging off" with "Start logging". Checks when the app opens, but never
-// starts logging on its own (docs/ux/baseline-review.md M11).
-export default function LoggingControl() {
+// starts logging on its own (docs/ux/baseline-review.md M11). "Trace flags…"
+// opens the dialog for other debug levels, durations and targets.
+export default function LoggingControl({ host }) {
   const dispatch = useDispatch()
   const logging = useSelector(state => state.logsPage.logging)
   const [anchor, setAnchor] = useState(null)
+  const [traceOpen, setTraceOpen] = useState(false)
+  // Where focus goes when the dialog closes: what opened it may be gone (the
+  // menu item, or "Trace flags…" once tracing me turned logging on), so the
+  // first of these still on the page.
+  const traceButton = useRef(null)
+  const statusButton = useRef(null)
+  const startButton = useRef(null)
+  const closeTrace = () => {
+    setTraceOpen(false)
+    setTimeout(() => {
+      const back = [traceButton, statusButton, startButton]
+        .map(ref => ref.current)
+        .find(el => el && el.isConnected)
+      if (back) back.focus()
+    })
+  }
+  // Rendered in the same place whatever the logging status, so starting or
+  // stopping my own flag in it doesn't remount it.
+  const withDialog = content => (
+    <>
+      {content}
+      <TraceFlagsDialog
+        open={traceOpen}
+        onClose={closeTrace}
+        host={host}
+        disableRestoreFocus
+      />
+    </>
+  )
 
   useEffect(() => {
     dispatch(checkLogging())
@@ -44,7 +75,7 @@ export default function LoggingControl() {
   ) : null
 
   if (logging.status === 'unknown' || logging.status === 'error') {
-    return (
+    return withDialog(
       <Tooltip
         title={
           logging.error ? `${logging.error.title} ${logging.error.hint}` : ''
@@ -75,7 +106,7 @@ export default function LoggingControl() {
   }
 
   if (logging.status === 'off') {
-    return (
+    return withDialog(
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Box
           component="span"
@@ -91,6 +122,7 @@ export default function LoggingControl() {
           Logging off
         </Box>
         <Button
+          ref={startButton}
           variant="outlined"
           onClick={() => dispatch(startLogging())}
           disabled={logging.busy}
@@ -98,14 +130,24 @@ export default function LoggingControl() {
         >
           Start logging
         </Button>
+        <Button
+          ref={traceButton}
+          variant="text"
+          color="inherit"
+          aria-haspopup="dialog"
+          onClick={() => setTraceOpen(true)}
+        >
+          Trace flags…
+        </Button>
         {logging.error ? <ErrorNote error={logging.error} /> : null}
       </Box>
     )
   }
 
-  return (
+  return withDialog(
     <>
       <Button
+        ref={statusButton}
         variant="text"
         color="inherit"
         aria-haspopup="menu"
@@ -139,6 +181,17 @@ export default function LoggingControl() {
           <ListItemText
             primary="Stop logging"
             secondary="Removes your active trace flag"
+          />
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            close()
+            setTraceOpen(true)
+          }}
+        >
+          <ListItemText
+            primary="Trace flags…"
+            secondary="Debug level, duration, other users and classes"
           />
         </MenuItem>
         <Divider />

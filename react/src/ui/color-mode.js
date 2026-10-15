@@ -17,7 +17,7 @@ export function useSystemColorMode() {
   )
 }
 
-// 'light' or 'dark'. Also marks the document (data-ad-color-mode and the CSS
+// 'light' or 'dark'. Also marks the document (data-apexdbg-color-mode and the CSS
 // color-scheme), so native controls and scrollbars match.
 export function useResolvedColorMode(preference) {
   const system = useSystemColorMode()
@@ -25,7 +25,7 @@ export function useResolvedColorMode(preference) {
     preference === 'light' || preference === 'dark' ? preference : system
   useEffect(() => {
     const root = document.documentElement
-    root.dataset.adColorMode = mode
+    root.dataset.apexdbgColorMode = mode
     root.style.colorScheme = mode
   }, [mode])
   return mode
