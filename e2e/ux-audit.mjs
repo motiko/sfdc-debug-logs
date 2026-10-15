@@ -1195,6 +1195,33 @@ async function appView(ctx) {
     await delay(400)
   }
 
+  // A confirmation toast (extending logging, when it is on), alone and with
+  // the overflow menu open over it: it must not cover the header's controls.
+  {
+    const logging = await byName(app, [/^logging on/i])
+    let extend = null
+    if (logging) {
+      await safeClick(logging)
+      await delay(500)
+      extend = await byName(app, [/^extend/i], { roles: ['menuitem'] })
+    }
+    if (extend) {
+      await safeClick(extend)
+      await app.waitForSelector('[data-testid="toast"]', { visible: true, timeout: 15000 }).catch(() => {})
+      await delay(300)
+      await capture(ctx, app, V, 'toast')
+      if (await openMoreActions()) {
+        await capture(ctx, app, V, 'toast-with-menu')
+        await app.keyboard.press('Escape')
+        await delay(400)
+      }
+      await app.waitForSelector('[data-testid="toast"]', { hidden: true, timeout: 10000 }).catch(() => {})
+    } else {
+      if (logging) await app.keyboard.press('Escape')
+      summary.errors.push('app: logging is not on, no toast captured')
+    }
+  }
+
   // Search.
   const searchBox =
     (await app.$('input[type=search]')) ||
@@ -1650,8 +1677,8 @@ async function executionViews(ctx) {
 // --- Classic Salesforce pages enhanced by content scripts -----------------
 
 const CLASSIC_LOG_SCOPE = [
-  '#adToolbar',
-  'pre.ad-log',
+  '#apexdbgToolbar',
+  'pre.apexdbg-log',
   '#debugText',
   '#controllersContainer',
   '#selectStyleContainer',
@@ -1661,11 +1688,11 @@ const CLASSIC_LOG_SCOPE = [
   '#hintContainer'
 ]
 const CLASSIC_LIST_SCOPE = [
-  '.ad-list-tools',
-  '.ad-search',
-  '.ad-inline-tools',
-  '#adDeleteDialog',
-  'tr.ad-match',
+  '.apexdbg-list-tools',
+  '.apexdbg-search',
+  '.apexdbg-inline-tools',
+  '#apexdbgDeleteDialog',
+  'tr.apexdbg-match',
   '#real_delete_all',
   '#load_new_logs',
   '#add_current_user',
@@ -1676,8 +1703,8 @@ const CLASSIC_LIST_SCOPE = [
   'tr[style*="104, 170, 87"]' // rows the search highlights
 ]
 const CLASS_PAGE_SCOPE = [
-  '.ad-dont-log',
-  '.ad-inline-tools',
+  '.apexdbg-dont-log',
+  '.apexdbg-inline-tools',
   '.dontLog',
   '.headerRow th:last-child',
   'input[value^="See All"]'
@@ -1759,9 +1786,12 @@ async function classicViews(ctx) {
         else if (form) form.dispatchEvent(new Event('submit', { cancelable: true }))
       }, MARKER)
       await page
-        .waitForFunction(() => /contain/.test((document.getElementById('adSearchStatus') || {}).textContent || ''), {
-          timeout: 60000
-        })
+        .waitForFunction(
+          () => /contain/.test((document.getElementById('apexdbgSearchStatus') || {}).textContent || ''),
+          {
+            timeout: 60000
+          }
+        )
         .catch(() => delay(8000))
       await capture(ctx, page, V, 'list-search', { scope: CLASSIC_LIST_SCOPE })
     }

@@ -58,7 +58,7 @@ export function onSharedAppearanceChange(
   })
 }
 
-// The data-ad-color-mode value for a preference: none for 'system'
+// The data-apexdbg-color-mode value for a preference: none for 'system'
 // (designTokensCss then follows prefers-color-scheme).
 export function colorModeAttribute(
   preference: ColorModePreference

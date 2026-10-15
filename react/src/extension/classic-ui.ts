@@ -2,7 +2,7 @@
 // (debug-log-page.ts, debug-log-list.ts, class-page.ts): the design tokens as
 // CSS custom properties, the user's color mode, page-shortcut settings, and a
 // small DOM builder. The look is in chrome/app/css/classic.css, scoped to
-// .ad-root so Salesforce's own controls keep theirs.
+// .apexdbg-root so Salesforce's own controls keep theirs.
 //
 // Everything here builds DOM with elements and textContent: page and log
 // data never goes through innerHTML.
@@ -15,13 +15,13 @@ import {
 import type { ColorModePreference } from '../ui/tokens'
 import type { PageShortcutSettings } from '../core/page-shortcuts'
 
-// Defines the --ad-* tokens on every .ad-root (light, or dark with the OS, or
-// forced with data-ad-color-mode), once per page.
+// Defines the --ad-* tokens on every .apexdbg-root (light, or dark with the OS, or
+// forced with data-apexdbg-color-mode), once per page.
 export function injectDesignTokens() {
-  if (document.getElementById('ad-design-tokens')) return
+  if (document.getElementById('apexdbg-design-tokens')) return
   const style = document.createElement('style')
-  style.id = 'ad-design-tokens'
-  style.textContent = designTokensCss('.ad-root')
+  style.id = 'apexdbg-design-tokens'
+  style.textContent = designTokensCss('.apexdbg-root')
   document.head.appendChild(style)
 }
 
@@ -36,8 +36,8 @@ export function followColorMode(
   let preference: ColorModePreference = 'system'
   const apply = () => {
     const forced = colorModeAttribute(preference)
-    if (forced) root.dataset.adColorMode = forced
-    else delete root.dataset.adColorMode
+    if (forced) root.dataset.apexdbgColorMode = forced
+    else delete root.dataset.apexdbgColorMode
     onChange(forced || (media.matches ? 'dark' : 'light'))
   }
   apply()
@@ -73,7 +73,7 @@ type Props = Record<string, unknown> & {
   dataset?: Record<string, string>
 }
 
-// A small element builder: h('button', { className: 'ad-button', text: 'Go',
+// A small element builder: h('button', { className: 'apexdbg-button', text: 'Go',
 // onclick }, child, …). `text` sets textContent; `attrs` sets attributes
 // (aria-*, for, role); other keys are assigned as properties.
 export function h<K extends keyof HTMLElementTagNameMap>(
@@ -97,7 +97,7 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return element
 }
 
-// A labeled checkbox: <label class="ad-check"><input id> Text</label>.
+// A labeled checkbox: <label class="apexdbg-check"><input id> Text</label>.
 export function checkbox(
   id: string,
   label: string,
@@ -108,10 +108,10 @@ export function checkbox(
   const input = h('input', { type: 'checkbox', id, checked })
   if (shortcut) input.setAttribute('aria-keyshortcuts', shortcut)
   input.addEventListener('change', () => onchange(input.checked))
-  return h('label', { className: 'ad-check', htmlFor: id }, input, label)
+  return h('label', { className: 'apexdbg-check', htmlFor: id }, input, label)
 }
 
-// A labeled select: <span class="ad-field"><label for>…</label><select id>.
+// A labeled select: <span class="apexdbg-field"><label for>…</label><select id>.
 export function select(
   id: string,
   label: string,
@@ -128,7 +128,7 @@ export function select(
   element.addEventListener('change', () => onchange(element.value))
   return h(
     'span',
-    { className: 'ad-field' },
+    { className: 'apexdbg-field' },
     h('label', { htmlFor: id, text: label }),
     element
   )
@@ -138,7 +138,7 @@ export function select(
 export function keysElement(keys: string): HTMLSpanElement {
   return h(
     'span',
-    { className: 'ad-keys' },
+    { className: 'apexdbg-keys' },
     ...keys
       .split('+')
       .map(part =>

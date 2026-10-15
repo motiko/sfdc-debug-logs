@@ -238,6 +238,19 @@ async function openAppWithShiftW(sfPage, consoleLog, name) {
 
 const classicUrl = id => `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${id}`
 
+test('logs in with the OAuth 2.0 JWT bearer flow', { skip: !MOCK && 'mock org only' }, () => {
+  // startRun() logged in to the mock org through scripts/lib/sf-auth.mjs
+  // login() with an External Client App's key, the way the real org is
+  // reached once SF_CLIENT_ID is set; the browser uses that session through
+  // frontdoor.jsp in every test below.
+  const { byKind } = run.mock.org.stats()
+  assert.equal(byKind['oauth token'], 1, 'one token request')
+  assert.equal(byKind['soap login'], undefined, 'no SOAP login')
+  assert.equal(session.sessionId, run.mock.org.sessionId, 'the access token is the session')
+  assert.equal(session.userId, run.mock.org.user.Id, 'user id from the identity URL')
+  assert.equal(session.orgId, run.mock.org.orgId, 'org id from the identity URL')
+})
+
 test('classic log view', async t => {
   const page = await ext.browser.newPage()
   const errors = collectPageErrors(page)
@@ -605,6 +618,55 @@ test('React log viewer', async t => {
     const countAfter = (await sf.query(`SELECT Id FROM ApexLog WHERE Id = '${log.Id}'`)).length
     assert.equal(countAfter, countBefore, 'the log still exists')
     assert.ok((await rowIds()).includes(log.Id), 'the log is still listed')
+  })
+
+  await t.test('a confirmation toast covers no header control, and the menu opens under it', async () => {
+    // Extending logging (on since ensureLogging) shows a confirmation.
+    await app.click('::-p-xpath(//header//button[starts-with(normalize-space(), "Logging on")])')
+    const extend = '::-p-aria([name="Extend to 24 hours from now"][role="menuitem"])'
+    await app.waitForSelector(extend, { visible: true })
+    await app.click(extend)
+    await app.waitForSelector('[role="menu"]', { hidden: true })
+    const TOAST = '[data-testid="toast"]'
+    await app.waitForSelector(TOAST, { visible: true, timeout: 30000 })
+    const state = await app.evaluate(() => {
+      const toast = document.querySelector('[data-testid="toast"]')
+      const rect = toast.getBoundingClientRect()
+      const header = document.querySelector('header').getBoundingClientRect()
+      // Buttons in view (header, list footer, ...) whose middle the toast covers.
+      const covered = [...document.querySelectorAll('button')].filter(b => {
+        const r = b.getBoundingClientRect()
+        if (!r.width || !r.height || r.bottom <= 0 || r.top >= window.innerHeight) return false
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return toast.contains(hit)
+      })
+      const style = getComputedStyle(toast)
+      const live = [...document.querySelectorAll('[role="status"][aria-live="polite"]')].map(el => el.textContent)
+      return {
+        belowHeader: rect.top >= header.bottom,
+        atBottom: window.innerHeight - rect.bottom < 120,
+        covered: covered.map(b => b.getAttribute('aria-label') || b.textContent),
+        rootPointerEvents: getComputedStyle(toast.parentElement).pointerEvents,
+        color: style.color,
+        background: style.backgroundColor,
+        live
+      }
+    })
+    assert.ok(state.belowHeader && state.atBottom, 'the toast is near the bottom, clear of the header')
+    assert.deepEqual(state.covered, [], 'every button in view can still be clicked')
+    assert.equal(state.rootPointerEvents, 'none', 'only the message itself takes clicks')
+    assert.equal(state.color, toRgb(uiColors.light.surface), 'toast text')
+    assert.equal(state.background, toRgb(uiColors.light.text), 'toast background')
+    assert.ok(
+      state.live.some(text => /^Logging extended until /.test(text)),
+      `the confirmation is in a polite live region (${state.live.join(' | ')})`
+    )
+    // While the toast shows, the overflow menu opens and its items work.
+    await openMenuItem('Appearance…')
+    await app.waitForSelector(dialog('Appearance'), { visible: true })
+    await app.click(`${dialog('Appearance')} ::-p-aria([name="Close appearance"][role="button"])`)
+    await app.waitForSelector(dialog('Appearance'), { hidden: true })
+    await app.waitForSelector(TOAST, { hidden: true, timeout: 15000 })
   })
 
   await t.test('help overlay lists the shortcuts', async () => {
@@ -975,7 +1037,7 @@ test('React log viewer', async t => {
       body: getComputedStyle(document.body).backgroundColor,
       header: getComputedStyle(document.querySelector('header')).backgroundColor,
       headerText: getComputedStyle(document.querySelector('header h1')).color,
-      mode: document.documentElement.dataset.adColorMode
+      mode: document.documentElement.dataset.apexdbgColorMode
     }))
     assert.equal(colors.mode, 'dark')
     assert.equal(colors.body, toRgb(uiColors.dark.bg), 'page background')
@@ -1289,10 +1351,10 @@ test('classic log page toolbar', async t => {
   const errors = collectPageErrors(page)
   await page.setViewport({ width: 1200, height: 800 })
   await page.goto(frontdoorUrl(session, classicUrl(log.Id)), { waitUntil: 'networkidle2' })
-  await page.waitForSelector('#adToolbar', { timeout: 20000 })
+  await page.waitForSelector('#apexdbgToolbar', { timeout: 20000 })
 
   await t.test('every control has a label', async () => {
-    const unlabeled = await page.$$eval('#adToolbar select, #adToolbar input', els =>
+    const unlabeled = await page.$$eval('#apexdbgToolbar select, #apexdbgToolbar input', els =>
       els.filter(el => !(el.labels && el.labels.length && el.labels[0].textContent.trim())).map(el => el.id)
     )
     assert.deepEqual(unlabeled, [])
@@ -1301,7 +1363,7 @@ test('classic log page toolbar', async t => {
   await t.test('the toolbar stays in view while the log scrolls', async () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2))
     await delay(200)
-    const top = await page.$eval('#adToolbar', el => el.getBoundingClientRect().top)
+    const top = await page.$eval('#apexdbgToolbar', el => el.getBoundingClientRect().top)
     assert.ok(top >= -1 && top < 5, `toolbar top at ${top}px`)
     await page.evaluate(() => window.scrollTo(0, 0))
   })
@@ -1355,26 +1417,26 @@ test('classic log list: delete asks with scope and count; search reports results
     await page.evaluate(() => document.activeElement && document.activeElement.blur())
     await page.keyboard.press('KeyA')
     await delay(300)
-    assert.equal(await page.$('#adDeleteDialog'), null)
+    assert.equal(await page.$('#apexdbgDeleteDialog'), null)
   })
 
   await t.test('the dialog defaults to my logs, shows counts, and Cancel deletes nothing', async () => {
     const before = (await sf.query('SELECT Id FROM ApexLog')).length
     await page.click('#real_delete_all')
     await page.waitForFunction(
-      () => /Only my logs \(\d[\d,]*\)/.test((document.querySelector('#adDeleteDialog') || {}).innerText || ''),
+      () => /Only my logs \(\d[\d,]*\)/.test((document.querySelector('#apexdbgDeleteDialog') || {}).innerText || ''),
       { timeout: 30000 }
     )
-    const state = await page.$eval('#adDeleteDialog', d => ({
+    const state = await page.$eval('#apexdbgDeleteDialog', d => ({
       open: d.open,
-      mine: d.querySelector('#adDeleteMine').checked,
+      mine: d.querySelector('#apexdbgDeleteMine').checked,
       confirm: [...d.querySelectorAll('button')].map(b => b.textContent).find(t => /^Delete/.test(t))
     }))
     assert.equal(state.open, true)
     assert.equal(state.mine, true, 'only my logs by default')
     assert.match(state.confirm, /^Delete [\d,]+ logs?$/)
     await page.keyboard.press('Escape')
-    await page.waitForFunction(() => !document.querySelector('#adDeleteDialog'))
+    await page.waitForFunction(() => !document.querySelector('#apexdbgDeleteDialog'))
     assert.equal((await sf.query('SELECT Id FROM ApexLog')).length, before, 'nothing deleted')
   })
 
@@ -1387,12 +1449,12 @@ test('classic log list: delete asks with scope and count; search reports results
       },
       MARKER
     )
-    await page.waitForFunction(() => /contain/.test(document.querySelector('#adSearchStatus').textContent), {
+    await page.waitForFunction(() => /contain/.test(document.querySelector('#apexdbgSearchStatus').textContent), {
       timeout: 60000
     })
-    const status = await page.$eval('#adSearchStatus', el => el.textContent)
+    const status = await page.$eval('#apexdbgSearchStatus', el => el.textContent)
     assert.match(status, /^\d+ of \d+ logs contain/)
-    assert.ok((await page.$$('tr.ad-match')).length >= 1, 'matching rows are marked')
+    assert.ok((await page.$$('tr.apexdbg-match')).length >= 1, 'matching rows are marked')
   })
 
   if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
@@ -1453,7 +1515,7 @@ test('options page', async t => {
 
   await t.test('color mode is shared with the classic pages', async () => {
     await page.click('::-p-xpath(//button[normalize-space()="Dark"])')
-    await page.waitForFunction(() => document.documentElement.dataset.adColorMode === 'dark')
+    await page.waitForFunction(() => document.documentElement.dataset.apexdbgColorMode === 'dark')
     const { appearance } = await ext.background.evaluate(() => chrome.storage.local.get('appearance'))
     assert.deepEqual(appearance, { colorMode: 'dark' })
     await page.click('::-p-xpath(//button[normalize-space()="System"])')

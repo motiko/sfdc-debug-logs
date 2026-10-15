@@ -1,8 +1,8 @@
 /* The classic debug log list (react/src/extension/debug-log-list.ts). The
    controls themselves are styled by classic.css (design tokens). */
 
-.ad-list-tools,
-.ad-inline-tools {
+.apexdbg-list-tools,
+.apexdbg-inline-tools {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
@@ -12,15 +12,15 @@
 }
 
 /* The destructive action sits apart from the others. */
-.ad-list-tools .ad-danger-zone {
+.apexdbg-list-tools .apexdbg-danger-zone {
   margin-left: 16px;
   padding-left: 16px;
   border-left: 1px solid var(--ad-divider);
 }
 
-.ad-list-tools input[type='number'] { width: 80px }
+.apexdbg-list-tools input[type='number'] { width: 80px }
 
-.ad-search {
+.apexdbg-search {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -28,11 +28,11 @@
   margin: 6px 0;
   font-weight: normal;
 }
-.ad-search input[type='search'] { width: 240px }
-.ad-search > label { font-weight: 600 }
+.apexdbg-search input[type='search'] { width: 240px }
+.apexdbg-search > label { font-weight: 600 }
 
 /* Rows added by "Load new logs". */
-tr.ad-new-row td { background: #e6f4f1 !important }
+tr.apexdbg-new-row td { background: #e6f4f1 !important }
 @media (prefers-reduced-motion: no-preference) {
-  tr.ad-new-row td { transition: background 1s }
+  tr.apexdbg-new-row td { transition: background 1s }
 }

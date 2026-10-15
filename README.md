@@ -78,7 +78,7 @@ cd react
 npm run lint && npm run format:check && npm run typecheck && npm test
 ```
 
-The end-to-end flow also runs offline, against a mock Salesforce org (no credentials, no API requests): `cd e2e && npm install && npm run test:mock`. Against a real org (`.env.local`), `npm test`.
+The end-to-end flow also runs offline, against a mock Salesforce org (no credentials, no API requests): `cd e2e && npm install && npm run test:mock`. Against a real org (`.env.local`, logging in with the OAuth 2.0 JWT bearer flow: see [docs/e2e-jwt-setup.md](docs/e2e-jwt-setup.md)), `npm test`.
 
 `scripts/chrome-dev.sh` builds the app if needed and starts a test Chrome with the extension loaded.
 
