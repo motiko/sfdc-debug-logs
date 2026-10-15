@@ -7,6 +7,7 @@
 // Everything here builds DOM with elements and textContent: page and log
 // data never goes through innerHTML.
 import { designTokensCss } from '../ui/tokens'
+import { keyLabel, keySpokenNames } from '../core/key-labels'
 import {
   colorModeAttribute,
   onSharedAppearanceChange,
@@ -134,16 +135,27 @@ export function select(
   )
 }
 
-// Keys as <kbd> elements: "Shift+e" -> Shift E.
+// Keys as <kbd> elements: "Shift+e" -> Shift E (⇧ E on macOS). Symbols are
+// hidden from screen readers, which read their names instead.
 export function keysElement(keys: string): HTMLSpanElement {
+  const spoken = keySpokenNames(keys)
   return h(
     'span',
     { className: 'apexdbg-keys' },
-    ...keys
-      .split('+')
-      .map(part =>
-        h('kbd', { text: part.length === 1 ? part.toUpperCase() : part })
-      )
+    ...keyLabel(keys).map((part, i) =>
+      spoken[i]
+        ? h(
+            'kbd',
+            {},
+            h('span', {
+              text: part,
+              className: part.length === 1 ? 'apexdbg-key-symbol' : '',
+              attrs: { 'aria-hidden': 'true' }
+            }),
+            h('span', { className: 'apexdbg-sr-only', text: spoken[i] })
+          )
+        : h('kbd', { text: part })
+    )
   )
 }
 

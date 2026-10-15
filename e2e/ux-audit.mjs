@@ -6,7 +6,7 @@
 // indicators, dialog focus return). Used by the ux-ui-review agent
 // (.claude/agents/ux-ui-review.md), and meant to be rerun after UI changes.
 //
-//   node ux-audit.mjs [--out <dir>] [--views app,classic,options,exec,trace]
+//   node ux-audit.mjs [--out <dir>] [--views app,classic,options,exec,trace,welcome]
 //                     [--sizes 1440x900,1024x768] [--compare <previous out dir>]
 //                     [--mock]
 //
@@ -46,7 +46,7 @@ const AXE_PATH = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 const { values: args } = parseArgs({
   options: {
     out: { type: 'string', default: join(HERE, 'ux-artifacts') },
-    views: { type: 'string', default: 'app,classic,options,exec,trace' },
+    views: { type: 'string', default: 'app,classic,options,exec,trace,welcome' },
     sizes: { type: 'string', default: '1440x900,1024x768' },
     compare: { type: 'string' },
     mock: { type: 'boolean', default: process.env.SF_MOCK === '1' }
@@ -2309,6 +2309,55 @@ async function optionsView(ctx) {
   await page.close()
 }
 
+// --- First run: welcome and the toolbar button's no-session notice ---------
+// The options page's #welcome (opened once on install; main() closes the tab
+// the install opened and this view opens its own at each size) and
+// #no-session (the toolbar button on an org tab without a session). Checks
+// are scoped to the new sections; the rest of the page is the options view.
+
+async function welcomeView(ctx) {
+  const V = 'welcome'
+  const optionsUrl = hash => `chrome-extension://${ctx.ext.extensionId}/html/options.html#${hash}`
+  const page = await newPage(ctx)
+  // Light first, whatever the machine's color mode.
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+  await page.goto(optionsUrl('welcome'), { waitUntil: 'networkidle2' })
+  await page.waitForSelector('#welcome-panel', { timeout: 10000 })
+  await delay(500)
+  summary.welcomeScrollY = await page.evaluate(() => window.scrollY)
+  await capture(ctx, page, V, 'open', { scope: ['#welcome-panel'] })
+  if (ctx.primary) saveKeyboard(`${V}-keyboard`, await tabThrough(page, 'welcome', { maxStops: 6 }))
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+  await delay(400)
+  await capture(ctx, page, V, 'open-dark', { scope: ['#welcome-panel'] })
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+  // "Got it": the welcome goes, focus moves to the page title.
+  const gotIt = await byName(page, [/^got it$/i], { roles: ['button'] })
+  if (gotIt) {
+    await gotIt.focus()
+    await page.keyboard.press('Enter')
+    await delay(400)
+    summary.welcomeDismissed = {
+      gone: !(await page.$('#welcome-panel')),
+      hashCleared: !new URL(page.url()).hash,
+      focus: await describeActive(page)
+    }
+    await capture(ctx, page, V, 'dismissed', { scope: ['header'] })
+  } else summary.errors.push(`${V}@${ctx.size.label}: no "Got it" button`)
+
+  // Toolbar button on an org tab without a session, as the worker opens it.
+  await page.goto(optionsUrl('no-session'), { waitUntil: 'networkidle2' })
+  await page.waitForSelector('#no-session-notice', { timeout: 10000 })
+  await delay(400)
+  await capture(ctx, page, V, 'no-session', { scope: ['#no-session-notice'] })
+  if (ctx.primary) saveKeyboard(`${V}-no-session-keyboard`, await tabThrough(page, 'no-session', { maxStops: 4 }))
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+  await delay(400)
+  await capture(ctx, page, V, 'no-session-dark', { scope: ['#no-session-notice'] })
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+  await page.close()
+}
+
 // ---------------------------------------------------------------------------
 
 function compareWith(previousDir) {
@@ -2345,6 +2394,9 @@ async function main() {
   const session = run.session
   SESSION_ID = session.sessionId
   const ext = await run.launch()
+  // The install's welcome tab (see welcomeView): closed, so every view starts
+  // from the same tabs.
+  if (ext.welcome) await ext.welcome.close()
   try {
     for (const [i, size] of SIZES.entries()) {
       const ctx = { ext, session, sf, logs, size, primary: i === 0 }
@@ -2354,7 +2406,8 @@ async function main() {
           classic: classicViews,
           options: optionsView,
           exec: executionViews,
-          trace: traceFlagsView
+          trace: traceFlagsView,
+          welcome: welcomeView
         }[view]
         if (!fn) throw new Error(`unknown view ${view}`)
         log(`--- ${view} @ ${size.label}`)

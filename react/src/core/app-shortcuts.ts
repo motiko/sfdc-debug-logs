@@ -2,7 +2,11 @@
 // (pages/logs/use-app-shortcuts.js), the "?" overlay and tooltips list them.
 // None of them deletes or changes data in Salesforce.
 //
-// Keys are KeyboardEvent.key values; "Mod" is Ctrl, or Cmd on macOS.
+// Keys are KeyboardEvent.key values; "Mod" is Ctrl, or Cmd on macOS. They
+// are shown with core/key-labels.ts (⌘ ⌥ ⇧ on macOS).
+import { isMac, keyLabel, keyParts, keyText } from './key-labels'
+
+export { isMac, keyLabel }
 
 export type ShortcutId =
   | 'help'
@@ -187,39 +191,10 @@ export const APP_SHORTCUTS: Shortcut[] = [
   }
 ]
 
-export const isMac = (
-  platform = typeof navigator === 'undefined' ? '' : navigator.platform
-) => /mac|iphone|ipad/i.test(platform)
-
-// "Shift+Enter" -> ["Shift", "Enter"]; the plus key itself is "+" (or
-// "Mod++").
-function keyParts(key: string): string[] {
-  if (key === '+') return ['+']
-  if (key.endsWith('++')) return [...key.slice(0, -2).split('+'), '+']
-  return key.split('+')
-}
-
-// How a key is shown: "Mod+f" -> "⌘ F" on macOS, "Ctrl F" elsewhere.
-export function keyLabel(key: string, mac = isMac()): string[] {
-  const names: Record<string, string> = {
-    Mod: mac ? '⌘' : 'Ctrl',
-    Shift: 'Shift',
-    Escape: 'Esc',
-    ArrowDown: '↓',
-    ArrowUp: '↑',
-    ArrowLeft: '←',
-    ArrowRight: '→',
-    Enter: 'Enter'
-  }
-  return keyParts(key).map(
-    part => names[part] || (part.length === 1 ? part.toUpperCase() : part)
-  )
-}
-
-// The first key of a shortcut, for tooltips: "Refresh (R)".
+// The first key of a shortcut, for tooltips: "Refresh (R)", "Find (⌘F)".
 export function shortcutHint(id: ShortcutId, mac = isMac()): string {
   const shortcut = APP_SHORTCUTS.find(s => s.id === id)
-  return shortcut ? keyLabel(shortcut.keys[0], mac).join(' ') : ''
+  return shortcut ? keyText(shortcut.keys[0], mac) : ''
 }
 
 interface KeyLike {
