@@ -32,6 +32,13 @@ try { Integer x = 1 / 0; } catch (Exception e) { System.debug(LoggingLevel.ERROR
   ]) {
     assert.ok(log.includes(event), event)
   }
+  const dml = runAnonymousApex(`insert new List<Account>{ new Account(Name = 'A'), new Account(Name = 'B') };`, {
+    user,
+    data: {}
+  })
+  assert.ok(dml.log.includes('DML_BEGIN|[1]|Op:Insert|Type:Account|Rows:2'))
+  assert.ok(dml.log.includes('Number of DML statements: 1 out of 150'))
+  assert.ok(dml.log.includes('Number of DML rows: 2 out of 10000'))
   const failed = runAnonymousApex('Integer y = 1 / 0;', { user, data: {} })
   assert.equal(failed.success, false)
   assert.ok(failed.log.includes('FATAL_ERROR|System.MathException: Divide by 0'))

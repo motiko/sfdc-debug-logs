@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { startRun, MOCK } from './lib/run.mjs'
 import { gotoLightning } from './lib/lightning.mjs'
+import { launchWithExtension } from './lib/browser.mjs'
 import {
   logThemes,
   CLASSIC_CATEGORY_CLASS,
@@ -40,6 +41,11 @@ List<User> users = [SELECT Id, Name FROM User LIMIT 1];
 System.debug(marker + ' users ' + users);
 System.debug('${XSS} ' + UserInfo.getUserId() + ' xss ' + marker);
 try { Integer x = 1 / 0; } catch (Exception e) { System.debug('caught ' + e.getMessage()); }
+for (Integer i = 0; i < 3; i++) { List<User> again = [SELECT Id FROM User LIMIT 1]; }
+${
+  // DML only in the mock org: it changes no data there.
+  MOCK ? "insert new List<Account>{ new Account(Name = 'E2E A'), new Account(Name = 'E2E B') };" : ''
+}
 `
 // A log long enough that the app renders only the lines in view
 // (RENDER_ALL_UP_TO in react/src/pages/logs/components/parsed-log.js). Its
@@ -742,6 +748,88 @@ test('React log viewer', async t => {
     const errorLines = await app.$$eval('pre > div[data-category="error"]', els => els.length)
     assert.ok(errorLines > 0, 'the log has an error line (the caught exception)')
     assert.equal(markers, errorLines, 'each error line has an error marker')
+  })
+
+  await t.test('summary shows limits, the exception, SOQL and DML, and jumps to their lines', async () => {
+    const activeLine = () =>
+      app.evaluate(() => {
+        const div = document.querySelector('pre > div.is-active')
+        return div ? div.innerText : null
+      })
+    const summaryRows = () =>
+      app.evaluate(() =>
+        [...document.querySelectorAll('#log-summary tbody tr')].map(r => r.innerText.replace(/\s+/g, ' ').trim())
+      )
+    await app.click('::-p-aria([name="Summary"][role="button"])')
+    await app.waitForSelector('::-p-aria([name="Log summary"])', { visible: true })
+
+    // Errors first, since the log has one.
+    const exception = '::-p-xpath(//*[@id="log-summary"]//li//button[contains(., "System.MathException: Divide by 0")])'
+    await app.click(exception)
+    await app.waitForFunction(
+      () =>
+        /EXCEPTION_THROWN\|\[\d+\]\|System\.MathException/.test(
+          (document.querySelector('pre > div.is-active') || {}).innerText || ''
+        ),
+      { timeout: 5000 }
+    )
+
+    await app.click('::-p-xpath(//*[@id="log-summary"]//*[@role="tab"][starts-with(., "Limits")])')
+    const soqlLimit = (await summaryRows()).find(r => r.startsWith('Number of SOQL queries'))
+    assert.match(soqlLimit, /\b4 \/ 100\b/, 'four queries out of 100, as in the log')
+
+    await app.click('::-p-xpath(//*[@id="log-summary"]//*[@role="tab"][starts-with(., "SOQL")])')
+    const loop = (await summaryRows()).find(r => r.includes('SELECT Id FROM User LIMIT 1'))
+    assert.match(loop, /Possible query in loop/)
+    assert.match(loop, / 3 3 /, 'the query ran 3 times and returned 3 rows')
+    await app.click('::-p-aria([name="SELECT Id FROM User LIMIT 1"][role="button"])')
+    await app.waitForFunction(
+      () =>
+        /SOQL_EXECUTE_BEGIN.*SELECT Id FROM User LIMIT 1/.test(
+          (document.querySelector('pre > div.is-active') || {}).innerText || ''
+        ),
+      { timeout: 5000 }
+    )
+    const first = await activeLine()
+    await app.click('::-p-aria([name="SELECT Id FROM User LIMIT 1"][role="button"])')
+    await app.waitForFunction(
+      before => {
+        const text = (document.querySelector('pre > div.is-active') || {}).innerText || ''
+        return text !== before && /SELECT Id FROM User LIMIT 1/.test(text)
+      },
+      { timeout: 5000 },
+      first
+    )
+
+    if (MOCK) {
+      await app.click('::-p-xpath(//*[@id="log-summary"]//*[@role="tab"][starts-with(., "DML")])')
+      const dml = await summaryRows()
+      assert.equal(dml.length, 1)
+      assert.match(dml[0], /^Insert Account 1 2 /, 'one insert of 2 accounts')
+    }
+
+    await app.click('::-p-aria([name="Hide summary"][role="button"])')
+    await app.waitForSelector('#log-summary', { hidden: true })
+  })
+
+  // The mock org seeds a failed log of another user (a LimitException).
+  await t.test('a failed log opens with its summary shown', { skip: !MOCK && 'mock org only' }, async () => {
+    const [failed] = await sf.query("SELECT Id FROM ApexLog WHERE Status != 'Success' LIMIT 1")
+    assert.ok(failed, 'the mock org has a failed log')
+    await app.evaluate(id => (location.hash = `#/logs/${id}`), failed.Id)
+    await app.waitForSelector('::-p-aria([name="Log summary"])', { visible: true, timeout: 30000 })
+    const selected = await app.$eval('#log-summary [role="tab"][aria-selected="true"]', el => el.textContent)
+    assert.match(selected, /^Errors/, 'the Errors tab is selected')
+    await app.click('::-p-aria([name="Hide summary"][role="button"])')
+    await app.waitForSelector('#log-summary', { hidden: true })
+    // Back to the successful log: the summary stays as the user left it.
+    await app.evaluate(id => (location.hash = `#/logs/${id}`), log.Id)
+    await app.waitForFunction(
+      marker => document.querySelector('pre') && document.querySelector('pre').innerText.includes(marker),
+      { timeout: 30000 },
+      MARKER
+    )
+    assert.equal(await app.$('#log-summary'), null, 'the summary is still hidden')
   })
 
   // The call tree and the timeline (core/log/execution-tree.ts).
@@ -1577,6 +1665,50 @@ test(
     } finally {
       await ext.background.evaluate(() => chrome.storage.sync.remove('pageShortcuts'))
       await page.close()
+    }
+  }
+)
+
+// Reloading or updating the extension cuts the content scripts of open tabs
+// off from it (chrome.runtime loses its id). The shortcuts script must then
+// unbind its keys and say so, not throw. Its own browser: the reload kills
+// the shared worker handle.
+test(
+  'page shortcuts: after an extension reload the keys say to reload the page',
+  { skip: !MOCK && 'mock org only' },
+  async () => {
+    const own = await launchWithExtension({ mock: run.mock })
+    try {
+      const page = await own.browser.newPage()
+      const messages = []
+      page.on('console', m => messages.push(`${m.type()}: ${m.text()}`))
+      page.on('pageerror', e => messages.push(`error: ${e.message}`))
+      await page.goto(frontdoorUrl(session, '/setup/ui/listApexTraces.apexp'), { waitUntil: 'networkidle2' })
+      await page.waitForFunction(
+        () => location.pathname.includes('listApexTraces') && document.readyState === 'complete'
+      )
+      await delay(1000)
+      await own.background.evaluate(() => chrome.runtime.reload())
+      await page.waitForFunction(() => !(window.chrome && chrome.runtime && chrome.runtime.id), { timeout: 10000 })
+      const before = messages.length
+      await page.bringToFront()
+      await page.keyboard.down('Shift')
+      await page.keyboard.press('KeyW')
+      await page.keyboard.up('Shift')
+      await delay(1500)
+      const after = messages.slice(before)
+      assert.ok(
+        after.some(m => m.startsWith('log:') && m.includes('Reload this page')),
+        `tells the user to reload the page: ${after.join(' | ')}`
+      )
+      assert.ok(!after.some(m => m.startsWith('error:')), `no page error: ${after.join(' | ')}`)
+      assert.equal(
+        (await own.browser.pages()).filter(p => p.url().includes('/html/app.html')).length,
+        0,
+        'no app opened'
+      )
+    } finally {
+      await own.close()
     }
   }
 )

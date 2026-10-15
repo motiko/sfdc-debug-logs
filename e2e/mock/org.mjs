@@ -249,7 +249,8 @@ export class MockOrg {
         user: this.otherUser,
         operation: 'BatchApexWorker',
         status: 'System.LimitException: Too many SOQL queries: 101',
-        apex: "System.debug('batch');"
+        // Uncaught, so the body ends with a FATAL_ERROR like a real failed run.
+        apex: "System.debug('batch'); Integer x = 1 / 0;"
       },
       { user: this.user, operation: '/aura', status: 'Success', apex: "System.debug('aura action');" }
     ]
