@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { startRun, MOCK } from './lib/run.mjs'
 import { gotoLightning } from './lib/lightning.mjs'
+import { launchWithExtension } from './lib/browser.mjs'
 import {
   logThemes,
   CLASSIC_CATEGORY_CLASS,
@@ -1295,6 +1296,50 @@ test(
     } finally {
       await ext.background.evaluate(() => chrome.storage.sync.remove('pageShortcuts'))
       await page.close()
+    }
+  }
+)
+
+// Reloading or updating the extension cuts the content scripts of open tabs
+// off from it (chrome.runtime loses its id). The shortcuts script must then
+// unbind its keys and say so, not throw. Its own browser: the reload kills
+// the shared worker handle.
+test(
+  'page shortcuts: after an extension reload the keys say to reload the page',
+  { skip: !MOCK && 'mock org only' },
+  async () => {
+    const own = await launchWithExtension({ mock: run.mock })
+    try {
+      const page = await own.browser.newPage()
+      const messages = []
+      page.on('console', m => messages.push(`${m.type()}: ${m.text()}`))
+      page.on('pageerror', e => messages.push(`error: ${e.message}`))
+      await page.goto(frontdoorUrl(session, '/setup/ui/listApexTraces.apexp'), { waitUntil: 'networkidle2' })
+      await page.waitForFunction(
+        () => location.pathname.includes('listApexTraces') && document.readyState === 'complete'
+      )
+      await delay(1000)
+      await own.background.evaluate(() => chrome.runtime.reload())
+      await page.waitForFunction(() => !(window.chrome && chrome.runtime && chrome.runtime.id), { timeout: 10000 })
+      const before = messages.length
+      await page.bringToFront()
+      await page.keyboard.down('Shift')
+      await page.keyboard.press('KeyW')
+      await page.keyboard.up('Shift')
+      await delay(1500)
+      const after = messages.slice(before)
+      assert.ok(
+        after.some(m => m.startsWith('log:') && m.includes('Reload this page')),
+        `tells the user to reload the page: ${after.join(' | ')}`
+      )
+      assert.ok(!after.some(m => m.startsWith('error:')), `no page error: ${after.join(' | ')}`)
+      assert.equal(
+        (await own.browser.pages()).filter(p => p.url().includes('/html/app.html')).length,
+        0,
+        'no app opened'
+      )
+    } finally {
+      await own.close()
     }
   }
 )
