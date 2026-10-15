@@ -72,8 +72,9 @@ const FIND_DELAY_MS = 200
 // The opened log (#/logs/<id>): its metadata and actions, a toolbar (find
 // with a match counter, next error / next debug line, event-type toggles
 // with counts, expand all values, the summary), the summary panel (errors,
-// limits, SOQL, DML; entries jump to their line) and the log body. A failed run opens at
-// its first error, any other log at the top. The ref offers the page's
+// limits, SOQL, DML; entries jump to their line) and the log body. A failed
+// run opens at its first error with the summary shown, any other log at the
+// top with the summary as the user left it. The ref offers the page's
 // shortcuts: focusFind(), nextError(), nextDebug().
 const LogViewer = forwardRef(function LogViewer(
   { logId, log, colorMode, initialFind },
@@ -143,8 +144,8 @@ const LogViewer = forwardRef(function LogViewer(
   }, [findInput])
   useEffect(() => setCurrent(0), [term])
 
-  // A newly opened log starts at the top, or at its first error if the run
-  // failed (docs/ux/baseline-review.md M7).
+  // A newly opened log starts at the top, or at its first error with the
+  // summary open if the run failed (docs/ux/baseline-review.md M7).
   const positioned = useRef(null)
   useEffect(() => {
     if (!scrollElement || !body || positioned.current === logId) return
@@ -154,6 +155,7 @@ const LogViewer = forwardRef(function LogViewer(
       ? isFailed(log)
       : allLines.some(l => l.eventType === 'FATAL_ERROR')
     const firstError = failed ? lines.findIndex(isErrorLine) : -1
+    if (failed) setSummaryOpen(true)
     scrollElement.scrollTop = 0
     if (firstError > 0) {
       setActiveRow(firstError)

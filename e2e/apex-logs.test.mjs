@@ -749,6 +749,26 @@ test('React log viewer', async t => {
     await app.waitForSelector('#log-summary', { hidden: true })
   })
 
+  // The mock org seeds a failed log of another user (a LimitException).
+  await t.test('a failed log opens with its summary shown', { skip: !MOCK && 'mock org only' }, async () => {
+    const [failed] = await sf.query("SELECT Id FROM ApexLog WHERE Status != 'Success' LIMIT 1")
+    assert.ok(failed, 'the mock org has a failed log')
+    await app.evaluate(id => (location.hash = `#/logs/${id}`), failed.Id)
+    await app.waitForSelector('::-p-aria([name="Log summary"])', { visible: true, timeout: 30000 })
+    const selected = await app.$eval('#log-summary [role="tab"][aria-selected="true"]', el => el.textContent)
+    assert.match(selected, /^Errors/, 'the Errors tab is selected')
+    await app.click('::-p-aria([name="Hide summary"][role="button"])')
+    await app.waitForSelector('#log-summary', { hidden: true })
+    // Back to the successful log: the summary stays as the user left it.
+    await app.evaluate(id => (location.hash = `#/logs/${id}`), log.Id)
+    await app.waitForFunction(
+      marker => document.querySelector('pre') && document.querySelector('pre').innerText.includes(marker),
+      { timeout: 30000 },
+      MARKER
+    )
+    assert.equal(await app.$('#log-summary'), null, 'the summary is still hidden')
+  })
+
   await t.test('indent toggle beautifies a debugged SObject', async () => {
     // "<marker> users (User:{Id=…, Name=…})" is pretty-printed with js-beautify.
     const line = () =>
