@@ -63,6 +63,8 @@ function parseLiteral(raw) {
   const value = raw.trim()
   if (/^'.*'$/.test(value)) return value.slice(1, -1).replace(/\\(.)/g, '$1')
   if (value.toLowerCase() === 'null') return null
+  if (value.toLowerCase() === 'true') return true
+  if (value.toLowerCase() === 'false') return false
   if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value)
   if (/^\d{4}-\d\d-\d\dT/.test(value)) return new Date(value).getTime()
   return value
@@ -81,6 +83,20 @@ function condition(record, cond, get) {
   if (inMatch) {
     const values = inMatch[2].split(',').map(parseLiteral)
     return values.includes(get(record, inMatch[1]))
+  }
+  const likeMatch = /^([\w.]+)\s+LIKE\s+(.+)$/i.exec(cond)
+  if (likeMatch) {
+    // % and _ are wildcards; \% and \_ match themselves.
+    const pattern = String(likeMatch[2].trim().slice(1, -1))
+    let source = ''
+    for (let i = 0; i < pattern.length; i++) {
+      const c = pattern[i]
+      if (c === '\\') source += escapeRegExp(pattern[++i] || '')
+      else if (c === '%') source += '.*'
+      else if (c === '_') source += '.'
+      else source += escapeRegExp(c)
+    }
+    return new RegExp(`^${source}$`, 'is').test(String(get(record, likeMatch[1]) ?? ''))
   }
   const m = /^([\w.]+)\s*(!=|>=|<=|=|>|<)\s*(.+)$/.exec(cond)
   if (!m) throw new Error(`mock SOQL: can't read condition ${cond}`)
@@ -105,6 +121,8 @@ function condition(record, cond, get) {
   }
 }
 
+const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 export class MockOrg {
   constructor({ apiVersion = API_VERSION } = {}) {
     this.apiVersion = apiVersion
@@ -115,9 +133,31 @@ export class MockOrg {
       Name: 'Mock Developer',
       Username: 'developer@apexdbgr-mock.example',
       IsActive: true,
+      UserType: 'Standard',
       UserPreferencesLightningExperiencePreferred: false
     }
-    this.otherUser = { Id: '005MK0000000002AAA', Name: 'Other Developer' }
+    this.otherUser = {
+      Id: '005MK0000000002AAA',
+      Name: 'Other Developer',
+      Username: 'other@apexdbgr-mock.example',
+      IsActive: true,
+      UserType: 'Standard'
+    }
+    // Runs platform event triggers and some async work; traced like a user.
+    this.automatedProcess = {
+      Id: '005MK0000000003AAA',
+      Name: 'Automated Process',
+      Username: 'autoproc@00dmk0000000001aaa',
+      IsActive: true,
+      UserType: 'AutomatedProcess'
+    }
+    // The same classes as the mock class list page (mock/server.mjs).
+    this.apexClasses = [
+      { Id: '01pMK0000000001AAA', Name: 'AccountService', NamespacePrefix: null },
+      { Id: '01pMK0000000002AAA', Name: 'InvoiceBatch', NamespacePrefix: null },
+      { Id: '01pMK0000000003AAA', Name: 'LeadTriggerHandler', NamespacePrefix: null }
+    ]
+    this.apexTriggers = [{ Id: '01qMK0000000001AAA', Name: 'LeadTrigger', NamespacePrefix: null }]
     this.accounts = [
       { Id: '001MK0000000001AAA', Name: 'Acme', CreatedDate: '2026-10-01T10:00:00.000+0000' },
       { Id: '001MK0000000002AAA', Name: 'Globex', CreatedDate: '2026-10-02T10:00:00.000+0000' }
@@ -355,6 +395,13 @@ export class MockOrg {
       return { status: 204, headers: {}, body: '' }
     }
     if (method === 'PATCH') {
+      if (object === 'TraceFlag') {
+        const next = { ...table[index], ...body }
+        const span = new Date(next.ExpirationDate).getTime() - new Date(next.StartDate).getTime()
+        if (span > 24 * 3600_000 + 60_000) {
+          return sfError(400, 'FIELD_INTEGRITY_EXCEPTION', 'The trace flag can be at most 24 hours')
+        }
+      }
       Object.assign(table[index], body)
       return { status: 204, headers: {}, body: '' }
     }
@@ -374,7 +421,9 @@ export class MockOrg {
       ApexLog: this.logs,
       DebugLevel: this.debugLevels,
       TraceFlag: this.traceFlags,
-      User: [this.user]
+      User: [this.user, this.otherUser, this.automatedProcess],
+      ApexClass: this.apexClasses,
+      ApexTrigger: this.apexTriggers
     }
     if (!tables[object]) throw new Error(`mock SOQL: no ${object}`)
     const get = (record, field) => {

@@ -19,6 +19,7 @@ Key Features
   * Call tree and timeline of a log: code units, methods, SOQL, DML, callouts and flows nested as they ran, with total and own time and SOQL/DML counts; choose one to go to its line.
   * Delete logs: only yours, or all users', always confirmed with the count.
   * Start, extend or stop logging (a 24-hour trace flag for the current user).
+  * Trace flags: see the org's active trace flags with their expiry and stop them; trace yourself, another user (found by name), the Automated Process user or an Apex class or trigger, with the extension's debug level, one of the org's, or custom levels per category (presets Default, Apex FINEST, Quiet), for 30 minutes up to 24 hours.
   * Customizable keyboard shortcuts for Salesforce
 
 Keyboard Shortcuts

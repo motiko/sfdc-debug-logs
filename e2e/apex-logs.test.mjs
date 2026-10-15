@@ -1111,6 +1111,141 @@ test('pages without readable ids', async t => {
   })
 })
 
+// Creates and deletes trace flags for other users, Automated Process and an
+// Apex class: on the mock org only, so a run never changes how a real org's
+// other users or classes are logged.
+test('trace flags: debug level, duration and target', { skip: !MOCK && 'mock org only' }, async t => {
+  const page = await ext.browser.newPage()
+  const errors = collectPageErrors(page)
+  await page.setViewport({ width: 1400, height: 1000 })
+  await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }])
+  const host = new URL(session.instance).hostname
+  await page.goto(
+    `chrome-extension://${ext.extensionId}/html/app.html?oid=${session.orgId}&uid=${session.userId}&sid=${encodeURIComponent(session.sessionId)}&host=${host}`
+  )
+  await page.bringToFront()
+  const DIALOG = '::-p-aria([name="Trace flags"][role="dialog"])'
+  const combobox = label => `${DIALOG} ::-p-aria([name="${label}"][role="combobox"])`
+  const button = name => `${DIALOG} ::-p-aria([name="${name}"][role="button"])`
+  const chooseOption = async (label, text) => {
+    await page.click(combobox(label))
+    const option = `::-p-xpath(//li[@role="option" and normalize-space()="${text}"])`
+    await page.waitForSelector(option, { visible: true })
+    await page.click(option)
+    await page.waitForSelector('[role="listbox"]', { hidden: true })
+    await delay(200)
+  }
+  // An Autocomplete: type, then pick the option whose primary text is `name`.
+  const pick = async (label, term, name) => {
+    await page.click(combobox(label))
+    await page.type(combobox(label), term)
+    const option = `::-p-xpath(//li[@role="option" and .//*[normalize-space()="${name}"]])`
+    await page.waitForSelector(option, { visible: true, timeout: 10000 })
+    await page.click(option)
+    await delay(200)
+  }
+  const flagRows = () => page.$$eval('[role="dialog"] li[data-flag-id]', rows => rows.map(r => r.innerText))
+  const waitForRow = (text, present = true) =>
+    page.waitForFunction(
+      (text, present) =>
+        [...document.querySelectorAll('[role="dialog"] li[data-flag-id]')].some(r => r.innerText.includes(text)) ===
+        present,
+      { timeout: 15000 },
+      text,
+      present
+    )
+  const activeFlags = entityId =>
+    sf.query(
+      `SELECT Id, StartDate, ExpirationDate, LogType, DebugLevel.DeveloperName FROM TraceFlag ` +
+        `WHERE TracedEntityId = '${entityId}' AND ExpirationDate > ${new Date().toISOString()}`
+    )
+  const allFlags = async () => (await sf.query('SELECT Id FROM TraceFlag')).length
+
+  try {
+    await t.test('the dialog opens from the logging menu and starts nothing by itself', async () => {
+      const before = await allFlags()
+      const status = '::-p-xpath(//button[starts-with(normalize-space(), "Logging on")])'
+      await page.waitForSelector(status, { timeout: 30000 })
+      await page.click(status)
+      const item = '::-p-xpath(//li[@role="menuitem" and .//*[normalize-space()="Trace flags…"]])'
+      await page.waitForSelector(item, { visible: true })
+      await page.click(item)
+      await page.waitForSelector(DIALOG, { visible: true })
+      await waitForRow('You (Mock Developer)')
+      assert.ok(await page.$(button('Stop tracing You (Mock Developer)')), 'my flag has a named Stop button')
+      const row = (await flagRows()).find(r => r.includes('You (Mock Developer)'))
+      assert.match(row, /\d+ (h|min)( \d+ min)? left/, 'the flag shows the time left')
+      assert.match(row, /until (tomorrow |[A-Z][a-z]{2} \d{1,2}, )?\d{1,2}:\d{2}/, 'and when it ends')
+      await delay(500)
+      assert.equal(await allFlags(), before, 'opening the dialog creates no trace flag')
+    })
+
+    await t.test('a class with custom levels for 1 hour, then stopped', async () => {
+      const classId = '01pMK0000000002AAA'
+      await chooseOption('Trace', 'An Apex class or trigger')
+      await pick('Apex class or trigger', 'invoice', 'InvoiceBatch')
+      await chooseOption('Debug level', 'Custom levels…')
+      await page.click(`${DIALOG} ::-p-aria([name="Apex FINEST"][role="button"])`)
+      const apexLevel = await page.$eval(combobox('Apex code'), el => el.textContent)
+      assert.equal(apexLevel, 'FINEST', 'the preset sets Apex code to FINEST')
+      await chooseOption('Database', 'NONE')
+      await chooseOption('Duration', '1 hour')
+      await page.click(button('Start tracing'))
+      await waitForRow('InvoiceBatch · Class')
+      const [flag] = await activeFlags(classId)
+      assert.equal(flag.LogType, 'CLASS_TRACING')
+      assert.equal(flag.DebugLevel.DeveloperName, 'ApexDbgrCustom')
+      const span = new Date(flag.ExpirationDate) - new Date(flag.StartDate)
+      assert.ok(Math.abs(span - 3600_000) < 5000, `1 hour (was ${span} ms)`)
+      const [level] = await sf.query(
+        "SELECT ApexCode, Database, System FROM DebugLevel WHERE DeveloperName = 'ApexDbgrCustom'"
+      )
+      const { ApexCode, Database, System } = level
+      assert.deepEqual(
+        { ApexCode, Database, System },
+        {
+          ApexCode: 'FINEST',
+          Database: 'NONE',
+          System: 'DEBUG'
+        }
+      )
+      await page.click(button('Stop tracing InvoiceBatch'))
+      await waitForRow('InvoiceBatch', false)
+      assert.deepEqual(await activeFlags(classId), [], 'Stop deletes the flag')
+    })
+
+    await t.test('another user found by name, and Automated Process', async () => {
+      const other = '005MK0000000002AAA'
+      await chooseOption('Trace', 'Another user')
+      await pick('User', 'other', 'Other Developer')
+      await chooseOption('Debug level', 'ApexDbgrExtension (extension default)')
+      await chooseOption('Duration', '30 minutes')
+      await page.click(button('Start tracing'))
+      await waitForRow('Other Developer · User')
+      const [flag] = await activeFlags(other)
+      assert.equal(flag.LogType, 'USER_DEBUG')
+      assert.equal(flag.DebugLevel.DeveloperName, 'ApexDbgrExtension')
+      await chooseOption('Trace', 'Automated Process')
+      await page.click(button('Start tracing'))
+      await waitForRow('Automated Process · User')
+      for (const name of ['Other Developer', 'Automated Process']) {
+        await page.click(button(`Stop tracing ${name}`))
+        await waitForRow(name, false)
+      }
+      assert.deepEqual(await activeFlags(other), [])
+      assert.ok(
+        (await flagRows()).some(r => r.includes('You (Mock Developer)')),
+        'my own flag is untouched'
+      )
+      await page.click(button('Close'))
+      await page.waitForSelector(DIALOG, { hidden: true })
+    })
+  } finally {
+    if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
+    await page.close()
+  }
+})
+
 test('classic log page toolbar', async t => {
   const page = await ext.browser.newPage()
   const errors = collectPageErrors(page)
