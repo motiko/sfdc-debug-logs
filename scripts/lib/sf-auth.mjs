@@ -1,14 +1,20 @@
 // Salesforce credentials and login shared by scripts/sf-login.mjs and e2e/.
 //
-// Credentials come from .env.local (or the process environment, which wins):
-//   SF_USER, SF_PASS, SF_TOKEN (security token; may be empty from a trusted IP),
-//   SF_LOGIN_URL (default https://login.salesforce.com; https://test.salesforce.com
-//   for sandboxes).
-// Alternatively SF_ACCESS_TOKEN + SF_INSTANCE_URL use an existing session
-// (e.g. from `sf org display`) and skip the SOAP login.
+// Credentials come from .env.local (or the process environment, which wins).
+// Each org logs in one of three ways, the first that its keys allow:
+//   1. SF_ACCESS_TOKEN + SF_INSTANCE_URL: an existing session (e.g. from
+//      `sf org display`), no login.
+//   2. OAuth 2.0 JWT bearer flow (scripts/lib/sf-jwt.mjs,
+//      docs/e2e-jwt-setup.md): SF_USER, SF_CLIENT_ID, SF_JWT_KEY_FILE (or
+//      SF_JWT_KEY), optional SF_LOGIN_URL and SF_JWT_AUDIENCE.
+//   3. SOAP login() (deprecated: Salesforce retires it in Summer '27): SF_USER,
+//      SF_PASS, SF_TOKEN (security token; may be empty from a trusted IP).
+// SF_LOGIN_URL defaults to https://login.salesforce.com
+// (https://test.salesforce.com for sandboxes, or the org's My Domain URL).
 //
-// Further orgs are numbered: SF_USER_2, SF_PASS_2, SF_TOKEN_2, SF_LOGIN_URL_2
-// (or SF_ACCESS_TOKEN_2 + SF_INSTANCE_URL_2), then _3 and so on. login() takes
+// Further orgs are numbered: SF_USER_2, SF_CLIENT_ID_2, SF_JWT_KEY_FILE_2 (or
+// SF_PASS_2, SF_TOKEN_2), SF_LOGIN_URL_2, ... (or SF_ACCESS_TOKEN_2 +
+// SF_INSTANCE_URL_2), then _3 and so on. login() takes
 // the first org that logs in and still has at least SF_MIN_API_REQUESTS
 // (default 500) of its daily API requests left, so a second org keeps the
 // e2e flow running when the first one hits its daily limit.
@@ -16,6 +22,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { jwtLogin, usesJwt } from './sf-jwt.mjs'
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 export const API_VERSION = '62.0'
@@ -39,7 +46,7 @@ const xmlEscape = s => s.replace(/[<>&'"]/g, c => `&#${c.charCodeAt(0)};`)
 
 async function soapLogin({ SF_USER, SF_PASS, SF_TOKEN = '', SF_LOGIN_URL }) {
   if (!SF_USER || !SF_PASS) {
-    throw new Error('SF_USER and SF_PASS are required (see .env.example)')
+    throw new Error('SOAP login needs SF_USER and SF_PASS; better, set up the JWT bearer flow (docs/e2e-jwt-setup.md)')
   }
   const loginUrl = (SF_LOGIN_URL || 'https://login.salesforce.com').replace(/\/$/, '')
   const body = `<?xml version="1.0" encoding="utf-8"?>
@@ -83,7 +90,20 @@ async function sessionFromToken({ SF_ACCESS_TOKEN, SF_INSTANCE_URL }) {
   }
 }
 
-const CREDENTIAL_KEYS = ['SF_USER', 'SF_PASS', 'SF_TOKEN', 'SF_LOGIN_URL', 'SF_ACCESS_TOKEN', 'SF_INSTANCE_URL']
+const CREDENTIAL_KEYS = [
+  'SF_USER',
+  'SF_PASS',
+  'SF_TOKEN',
+  'SF_LOGIN_URL',
+  'SF_CLIENT_ID',
+  'SF_JWT_KEY',
+  'SF_JWT_KEY_FILE',
+  'SF_JWT_AUDIENCE',
+  'SF_ACCESS_TOKEN',
+  'SF_INSTANCE_URL'
+]
+const MISSING_CREDENTIALS =
+  'Salesforce credentials are missing: set SF_USER, SF_CLIENT_ID and SF_JWT_KEY_FILE (see docs/e2e-jwt-setup.md and .env.example)'
 
 // The credential sets in env: the plain keys, then SF_*_2, SF_*_3, ... until
 // a number has neither SF_USER_n nor SF_ACCESS_TOKEN_n. Unset CI secrets are
@@ -102,8 +122,26 @@ export function credentialSets(env) {
   return sets
 }
 
+// How a credential set logs in: 'token', 'jwt' or 'soap'.
+export function loginMethod(set) {
+  if (set.SF_ACCESS_TOKEN && set.SF_INSTANCE_URL) return 'token'
+  return usesJwt(set) ? 'jwt' : 'soap'
+}
+
+let soapWarned = false
+
 function loginSet(set) {
-  return set.SF_ACCESS_TOKEN && set.SF_INSTANCE_URL ? sessionFromToken(set) : soapLogin(set)
+  const method = loginMethod(set)
+  if (method === 'token') return sessionFromToken(set)
+  if (method === 'jwt') return jwtLogin(set, { root: ROOT })
+  if (!soapWarned) {
+    soapWarned = true
+    console.warn(
+      `${set.name}: logging in with SOAP login(), which Salesforce retires in Summer '27; ` +
+        'switch to the JWT bearer flow (docs/e2e-jwt-setup.md)'
+    )
+  }
+  return soapLogin(set)
 }
 
 // Daily API requests the org still has (undefined if the call fails).
@@ -121,7 +159,7 @@ async function remainingApiRequests({ instance, sessionId }) {
 // one with the most requests left is used anyway.
 export async function login(env = loadEnv()) {
   const sets = credentialSets(env)
-  if (!sets.length) throw new Error('SF_USER and SF_PASS are required (see .env.example)')
+  if (!sets.length) throw new Error(MISSING_CREDENTIALS)
   const minRequests = Number(env.SF_MIN_API_REQUESTS) || 500
   const failures = []
   let fallback
@@ -149,10 +187,10 @@ export async function login(env = loadEnv()) {
   )
 }
 
-// Sessions from SOAP login, kept between local runs so back-to-back runs of
-// the e2e flow, the UX audit and sf-login.mjs don't log in each time (each
-// login is a SOAP call, and once the org's API limit is reached even login
-// fails). In .chrome-test/ (gitignored, next to the test browser's profile,
+// Sessions from a login (JWT bearer or SOAP), kept between local runs so
+// back-to-back runs of the e2e flow and the UX audit don't log in each time
+// (logins are rate limited, and once the org's API limit is reached even
+// login fails). In .chrome-test/ (gitignored, next to the test browser's profile,
 // which holds the same session as a cookie), readable only by the user. Not
 // used in CI or with SF_SESSION_CACHE=0.
 const SESSION_CACHE = join(ROOT, '.chrome-test', 'sf-session.json')

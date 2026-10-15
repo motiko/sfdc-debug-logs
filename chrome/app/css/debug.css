@@ -22,7 +22,7 @@
 }
 
 /* The toolbar stays at the top of the window while the log scrolls. */
-.ad-toolbar {
+.apexdbg-toolbar {
   position: sticky;
   top: 0;
   z-index: 5;
@@ -35,14 +35,16 @@
   border-radius: var(--ad-radius-md) var(--ad-radius-md) 0 0;
 }
 
-.ad-toolbar-row {
+.apexdbg-toolbar-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 16px;
 }
 
-.ad-toolbar .ad-toolbar-actions {
+.apexdbg-toolbar .apexdbg-spacer { flex: 1 }
+
+.apexdbg-toolbar .apexdbg-toolbar-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -50,7 +52,7 @@
   margin-left: auto;
 }
 
-.ad-toolbar .ad-separator {
+.apexdbg-toolbar .apexdbg-separator {
   width: 1px;
   align-self: stretch;
   background: var(--ad-divider);
@@ -58,7 +60,7 @@
 
 /* The log box: its own background and scrolling; the page never scrolls
    sideways (long lines wrap, or scroll inside the box). */
-pre.ad-log {
+pre.apexdbg-log {
   box-sizing: border-box;
   max-width: calc(100vw - 40px);
   margin: 0 0 16px;
@@ -72,8 +74,8 @@ pre.ad-log {
   border-radius: 0 0 var(--ad-radius-md) var(--ad-radius-md);
 }
 
-pre.ad-log.ad-wrap,
-pre.ad-log .wrap {
+pre.apexdbg-log.apexdbg-wrap,
+pre.apexdbg-log .wrap {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -89,8 +91,8 @@ pre.ad-log .wrap {
 
 /* "System methods" off (default) and "User methods" off. */
 #debugText .systemMethodLog { display: none }
-.ad-log.ad-show-system #debugText .systemMethodLog { display: block }
-.ad-log.ad-hide-user #debugText .methodLog { display: none }
+.apexdbg-log.apexdbg-show-system #debugText .systemMethodLog { display: block }
+.apexdbg-log.apexdbg-hide-user #debugText .methodLog { display: none }
 
 #debugText a.idLink { text-decoration: underline }
 

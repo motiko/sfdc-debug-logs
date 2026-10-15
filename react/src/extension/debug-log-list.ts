@@ -96,20 +96,20 @@ function addAddUserBtn() {
   const pbButton = form && form.querySelector('.pbButton')
   if (!pbButton) return
   const result = h('span', {
-    id: 'adAddUserResult',
-    className: 'ad-muted',
+    id: 'apexdbgAddUserResult',
+    className: 'apexdbg-muted',
     attrs: { role: 'status' }
   })
   pbButton.appendChild(
     h(
       'span',
       {
-        className: 'ad-root ad-inline-tools',
-        dataset: { adColorMode: 'light' }
+        className: 'apexdbg-root apexdbg-inline-tools',
+        dataset: { apexdbgColorMode: 'light' }
       },
       h('button', {
         type: 'button',
-        className: 'ad-button',
+        className: 'apexdbg-button',
         id: 'add_current_user',
         text: 'Add current user',
         title:
@@ -135,7 +135,7 @@ function addListTools() {
   if (!container) return
   const perPage = h('input', {
     type: 'number',
-    id: 'adLogsPerPage',
+    id: 'apexdbgLogsPerPage',
     min: '25',
     max: '1000',
     step: '25',
@@ -151,7 +151,7 @@ function addListTools() {
   const deleteButton = h('button', {
     type: 'button',
     id: 'real_delete_all',
-    className: 'ad-button ad-button-danger',
+    className: 'apexdbg-button apexdbg-button-danger',
     text: 'Delete logs…',
     attrs: { 'aria-haspopup': 'dialog' }
   })
@@ -159,7 +159,7 @@ function addListTools() {
   const loadNew = h('button', {
     type: 'button',
     id: 'load_new_logs',
-    className: 'ad-button',
+    className: 'apexdbg-button',
     text: 'Load new logs',
     title: 'Load new logs (L)',
     onclick: loadNewLogs
@@ -169,8 +169,8 @@ function addListTools() {
     h(
       'span',
       {
-        className: 'ad-root ad-list-tools',
-        dataset: { adColorMode: 'light' },
+        className: 'apexdbg-root apexdbg-list-tools',
+        dataset: { apexdbgColorMode: 'light' },
         attrs: {
           role: 'region',
           'aria-label': 'Apex Debugger: debug log tools'
@@ -179,13 +179,13 @@ function addListTools() {
       loadNew,
       h(
         'span',
-        { className: 'ad-field' },
-        h('label', { htmlFor: 'adLogsPerPage', text: 'Logs per page' }),
+        { className: 'apexdbg-field' },
+        h('label', { htmlFor: 'apexdbgLogsPerPage', text: 'Logs per page' }),
         perPage
       ),
-      h('span', { className: 'ad-danger-zone' }, deleteButton),
+      h('span', { className: 'apexdbg-danger-zone' }, deleteButton),
       h('span', {
-        id: 'adDeleteResult',
+        id: 'apexdbgDeleteResult',
         attrs: { role: 'status' }
       })
     )
@@ -255,8 +255,11 @@ function requestLogs(): Promise<any[]> {
 
 // New rows are briefly highlighted (no motion with reduced motion).
 function animateTrsAddition(trs: HTMLElement[]) {
-  trs.forEach(tr => tr.classList.add('ad-new-row'))
-  setTimeout(() => trs.forEach(tr => tr.classList.remove('ad-new-row')), 3000)
+  trs.forEach(tr => tr.classList.add('apexdbg-new-row'))
+  setTimeout(
+    () => trs.forEach(tr => tr.classList.remove('apexdbg-new-row')),
+    3000
+  )
 }
 
 function logRecordToTr(logObj: any) {
@@ -366,23 +369,29 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
   let userId: string | undefined
   const countText = (n: number | null) =>
     n === null ? ' (counting…)' : ` (${n.toLocaleString()})`
-  const mineCount = h('span', { className: 'ad-muted', text: countText(null) })
-  const allCount = h('span', { className: 'ad-muted', text: countText(null) })
+  const mineCount = h('span', {
+    className: 'apexdbg-muted',
+    text: countText(null)
+  })
+  const allCount = h('span', {
+    className: 'apexdbg-muted',
+    text: countText(null)
+  })
   const mine = h('input', {
     type: 'radio',
-    name: 'adDeleteScope',
-    id: 'adDeleteMine',
+    name: 'apexdbgDeleteScope',
+    id: 'apexdbgDeleteMine',
     value: 'mine',
     checked: true
   })
   const all = h('input', {
     type: 'radio',
-    name: 'adDeleteScope',
-    id: 'adDeleteAll',
+    name: 'apexdbgDeleteScope',
+    id: 'apexdbgDeleteAll',
     value: 'all'
   })
   const warning = h('p', {
-    className: 'ad-warning',
+    className: 'apexdbg-warning',
     hidden: true,
     text: 'This also deletes other developers’ logs in this org.'
   })
@@ -391,28 +400,28 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
   progress.setAttribute('aria-label', 'Deleting logs')
   const cancel = h('button', {
     type: 'button',
-    className: 'ad-button',
+    className: 'apexdbg-button',
     text: 'Cancel'
   })
   const confirm = h('button', {
     type: 'button',
-    className: 'ad-button ad-button-danger-solid',
+    className: 'apexdbg-button apexdbg-button-danger-solid',
     text: 'Delete logs',
     disabled: true
   })
   const dialog = h(
     'dialog',
     {
-      className: 'ad-root ad-dialog',
-      id: 'adDeleteDialog',
+      className: 'apexdbg-root apexdbg-dialog',
+      id: 'apexdbgDeleteDialog',
       attrs: {
-        'aria-labelledby': 'adDeleteTitle',
-        'aria-describedby': 'adDeleteDescription'
+        'aria-labelledby': 'apexdbgDeleteTitle',
+        'aria-describedby': 'apexdbgDeleteDescription'
       }
     },
-    h('h2', { id: 'adDeleteTitle', text: 'Delete debug logs' }),
+    h('h2', { id: 'apexdbgDeleteTitle', text: 'Delete debug logs' }),
     h('p', {
-      id: 'adDeleteDescription',
+      id: 'apexdbgDeleteDescription',
       text: 'Deleted logs can’t be restored.'
     }),
     h(
@@ -421,13 +430,13 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
       h('legend', { text: 'Which logs' }),
       h(
         'label',
-        { className: 'ad-choice', htmlFor: 'adDeleteMine' },
+        { className: 'apexdbg-choice', htmlFor: 'apexdbgDeleteMine' },
         mine,
         h('span', {}, 'Only my logs', mineCount)
       ),
       h(
         'label',
-        { className: 'ad-choice', htmlFor: 'adDeleteAll' },
+        { className: 'apexdbg-choice', htmlFor: 'apexdbgDeleteAll' },
         all,
         h('span', {}, `All users’ logs in ${location.hostname}`, allCount)
       )
@@ -435,7 +444,7 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
     warning,
     progress,
     status,
-    h('div', { className: 'ad-actions' }, cancel, confirm)
+    h('div', { className: 'apexdbg-actions' }, cancel, confirm)
   )
   const scope = () => (all.checked ? 'all' : 'mine')
   const update = () => {
@@ -483,7 +492,7 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
       )
       running = false
       dialog.close()
-      document.getElementById('adDeleteResult').textContent =
+      document.getElementById('apexdbgDeleteResult').textContent =
         `Deleted ${logsText(deleted)}.`
       bodies.clear()
       await loadLogs()
@@ -492,7 +501,7 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
       progress.hidden = true
       mine.disabled = all.disabled = cancel.disabled = false
       const explained = explainError(err, location.hostname)
-      status.className = 'ad-error'
+      status.className = 'apexdbg-error'
       status.textContent = `Deleting failed. ${explained.title} ${explained.hint}`
       update()
     }
@@ -502,7 +511,7 @@ function openDeleteDialog(trigger: HTMLButtonElement) {
   dialog.showModal()
   cancel.focus()
   const showError = (text: string) => {
-    status.className = 'ad-error'
+    status.className = 'apexdbg-error'
     status.textContent = text
   }
   // The two counts separately: if the user can't be identified, "Only my
@@ -560,9 +569,9 @@ function addSearchControllers() {
     document.querySelector('.apexp .pbTitle')
   if (!logsTitle) return
   const form = h('form', {
-    className: 'ad-root ad-search',
+    className: 'apexdbg-root apexdbg-search',
     attrs: { role: 'search', 'aria-label': 'Search in debug logs' },
-    dataset: { adColorMode: 'light' }
+    dataset: { apexdbgColorMode: 'light' }
   })
   form.addEventListener('submit', event => {
     event.preventDefault()
@@ -582,23 +591,27 @@ function addSearchControllers() {
     }
   })
   const status = h('span', {
-    id: 'adSearchStatus',
-    className: 'ad-muted',
+    id: 'apexdbgSearchStatus',
+    className: 'apexdbg-muted',
     attrs: { role: 'status' }
   })
   form.append(
     h('label', { htmlFor: 'FilterByText', text: 'Search logs' }),
     input,
-    h('button', { type: 'submit', className: 'ad-button', text: 'Search' }),
+    h('button', {
+      type: 'submit',
+      className: 'apexdbg-button',
+      text: 'Search'
+    }),
     h('button', {
       type: 'button',
       id: 'clear_search',
-      className: 'ad-button',
+      className: 'apexdbg-button',
       text: 'Clear',
       title: 'Clear the search (C)',
       onclick: () => clearSearch()
     }),
-    checkbox('adOnlyMatches', 'Only matching logs', false, () =>
+    checkbox('apexdbgOnlyMatches', 'Only matching logs', false, () =>
       applyOnlyMatches()
     ),
     status
@@ -619,23 +632,26 @@ function rowLogId(row: HTMLTableRowElement): string {
 }
 
 function onlyMatches(): boolean {
-  const box = document.getElementById('adOnlyMatches') as HTMLInputElement
+  const box = document.getElementById('apexdbgOnlyMatches') as HTMLInputElement
   return Boolean(box && box.checked)
 }
 
 function applyOnlyMatches() {
   const active = searchActive()
   for (const row of rows()) {
-    row.hidden = active && onlyMatches() && !row.classList.contains('ad-match')
+    row.hidden =
+      active && onlyMatches() && !row.classList.contains('apexdbg-match')
   }
 }
 
 const searchActive = () =>
-  Boolean(document.querySelector(`#${LOGS_TABLE_ID_ESCAPED} tr.ad-searched`))
+  Boolean(
+    document.querySelector(`#${LOGS_TABLE_ID_ESCAPED} tr.apexdbg-searched`)
+  )
 
 function resetResults() {
   for (const row of [...tableElement.children] as HTMLElement[]) {
-    row.classList.remove('ad-match', 'ad-searched')
+    row.classList.remove('apexdbg-match', 'apexdbg-searched')
     row.style.background = ''
     row.hidden = false
   }
@@ -644,7 +660,7 @@ function resetResults() {
 function clearSearch() {
   searchRun++
   ;(document.getElementById('FilterByText') as HTMLInputElement).value = ''
-  document.getElementById('adSearchStatus').textContent = ''
+  document.getElementById('apexdbgSearchStatus').textContent = ''
   resetResults()
 }
 
@@ -662,7 +678,7 @@ function body(id: string): Promise<string> {
 async function searchLogs() {
   const run = ++searchRun
   resetResults()
-  const status = document.getElementById('adSearchStatus')
+  const status = document.getElementById('apexdbgSearchStatus')
   const term = (
     document.getElementById('FilterByText') as HTMLInputElement
   ).value.trim()
@@ -683,10 +699,10 @@ async function searchLogs() {
       try {
         const text = await body(rowLogId(row))
         if (run !== searchRun) return
-        row.classList.add('ad-searched')
+        row.classList.add('apexdbg-searched')
         if (text.toLowerCase().includes(needle)) {
           matches++
-          row.classList.add('ad-match')
+          row.classList.add('apexdbg-match')
           row.style.background = colors.light.matchBg
         }
       } catch (err) {

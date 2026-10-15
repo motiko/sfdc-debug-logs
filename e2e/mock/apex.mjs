@@ -2,9 +2,10 @@
 // language to run the snippets the e2e flow and the UX audit execute
 // (variables, string concatenation, System.debug with a logging level,
 // JSON.serialize of map literals, SOQL on a few objects, for loops, try/catch,
-// division by zero, Limits) and to write the debug log Salesforce would:
-// header, the echoed source, USER_DEBUG, SOQL, method, system and exception
-// entries, limit usage. Anything it doesn't understand is debugged as its
+// division by zero, Limits, insert/update/delete of SObject lists, which
+// change no data) and to write the debug log Salesforce would:
+// header, the echoed source, USER_DEBUG, SOQL, DML, method, system and
+// exception entries, limit usage. Anything it doesn't understand is debugged as its
 // source text, so a new snippet still produces a log.
 
 class ApexException extends Error {
@@ -138,6 +139,9 @@ export function runAnonymousApex(apex, { user, data, start = new Date() }) {
   let nanos = 1_000_000
   let ms = start.getTime()
   let queries = 0
+  let queryRows = 0
+  let dmlStatements = 0
+  let dmlRows = 0
   const time = () => {
     nanos += 1_234_567
     ms += 1
@@ -160,6 +164,7 @@ export function runAnonymousApex(apex, { user, data, start = new Date() }) {
     let rows = data[object] || []
     if (nameMatch) rows = rows.filter(r => r.Name === nameMatch[1])
     rows = rows.slice(0, limit)
+    queryRows += rows.length
     entry('SOQL_EXECUTE_BEGIN', `[${line}]`, 'Aggregations:0', soql)
     entry('SOQL_EXECUTE_END', `[${line}]`, `Rows:${rows.length}`)
     return rows.map(r => ({
@@ -228,6 +233,18 @@ export function runAnonymousApex(apex, { user, data, start = new Date() }) {
   }
 
   function runSimple({ code, line }) {
+    const dml = /^(insert|update|upsert|delete)\s+([\s\S]+)$/.exec(code)
+    if (dml) {
+      const value = evaluate(dml[2], line)
+      const records = Array.isArray(value) ? value : [value]
+      const type = (/new\s+(\w+)\s*\(/.exec(dml[2]) || [])[1] || (records[0] && records[0].sobject) || 'SObject'
+      const op = dml[1][0].toUpperCase() + dml[1].slice(1)
+      dmlStatements++
+      dmlRows += records.length
+      entry('DML_BEGIN', `[${line}]`, `Op:${op}`, `Type:${type}`, `Rows:${records.length}`)
+      entry('DML_END', `[${line}]`)
+      return
+    }
     const debug = /^System\.debug\(([\s\S]*)\)$/.exec(code)
     if (debug) {
       const args = splitTop(debug[1], ',')
@@ -317,7 +334,15 @@ export function runAnonymousApex(apex, { user, data, start = new Date() }) {
   }
   entry('CUMULATIVE_LIMIT_USAGE')
   entry('LIMIT_USAGE_FOR_NS', '(default)', '')
-  lines.push(`  Number of SOQL queries: ${queries} out of 100`, '  Maximum CPU time: 12 out of 10000', '')
+  lines.push(
+    `  Number of SOQL queries: ${queries} out of 100`,
+    `  Number of query rows: ${queryRows} out of 50000`,
+    `  Number of DML statements: ${dmlStatements} out of 150`,
+    `  Number of DML rows: ${dmlRows} out of 10000`,
+    '  Maximum CPU time: 12 out of 10000',
+    '  Maximum heap size: 0 out of 6000000',
+    ''
+  )
   entry('CUMULATIVE_LIMIT_USAGE_END')
   lines.push('')
   entry('CODE_UNIT_FINISHED', 'execute_anonymous_apex')
