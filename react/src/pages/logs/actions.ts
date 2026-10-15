@@ -23,6 +23,7 @@ import {
   loggingStatus,
   logsFailed,
   logsLoaded,
+  logsPolled,
   logsRequested,
   PAGE_SIZE,
   searchCleared,
@@ -40,6 +41,7 @@ import {
   type ApexLog,
   type ListFilters
 } from './utils'
+import { newestModified, newLogsWhereClause } from './auto-refresh'
 
 type Thunk<R = unknown> = (
   dispatch: AppDispatch,
@@ -68,6 +70,39 @@ export function loadLogs({ more = false } = {}): Thunk<Promise<void>> {
     } catch (err) {
       dispatch(logsFailed(explain(err, sf)))
     }
+  }
+}
+
+// One auto-refresh poll: asks only for the logs not older than the newest
+// loaded one (with the list's filters) and adds the new ones on top, keeping
+// the open log (keepId) in the list. Resolves with how many were new;
+// rejects when Salesforce can't be reached (auto-refresh.ts backs off).
+// A full load running or done meanwhile wins over the poll's result.
+export function pollNewLogs({
+  keepId = null
+}: { keepId?: string | null } = {}): Thunk<Promise<number>> {
+  return async (dispatch, getState, sf) => {
+    const { logs, filters, maxLogs, listStatus } = getState().logsPage
+    if (listStatus === 'loading') return 0
+    const records = (await sf.recentLogs(
+      maxLogs,
+      newLogsWhereClause(filters, newestModified(logs))
+    )) as ApexLog[]
+    const now = getState().logsPage
+    if (
+      now.listStatus === 'loading' ||
+      now.logs !== logs ||
+      now.filters !== filters
+    )
+      return 0
+    const known = new Set(logs.map(log => log.Id))
+    const added = new Set(
+      records.filter(log => !known.has(log.Id)).map(log => log.Id)
+    ).size
+    dispatch(logsPolled({ logs: records, at: Date.now(), keepId }))
+    const { search } = getState().logsPage
+    if (added && search.term) await dispatch(searchLogs(search.term))
+    return added
   }
 }
 

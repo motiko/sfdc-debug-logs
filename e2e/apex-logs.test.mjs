@@ -575,6 +575,81 @@ test('React log viewer', async t => {
     assert.deepEqual(errors.slice(errorsBefore), [], 'no page errors while filtering')
   })
 
+  await t.test('auto-refresh lists a new log without a reload, keeping the current row', async () => {
+    const chooseInterval = async (current, label) => {
+      await app.click(`::-p-aria([name="Auto-refresh: ${current}"][role="button"])`)
+      const item = `::-p-aria([name="${label}"][role="menuitemradio"])`
+      await app.waitForSelector(item, { visible: true })
+      await app.click(item)
+      await app.waitForSelector('[role="menu"]', { hidden: true })
+      await delay(200)
+    }
+    await chooseInterval('Off', 'Every 10 s')
+    // Logging is on (ensureLogging) and the tab is in front: it runs.
+    await app.waitForSelector('::-p-aria([name="Auto-refresh: 10 s"][role="button"])')
+    await app.waitForFunction(
+      () =>
+        document.querySelector('[data-testid="auto-refresh-status"]')?.textContent ===
+        'Checking for new logs every 10 s',
+      { timeout: 10000 }
+    )
+    const before = await rowIds()
+    // The user is on the second row: it stays the current, focused row.
+    const current = before[1]
+    await app.focus(`[role="grid"] [data-log-id="${current}"]`)
+    const marker = `E2E_AUTO_${Date.now()}`
+    await sf.executeAnonymous(`System.debug('${marker}');`)
+    await app.waitForFunction(
+      known =>
+        [...document.querySelectorAll('[role="grid"] [data-log-id]')].some(r => !known.includes(r.dataset.logId)),
+      { timeout: 45000 },
+      before
+    )
+    const after = await rowIds()
+    const added = after.filter(id => !before.includes(id))
+    assert.ok(added.length >= 1, 'a new row was added')
+    assert.ok(added.includes(after[0]), 'the new log is on top')
+    const newRow = await app.$eval(`[role="grid"] [data-log-id="${after[0]}"]`, r => r.innerText)
+    assert.match(newRow, /New/, 'the new row is marked')
+    await app.waitForFunction(
+      () => /^\d+ new logs?$/.test(document.querySelector('[data-testid="auto-refresh-announcement"]').textContent),
+      { timeout: 5000 }
+    )
+    const live = await app.$eval('[data-testid="auto-refresh-announcement"]', el => el.getAttribute('aria-live'))
+    assert.equal(live, 'polite', 'new logs are announced politely')
+    const focus = await app.evaluate(() => ({
+      id: document.activeElement.dataset.logId,
+      tabIndex: document.activeElement.tabIndex
+    }))
+    assert.deepEqual(focus, { id: current, tabIndex: 0 }, 'focus and the current row stay on the same log')
+    assert.equal(new URL(app.url()).hash, '', 'no log was opened')
+    // The mock org counts the requests: none while the tab is hidden or
+    // auto-refresh is off.
+    const queries = () =>
+      run.mock ? run.mock.org.requests.filter(r => r.source === 'browser' && r.kind === 'tooling query').length : 0
+    if (run.mock) {
+      await sfPage.bringToFront()
+      // Hidden pages don't run animation frames: poll by time.
+      await app.waitForFunction(() => document.visibilityState === 'hidden', { timeout: 5000, polling: 200 })
+      const hidden = queries()
+      await delay(12000)
+      assert.equal(queries(), hidden, 'no polls while the tab is in the background')
+      await app.bringToFront()
+      // More than an interval passed: it checks once, right away.
+      await app.waitForFunction(() => document.visibilityState === 'visible', { polling: 200 })
+      const deadline = Date.now() + 5000
+      while (queries() === hidden && Date.now() < deadline) await delay(200)
+      assert.equal(queries(), hidden + 1, 'one poll when the tab is back in front')
+    }
+    await chooseInterval('10 s', 'Off')
+    await app.waitForSelector('[data-testid="auto-refresh-status"]', { hidden: true })
+    if (run.mock) {
+      const off = queries()
+      await delay(12000)
+      assert.equal(queries(), off, 'no polls while auto-refresh is off')
+    }
+  })
+
   await t.test('keyboard: Tab reaches a log row and Enter opens it', async () => {
     await app.focus(SEARCH)
     let rowId = null
