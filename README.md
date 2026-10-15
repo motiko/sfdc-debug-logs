@@ -14,6 +14,7 @@ Key Features
 
   * Search in logs
   * Improved view of logs, with the same color palettes in the log viewer and on Salesforce's log page: Light, Dark, Monokai and High contrast, following your light or dark mode.
+  * Log summary in the log viewer: governor limits per namespace, exceptions and fatal errors, SOQL queries (count, rows, time, likely queries in loops) and DML by operation and object; click an entry to jump to its line. It opens by itself for a failed run.
   * Click any Id to go to Object (Class, Trigger, Validation Rule e.t.c).
   * Indent User Debug (sObject, List, XML or JSON)
   * Delete logs: only yours, or all users', always confirmed with the count.
