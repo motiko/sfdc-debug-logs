@@ -19,3 +19,27 @@ export function isOrgHost(host: string): boolean {
     ) || /^[a-z]{2,4}\d+\.salesforce\.com$/.test(host)
   )
 }
+
+export interface SessionCookie {
+  domain: string
+  value: string
+}
+
+// Picks the API session among the org's sid cookies: the cookie of the API
+// host (apiHostFor), or else a My Domain cookie whose session belongs to
+// the same org (a session id starts with the org id's 15 characters), for
+// orgs whose API host can't be derived from the page's host. Lightning and
+// Setup cookies are never returned: the API rejects them.
+export function pickSessionCookie(
+  cookies: SessionCookie[],
+  { apiHost, orgId }: { apiHost: string; orgId?: string }
+): { token: string; host: string } | undefined {
+  const exact = cookies.find(c => c.domain === apiHost && c.value)
+  if (exact) return { token: exact.value, host: exact.domain }
+  const prefix = orgId && orgId.slice(0, 15)
+  if (!prefix) return undefined
+  const same = cookies.find(
+    c => /\.my\.salesforce\.com$/.test(c.domain) && c.value.startsWith(prefix)
+  )
+  return same ? { token: same.value, host: same.domain } : undefined
+}

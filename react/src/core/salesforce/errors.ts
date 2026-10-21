@@ -27,6 +27,14 @@ export function explainError(
   }
   const detail = String(err.message || error || 'Unknown error')
   const org = host || 'the org'
+  if (err.name === 'NoSessionError') {
+    return {
+      kind: 'session',
+      title: `Apex Debugger couldn’t read the session cookie for ${org}.`,
+      hint: 'Log in to the org in a normal (not Incognito) window and open Apex Debugger from one of its pages. If that doesn’t help, save a session id in the extension options.',
+      detail
+    }
+  }
   if (err.status === 401) {
     return {
       kind: 'session',

@@ -3,23 +3,29 @@
 // it as their third argument: (dispatch, getState, sf).
 import { createSalesforceClient } from './core/salesforce/client'
 import { createRequest } from './core/salesforce/request'
+import { apiHostFor } from './core/org-hosts'
 
 const params = new URL(window.location.href).searchParams
-const hostname = params.get('host')
+// The API answers on the org's my.salesforce.com host only (an older page
+// may have opened the app with a Lightning or Setup host).
+const hostname = apiHostFor(params.get('host') || '')
 
-// After a 401, asks the service worker for the org's current session cookie.
+// Without a session in the URL, and after a 401, asks the service worker for
+// the org's current session cookie.
 async function currentSessionId(): Promise<string | undefined> {
   const session = await chrome.runtime.sendMessage({
     command: 'getToken',
-    url: `https://${hostname}/`
+    url: `https://${hostname}/`,
+    orgId: params.get('oid') || undefined
   })
   return session && session.token
 }
 
+const sidParam = params.get('sid')
 const client = createSalesforceClient(
   createRequest({
     origin: `https://${hostname}`,
-    token: params.get('sid') || undefined,
+    token: sidParam && sidParam !== 'undefined' ? sidParam : undefined,
     getToken: currentSessionId
   })
 )
