@@ -1208,6 +1208,16 @@ test('sessions are only handed out for org hosts', async () => {
     const org = await lookup(`${session.instance}/setup/ui/listApexTraces.apexp`)
     assert.ok(org.token && org.token !== 'saved-token', 'org host gets its sid cookie')
     assert.equal(org.host, new URL(session.instance).hostname)
+    // The Setup domain has no API session: the my.salesforce.com cookie is used.
+    const setup = await lookup(
+      `https://${new URL(session.instance).hostname.replace('.my.salesforce.com', '.my.salesforce-setup.com')}/`
+    )
+    assert.equal(setup.token, org.token, 'Setup host gets the API host cookie')
+    assert.equal(setup.host, org.host)
+    // Another org without a cookie: the saved token, for the API host (not
+    // the Setup host it was asked for, where the API doesn't answer).
+    const saved = await lookup('https://other-org.my.salesforce-setup.com/')
+    assert.deepEqual(saved, { token: 'saved-token', host: 'other-org.my.salesforce.com' })
   } finally {
     await ext.background.evaluate(() => chrome.storage.local.remove('token'))
   }

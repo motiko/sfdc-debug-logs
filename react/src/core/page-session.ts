@@ -3,6 +3,7 @@
 import { createSalesforceClient } from './salesforce/client'
 import { createRequest } from './salesforce/request'
 import { requireExtensionContext } from './extension-context'
+import { apiHostFor } from './org-hosts'
 
 export interface Session {
   token: string | undefined
@@ -29,15 +30,20 @@ export async function getSession(): Promise<Session> {
     return { token: sid, host: location.hostname }
   }
   requireExtensionContext()
-  const session = await chrome.runtime.sendMessage({ command: 'getToken' })
+  const session = await chrome.runtime.sendMessage({
+    command: 'getToken',
+    orgId: parseDiscoCookie().orgId
+  })
+  // The API answers on the org's my.salesforce.com host only.
+  const host = (session && session.host) || apiHostFor(location.hostname)
   if (!session || !session.token) {
     console.log(
       'Apex Debugger:',
-      'no Salesforce session found. Log in again, or save a session id in the extension options.'
+      `no session cookie found for ${host}. Log in again (not in an Incognito window), or save a session id in the extension options.`
     )
-    return { token: undefined, host: location.hostname }
+    return { token: undefined, host }
   }
-  return { token: session.token, host: session.host || location.hostname }
+  return { token: session.token, host }
 }
 
 export async function getToken(): Promise<string | undefined> {
@@ -81,7 +87,7 @@ export function openAppMessage(
 ) {
   return {
     url: `${chrome.runtime.getURL('html/app.html')}?oid=${orgId}&uid=${userId}&sid=${encodeURIComponent(
-      token
+      token || ''
     )}&host=${encodeURIComponent(host)}`,
     name: `app_${orgId}`,
     command: 'openOrFocusTab'

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { explainError } from './errors'
-import { SalesforceError } from './request'
+import { NoSessionError, SalesforceError } from './request'
 
 describe('explainError', () => {
   it('explains an expired session', () => {
@@ -32,5 +32,16 @@ describe('explainError', () => {
     expect(e.kind).toBe('other')
     expect(e.detail).toBe('500: Server Error (boom)')
     expect(explainError(undefined).detail).toBe('Unknown error')
+  })
+})
+
+describe('explainError for a missing session', () => {
+  it('says the cookie could not be read, not that the session expired', () => {
+    const e = explainError(new NoSessionError(), 'acme.my.salesforce.com')
+    expect(e.kind).toBe('session')
+    expect(e.title).toBe(
+      'Apex Debugger couldn’t read the session cookie for acme.my.salesforce.com.'
+    )
+    expect(e.hint).toContain('Incognito')
   })
 })
