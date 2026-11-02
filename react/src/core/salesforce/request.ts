@@ -29,6 +29,15 @@ export class SalesforceError extends Error {
   }
 }
 
+// No session id to send: the service worker found no session cookie for the
+// org (and none is saved on the options page).
+export class NoSessionError extends Error {
+  constructor() {
+    super('No Salesforce session found')
+    this.name = 'NoSessionError'
+  }
+}
+
 export interface RequestOptions {
   // Where requests go, e.g. "https://acme.my.salesforce.com" (no trailing /).
   origin: string
@@ -76,9 +85,12 @@ export function createRequest({
       })
     }
     const sid = await sessionId()
+    if (!sid) throw new NoSessionError()
     let response = await send(sid)
     if (response.status === 401) {
-      response = await send(await renewed(sid))
+      const next = await renewed(sid)
+      if (!next) throw new NoSessionError()
+      response = await send(next)
     }
     if (!response.ok) {
       throw new SalesforceError(
