@@ -1,7 +1,7 @@
 // Service worker (manifest.json background.service_worker): opens and focuses
 // the options and app tabs, and answers the content scripts' and the app's
 // messages, keyed on request.command.
-import { apiHostFor, isOrgHost } from '../core/org-hosts'
+import { apiHostFor, isOrgHost, pickSessionCookie } from '../core/org-hosts'
 import { appPageUrl, appTabName, parseDisco } from '../core/app-tab'
 import { createSalesforceClient } from '../core/salesforce/client'
 import { createRequest } from '../core/salesforce/request'
@@ -108,7 +108,7 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 // Shift+W; on an org tab without a session it opens the options page with a
 // notice to log in first (#no-session); anywhere else (other sites, public
 // Salesforce Sites) it opens the options page.
-async function onActionClicked(tab: { url?: string } | undefined) {
+async function onActionClicked(tab: { url?: string; id?: number } | undefined) {
   const result = await openAppForTab(tab)
   if (result === 'no-session') {
     openOrFocusTab(
@@ -130,7 +130,7 @@ chrome.action.onClicked.addListener(tab => {
 // session. The tab's URL is readable because the org hosts are in
 // host_permissions.
 async function openAppForTab(
-  tab: { url?: string } | undefined
+  tab: { url?: string; id?: number } | undefined
 ): Promise<'opened' | 'not-org' | 'no-session'> {
   const url = tab && tab.url
   let tabHost: string
@@ -140,7 +140,7 @@ async function openAppForTab(
     return 'not-org'
   }
   if (!isOrgHost(tabHost)) return 'not-org'
-  const session = await getSessionForUrl(url)
+  const session = await getSessionForUrl(url, { tabId: tab.id })
   if (!session.token) return 'no-session'
   const host = session.host || apiHostFor(tabHost)
   const ids = await orgIdsFor(tabHost, host, session.token)
@@ -178,11 +178,24 @@ async function orgIdsFor(tabHost: string, apiHost: string, token: string) {
   }))
 }
 
-// Returns { token, host } for a Salesforce page URL. The sid cookie is
-// HttpOnly, so content scripts can't read it, but chrome.cookies can. Falls
-// back to the token saved on the options page.
+// The cookie store of a tab: Incognito windows have their own, which the
+// worker's own context doesn't see.
+async function cookieStoreOf(tabId: number | undefined) {
+  if (tabId === undefined) return undefined
+  const stores = await chrome.cookies.getAllCookieStores()
+  const store = stores.find(s => s.tabIds.includes(tabId))
+  return store && store.id
+}
+
+// Returns { token, host } for a Salesforce page URL: the org's API session
+// and the host it belongs to. The sid cookie is HttpOnly, so content scripts
+// can't read it, but chrome.cookies can: the cookie of the API host
+// (apiHostFor), or a My Domain cookie of the same org (orgId, from the page's
+// disco cookie) when the API host can't be derived. Falls back to the token
+// saved on the options page, for the API host.
 async function getSessionForUrl(
-  url: string | undefined
+  url: string | undefined,
+  { orgId, tabId }: { orgId?: string; tabId?: number } = {}
 ): Promise<{ token: string | undefined; host: string | undefined }> {
   let host: string
   try {
@@ -191,15 +204,18 @@ async function getSessionForUrl(
     return { token: undefined, host: undefined }
   }
   if (!isOrgHost(host)) return { token: undefined, host: undefined }
-  for (const candidate of new Set([apiHostFor(host), host])) {
-    const cookie = await chrome.cookies.get({
-      url: `https://${candidate}/`,
-      name: 'sid'
-    })
-    if (cookie && cookie.value) return { token: cookie.value, host: candidate }
-  }
+  const apiHost = apiHostFor(host)
+  const storeId = await cookieStoreOf(tabId)
+  const cookies = await chrome.cookies.getAll({
+    name: 'sid',
+    domain: 'salesforce.com',
+    secure: true,
+    ...(storeId ? { storeId } : {})
+  })
+  const session = pickSessionCookie(cookies, { apiHost, orgId })
+  if (session) return session
   const { token } = await chrome.storage.local.get('token')
-  return { token: token as string | undefined, host: undefined }
+  return { token: token as string | undefined, host: apiHost }
 }
 
 // The e2e flow (e2e/apex-logs.test.mjs) calls this from the worker's console
@@ -213,9 +229,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'getToken':
       // request.url: the Salesforce page the token is for (the React app
       // passes its host); otherwise the tab that sent the message.
-      getSessionForUrl(request.url || (sender.tab && sender.tab.url)).then(
-        sendResponse
-      )
+      getSessionForUrl(request.url || (sender.tab && sender.tab.url), {
+        orgId: request.orgId,
+        tabId: sender.tab && sender.tab.id
+      }).then(sendResponse)
       break
     case 'getShortcuts':
       loadPageShortcuts(chrome.storage.sync).then(settings =>

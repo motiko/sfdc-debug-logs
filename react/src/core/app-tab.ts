@@ -25,7 +25,7 @@ export function appPageUrl(
   { token, host }: AppSession
 ): string {
   return `${appPage}?oid=${orgId}&uid=${userId}&sid=${encodeURIComponent(
-    token
+    token || ''
   )}&host=${encodeURIComponent(host)}`
 }
 

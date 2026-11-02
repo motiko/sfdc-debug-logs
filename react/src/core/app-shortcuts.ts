@@ -15,6 +15,7 @@ export type ShortcutId =
   | 'nextRow'
   | 'previousRow'
   | 'openRow'
+  | 'selectRow'
   | 'nextLog'
   | 'previousLog'
   | 'nextError'
@@ -23,6 +24,7 @@ export type ShortcutId =
   | 'find'
   | 'nextMatch'
   | 'previousMatch'
+  | 'download'
   | 'treeMove'
   | 'treeOpen'
   | 'treeClose'
@@ -82,7 +84,13 @@ export const APP_SHORTCUTS: Shortcut[] = [
   {
     id: 'openRow',
     keys: ['Enter'],
-    description: 'Open the selected log',
+    description: 'Open the focused log',
+    group: 'Log list'
+  },
+  {
+    id: 'selectRow',
+    keys: [' ', 'x'],
+    description: 'Check or uncheck the focused log (in the full list)',
     group: 'Log list'
   },
   {
@@ -125,6 +133,12 @@ export const APP_SHORTCUTS: Shortcut[] = [
     id: 'nextDebug',
     keys: ['d'],
     description: 'Go to the next debug line',
+    group: 'Log'
+  },
+  {
+    id: 'download',
+    keys: ['Shift+D'],
+    description: 'Download this log as a .log file',
     group: 'Log'
   },
   // The call tree and the timeline handle these keys themselves while they

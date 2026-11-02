@@ -1,0 +1,21 @@
+62.0 APEX_CODE,DEBUG;APEX_PROFILING,INFO;CALLOUT,INFO;DB,INFO;NBA,INFO;SYSTEM,DEBUG;VALIDATION,INFO;VISUALFORCE,INFO;WAVE,INFO;WORKFLOW,INFO
+Execute Anonymous: HttpRequest req = new HttpRequest();
+Execute Anonymous: req.setEndpoint('https://api.example.com/v1/orders?status=open&limit=5');
+Execute Anonymous: req.setMethod('POST');
+Execute Anonymous: HttpResponse res = new Http().send(req);
+10:15:02.4 (4417523)|USER_INFO|[EXTERNAL]|005MK0000000001AAA|admin@example.com|(GMT+00:00) Greenwich Mean Time (GMT)|GMT+00:00
+10:15:02.4 (4481102)|EXECUTION_STARTED
+10:15:02.4 (4490212)|CODE_UNIT_STARTED|[EXTERNAL]|execute_anonymous_apex
+10:15:02.12 (12784011)|CALLOUT_REQUEST|[5]|System.HttpRequest[Endpoint=https://api.example.com/v1/orders?status=open&limit=5, Method=POST]
+10:15:02.391 (391508447)|CALLOUT_RESPONSE|[5]|System.HttpResponse[Status=OK, StatusCode=200]
+10:15:02.392 (392011245)|USER_DEBUG|[6]|DEBUG|{"orders":[{"id":1,"total":12.5}]}
+10:15:02.401 (401221014)|NAMED_CREDENTIAL_REQUEST|NamedCallout[Named Credential Id=0XAMK0000000001, Named Credential Name=Orders_API, Endpoint=callout:Orders_API/v1/orders, Method=GET, External Credential Type=EXTERNAL, HTTP Header Authorization=Method: Bearer - Credential: Orders_Principal, Content-Type=application/json, Request Size bytes=0, Retry on 401=True]
+10:15:02.402 (402115632)|CALLOUT_REQUEST|[9]|System.HttpRequest[Endpoint=callout:Orders_API/v1/orders, Method=GET]
+10:15:02.611 (611457890)|NAMED_CREDENTIAL_RESPONSE|NamedCallout[Named Credential Id=0XAMK0000000001, Named Credential Name=Orders_API, Status Code=200, Content-Type=application/json;charset=UTF-8, Response Size bytes=118, Overall Callout Time ms=209, Connect Time ms=31]
+10:15:02.611 (611502213)|CALLOUT_RESPONSE|[9]|System.HttpResponse[Status=OK, StatusCode=200]
+10:15:02.7 (700120311)|CALLOUT_REQUEST|[14]|OrderService.submitOrder_element:[order=OrderService.Order:[id=42, lines=(1, 2, 3)], apex_schema_type_info=(http://example.com/orders, true, false), field_order_type_info=(order)]
+10:15:02.9 (900113562)|CALLOUT_RESPONSE|[14]|{"status":"accepted","order":{"id":42,"lines":[1,2,3]}}
+10:15:02.95 (950001223)|CALLOUT_RESPONSE|[17]|<?xml version="1.0" encoding="UTF-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Body><result><id>42</id></result></soapenv:Body></soapenv:Envelope>
+10:15:02.96 (960012001)|CALLOUT_REQUEST|[20]|System.HttpRequest[Endpoint=https://api.example.com/ping, Method=GET]
+10:15:03.0 (1001110000)|CODE_UNIT_FINISHED|execute_anonymous_apex
+10:15:03.0 (1001210000)|EXECUTION_FINISHED

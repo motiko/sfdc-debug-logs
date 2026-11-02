@@ -28,6 +28,7 @@ export const logEventToType: Record<string, LogCategory> = {
   EXCEPTION_: 'error',
   FATAL_ERROR: 'error',
   CALLOUT: 'callout',
+  NAMED_CREDENTIAL_: 'callout',
   VALIDATION_: 'method',
   EXECUTION_: 'rest',
   DML_BEGIN: 'rest',

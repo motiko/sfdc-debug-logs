@@ -8,6 +8,7 @@ import type { LogCategory } from '../../core/log/categories'
 import type { ExplainedError } from '../../core/salesforce/errors'
 import type { ColorModePreference } from '../../ui/tokens'
 import { NO_FILTERS, type ApexLog, type ListFilters } from './utils'
+import { mergeNewLogs, type AutoRefreshInterval } from './auto-refresh'
 
 export const DEFAULT_FONT_SIZE = 13
 export const MIN_FONT_SIZE = 10
@@ -75,6 +76,8 @@ export interface LogsPageState {
   search: SearchState
   filters: ListFilters
   logging: LoggingState
+  // Logs checked in the list for "Delete selected" (ids of loaded logs).
+  selectedIds: Record<string, true>
   // A confirmation ("Deleted 36 logs"); key changes for each new one.
   toast: { key: number; message: string } | null
   // Persisted (see persisted-settings.ts):
@@ -83,6 +86,8 @@ export interface LogsPageState {
   styleConfig: StyleConfig
   hiddenCategories: LogCategory[]
   colorMode: ColorModePreference
+  // Seconds between auto-refresh polls; 0 = off (see auto-refresh.ts).
+  autoRefresh: AutoRefreshInterval
 }
 
 export const initialLogsPageState: LogsPageState = {
@@ -103,12 +108,14 @@ export const initialLogsPageState: LogsPageState = {
     busy: false,
     error: null
   },
+  selectedIds: {},
   toast: null,
   maxLogs: PAGE_SIZE,
   sideLogsOpen: true,
   styleConfig: defaultStyleConfig,
   hiddenCategories: [],
-  colorMode: 'system'
+  colorMode: 'system',
+  autoRefresh: 0
 }
 
 const logsSlice = createSlice({
@@ -130,8 +137,36 @@ const logsSlice = createSlice({
               logs.filter(log => !before.has(log.Id)).map(log => [log.Id, true])
             )
       state.logs = logs
+      // A selection only covers logs that are still listed.
+      const listed = new Set(logs.map(log => log.Id))
+      for (const id of Object.keys(state.selectedIds))
+        if (!listed.has(id)) delete state.selectedIds[id]
       state.listStatus = 'ready'
       state.loadedAt = at
+    },
+    // An auto-refresh poll's logs (only those not older than the newest
+    // loaded one): the new ones go on top and are marked new; a poll with
+    // none leaves the earlier marks. A good poll means Salesforce answers
+    // again, so the banner of an earlier failed refresh goes away.
+    logsPolled(
+      state,
+      action: PayloadAction<{
+        logs: ApexLog[]
+        at: number
+        keepId?: string | null
+      }>
+    ) {
+      const { logs, at, keepId = null } = action.payload
+      const merged = mergeNewLogs(state.logs, logs, state.maxLogs, keepId)
+      if (merged.added.length) {
+        state.logs = merged.logs
+        state.newIds = Object.fromEntries(merged.added.map(id => [id, true]))
+      }
+      state.loadedAt = at
+      if (state.listStatus === 'error') {
+        state.listStatus = 'ready'
+        state.listError = null
+      }
     },
     logsFailed(state, action: PayloadAction<ExplainedError>) {
       state.listStatus = 'error'
@@ -139,6 +174,42 @@ const logsSlice = createSlice({
     },
     setMaxLogs(state, action: PayloadAction<number>) {
       state.maxLogs = Math.max(1, Math.floor(action.payload) || PAGE_SIZE)
+    },
+
+    // Selection (for "Delete selected").
+    toggleLogSelected(state, action: PayloadAction<string>) {
+      if (state.selectedIds[action.payload])
+        delete state.selectedIds[action.payload]
+      else if (state.logs.some(log => log.Id === action.payload))
+        state.selectedIds[action.payload] = true
+    },
+    // Checks (or unchecks) these logs, e.g. every shown log.
+    setLogsSelected(
+      state,
+      action: PayloadAction<{ ids: string[]; selected: boolean }>
+    ) {
+      const listed = new Set(state.logs.map(log => log.Id))
+      for (const id of action.payload.ids) {
+        if (!action.payload.selected) delete state.selectedIds[id]
+        else if (listed.has(id)) state.selectedIds[id] = true
+      }
+    },
+    clearSelection(state) {
+      state.selectedIds = {}
+    },
+    // Logs deleted in Salesforce: gone from the list, the selection, the
+    // cached bodies and the search results.
+    logsDeleted(state, action: PayloadAction<string[]>) {
+      const gone = new Set(action.payload)
+      state.logs = state.logs.filter(log => !gone.has(log.Id))
+      for (const id of gone) {
+        delete state.selectedIds[id]
+        delete state.newIds[id]
+        delete state.logBodies[id]
+        delete state.bodyLoading[id]
+        delete state.bodyErrors[id]
+        if (state.search.matches) delete state.search.matches[id]
+      }
     },
 
     // Log bodies.
@@ -246,6 +317,10 @@ const logsSlice = createSlice({
       state.sideLogsOpen = !state.sideLogsOpen
     },
 
+    setAutoRefresh(state, action: PayloadAction<AutoRefreshInterval>) {
+      state.autoRefresh = action.payload
+    },
+
     // Appearance.
     setColorMode(state, action: PayloadAction<ColorModePreference>) {
       state.colorMode = action.payload
@@ -298,8 +373,13 @@ const logsSlice = createSlice({
 export const {
   logsRequested,
   logsLoaded,
+  logsPolled,
   logsFailed,
   setMaxLogs,
+  toggleLogSelected,
+  setLogsSelected,
+  clearSelection,
+  logsDeleted,
   bodyRequested,
   bodyLoaded,
   bodyFailed,
@@ -315,6 +395,7 @@ export const {
   showToast,
   hideToast,
   toggleSideLogs,
+  setAutoRefresh,
   setColorMode,
   setTheme,
   setCustomColor,

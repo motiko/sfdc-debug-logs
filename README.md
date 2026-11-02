@@ -17,10 +17,13 @@ Key Features
   * Log summary in the log viewer: governor limits per namespace, exceptions and fatal errors, SOQL queries (count, rows, time, likely queries in loops) and DML by operation and object; click an entry to jump to its line. It opens by itself for a failed run.
   * Click any Id to go to Object (Class, Trigger, Validation Rule e.t.c).
   * Indent User Debug (sObject, List, XML or JSON)
+  * Expand long HTTP callout requests and responses, such as Named Credential callouts (one field per line, JSON and XML pretty-printed)
   * Call tree and timeline of a log: code units, methods, SOQL, DML, callouts and flows nested as they ran, with total and own time and SOQL/DML counts; choose one to go to its line.
-  * Delete logs: only yours, or all users', always confirmed with the count.
+  * Download the open log as a `.log` file (the full raw log, named by start time, operation and Id) for offline analyzers or tickets.
+  * Delete logs: only yours, or all users', or just the logs you check in the list or the one you have open; always confirmed with the count.
   * Start, extend or stop logging (a 24-hour trace flag for the current user).
   * Trace flags: see the org's active trace flags with their expiry and stop them; trace yourself, another user (found by name), the Automated Process user or an Apex class or trigger, with the extension's debug level, one of the org's, or custom levels per category (presets Default, Apex FINEST, Quiet), for 30 minutes up to 24 hours.
+  * Auto-refresh the log list (off, every 10, 30 or 60 s): new logs appear on top, marked as new, while your logging is on and the log viewer's tab is in front. Each check is one small query for the logs newer than the newest one listed.
   * Customizable keyboard shortcuts for Salesforce
 
 Getting Started

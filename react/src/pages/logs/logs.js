@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Alert, Box, Button, LinearProgress, Link } from '@mui/material'
 import ListIcon from '@mui/icons-material/ViewList'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import InboxIcon from '@mui/icons-material/Inbox'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import CloudOffIcon from '@mui/icons-material/CloudOff'
@@ -12,22 +20,32 @@ import LogList, { LogListSkeleton } from './components/log-list'
 import LogViewer from './components/log-viewer'
 import AppearancePanel from './dialogs/appearance-panel'
 import DeleteLogsDialog from './dialogs/delete-logs-dialog'
+import DeleteSelectedDialog from './dialogs/delete-selected-dialog'
 import ShortcutsDialog from './dialogs/shortcuts-dialog'
 import IconAction from '../../ui/components/icon-action'
 import StatePanel from '../../ui/components/state-panel'
 import Toast from '../../ui/components/toast'
 import { useResolvedColorMode } from '../../ui/color-mode'
 import { clearFilters, clearSearch, loadLogs, startLogging } from './actions'
-import { hideToast, toggleSideLogs } from './logs-slice'
+import {
+  clearSelection,
+  hideToast,
+  setLogsSelected,
+  toggleLogSelected,
+  toggleSideLogs
+} from './logs-slice'
 import {
   filterLogs,
   formatClock,
   formatRelative,
   shortOperation,
+  shownSelection,
   sortLogs
 } from './utils'
 import { openLog, useOpenLogId } from '../../hash-route'
 import { useAppShortcuts } from './use-app-shortcuts'
+import { useAutoRefresh } from './use-auto-refresh'
+import { describeAutoRefresh } from './auto-refresh'
 import globalSf from '../../global-sf'
 import { layout } from '../../ui/tokens'
 
@@ -47,11 +65,14 @@ export default function LogsPage() {
     sideLogsOpen,
     newIds,
     toast,
-    loadedAt
+    loadedAt,
+    selectedIds
   } = page
   const colorMode = useResolvedColorMode(page.colorMode)
   const [sort, setSort] = useState({ key: 'time', direction: 'desc' })
   const [dialog, setDialog] = useState(null)
+  // The logs "Delete selected…" or "Delete log…" asks to delete.
+  const [deleteIds, setDeleteIds] = useState([])
   const searchRef = useRef(null)
   const listRef = useRef(null)
   const viewerRef = useRef(null)
@@ -61,10 +82,36 @@ export default function LogsPage() {
     dispatch(loadLogs())
   }, [dispatch])
 
+  const autoRefresh = useAutoRefresh({ openId: logId })
+  const scrollAnchor = useScrollAnchor(logs)
+
   const shownLogs = useMemo(
     () => sortLogs(filterLogs(logs, filters, search.matches), sort),
     [logs, filters, search.matches, sort]
   )
+  const selection = useMemo(
+    () => shownSelection(shownLogs, selectedIds),
+    [shownLogs, selectedIds]
+  )
+  const confirmDelete = ids => {
+    setDeleteIds(ids)
+    setDialog('delete-selected')
+  }
+  const focusList = () =>
+    setTimeout(() => listRef.current && listRef.current.focusRow(), 0)
+  // A deleted open log closes; the list gets the focus back.
+  const afterDelete = deleted => {
+    if (logId && deleted.includes(logId)) {
+      openLog(null)
+      focusList()
+    }
+  }
+  // When the dialog's trigger is gone (the selection bar after deleting every
+  // selected log), the focus goes back to the list instead of the page.
+  const afterDeleteDialog = () => {
+    const active = document.activeElement
+    if (!active || active === document.body) focusList()
+  }
   const openRecord = logs.find(log => log.Id === logId)
   const showUser = useMemo(
     () => new Set(logs.map(l => l.LogUser && l.LogUser.Name)).size > 1,
@@ -97,6 +144,7 @@ export default function LogsPage() {
       Boolean(viewerRef.current && viewerRef.current.isFindFocused()),
     onNextError: () => viewerRef.current && viewerRef.current.nextError(),
     onNextDebug: () => viewerRef.current && viewerRef.current.nextDebug(),
+    onDownload: () => viewerRef.current && viewerRef.current.download(),
     onClose: () => openLog(null)
   })
 
@@ -167,6 +215,12 @@ export default function LogsPage() {
         matches={search.matches}
         showUser={showUser}
         loading={loading}
+        selectedIds={selectedIds}
+        selection={selection}
+        onToggleSelected={id => dispatch(toggleLogSelected(id))}
+        onSelectAll={selected =>
+          dispatch(setLogsSelected({ ids: shownLogs.map(l => l.Id), selected }))
+        }
       />
     )
   }
@@ -225,7 +279,34 @@ export default function LogsPage() {
           Refresh failed. {listError.title}
         </Alert>
       ) : null}
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>{listContent}</Box>
+      {!logId && selection.ids.length > 0 ? (
+        <SelectionBar
+          count={selection.ids.length}
+          onClear={() => {
+            dispatch(clearSelection())
+            focusList() // the bar, and its button, go away
+          }}
+          onDelete={() => confirmDelete(selection.ids)}
+        />
+      ) : null}
+      {/* Always present, so the first check is announced too. */}
+      <Box role="status" sx={visuallyHidden}>
+        {!logId && selection.ids.length > 0
+          ? selectedText(selection.ids.length)
+          : ''}
+      </Box>
+      <Box
+        ref={scrollAnchor.ref}
+        onScroll={scrollAnchor.onScroll}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowAnchor: 'none'
+        }}
+      >
+        {listContent}
+      </Box>
       {logs.length > 0 ? (
         <Box
           sx={{
@@ -246,7 +327,21 @@ export default function LogsPage() {
               ? `All ${logs.length} logs loaded`
               : `Newest ${logs.length} logs loaded`}
             {loadedAt ? ` · updated ${formatRelative(loadedAt)}` : ''}
+            {autoRefresh.state !== 'off' ? ' ·' : ''}
           </span>
+          {autoRefresh.state !== 'off' ? (
+            <Box
+              component="span"
+              data-testid="auto-refresh-status"
+              sx={autoRefresh.failing ? { color: 'warning.main' } : null}
+            >
+              {describeAutoRefresh(
+                autoRefresh.state,
+                autoRefresh.interval,
+                autoRefresh.failing
+              )}
+            </Box>
+          ) : null}
           {logs.length >= maxLogs ? (
             <Button
               size="small"
@@ -274,6 +369,7 @@ export default function LogsPage() {
         host={host}
         onRefresh={refresh}
         refreshing={loading}
+        autoRefresh={autoRefresh}
         onHelp={() => setDialog('help')}
         onAppearance={() => setDialog('appearance')}
         onDelete={() => setDialog('delete')}
@@ -319,6 +415,7 @@ export default function LogsPage() {
             log={openRecord}
             colorMode={colorMode}
             initialFind={search.matches !== null ? search.term : ''}
+            onDelete={() => confirmDelete([logId])}
           />
         ) : null}
       </Box>
@@ -332,13 +429,133 @@ export default function LogsPage() {
         onClose={() => setDialog(null)}
         host={host}
       />
+      <DeleteSelectedDialog
+        open={dialog === 'delete-selected'}
+        ids={deleteIds}
+        logs={logs}
+        onClose={() => setDialog(null)}
+        onDeleted={afterDelete}
+        onExited={afterDeleteDialog}
+        host={host}
+      />
       <ShortcutsDialog
         open={dialog === 'help'}
         onClose={() => setDialog(null)}
       />
       <Toast toast={toast} onClose={() => dispatch(hideToast())} />
+      {/* New logs from auto-refresh, announced politely. */}
+      <Box
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        data-testid="auto-refresh-announcement"
+      >
+        {autoRefresh.announcement ? (
+          <span key={autoRefresh.announcement.key}>
+            {autoRefresh.announcement.text}
+          </span>
+        ) : null}
+      </Box>
     </Box>
   )
+}
+
+const selectedText = count =>
+  count === 1 ? '1 log selected' : `${count.toLocaleString()} logs selected`
+
+// Read by screen readers only.
+const visuallyHidden = {
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  p: 0,
+  m: '-1px',
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0
+}
+
+// Above the table while logs are checked: how many, Clear selection and
+// "Delete selected…", which asks before deleting anything.
+function SelectionBar({ count, onClear, onDelete }) {
+  return (
+    <Box
+      role="toolbar"
+      aria-label="Selected logs"
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 1,
+        px: 1.5,
+        py: 0.5,
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: 'action.selected',
+        fontSize: 13
+      }}
+    >
+      <Box
+        component="span"
+        data-testid="selected-count"
+        sx={{ fontWeight: 600 }}
+      >
+        {selectedText(count)}
+      </Box>
+      <Button size="small" onClick={onClear}>
+        Clear selection
+      </Button>
+      <Box sx={{ flex: 1 }} />
+      <Button
+        size="small"
+        variant="outlined"
+        color="error"
+        startIcon={<DeleteIcon />}
+        onClick={onDelete}
+      >
+        Delete selected…
+      </Button>
+    </Box>
+  )
+}
+
+// Keeps the list where the user scrolled it when rows are added above (an
+// auto-refresh poll or a refresh): the first visible row stays in place.
+// At the top, new rows show up at the top.
+function useScrollAnchor(logs) {
+  const ref = useRef(null)
+  const anchor = useRef(null)
+  const record = useCallback(() => {
+    const el = ref.current
+    anchor.current = null
+    if (!el || el.scrollTop === 0) return
+    const top = el.getBoundingClientRect().top
+    for (const row of el.querySelectorAll('[data-log-id]')) {
+      const rect = row.getBoundingClientRect()
+      if (rect.bottom > top) {
+        anchor.current = { id: row.dataset.logId, offset: rect.top - top }
+        return
+      }
+    }
+  }, [])
+  useLayoutEffect(() => {
+    const el = ref.current
+    const kept = anchor.current
+    if (el && kept) {
+      const row = [...el.querySelectorAll('[data-log-id]')].find(
+        r => r.dataset.logId === kept.id
+      )
+      if (row) {
+        el.scrollTop +=
+          row.getBoundingClientRect().top -
+          el.getBoundingClientRect().top -
+          kept.offset
+      }
+    }
+    record()
+  }, [logs, record])
+  return { ref, onScroll: record }
 }
 
 function ListError({ error, host, onRetry }) {

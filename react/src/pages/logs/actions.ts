@@ -6,6 +6,8 @@ import { explainError } from '../../core/salesforce/errors'
 import {
   DEBUG_LEVEL_NAME,
   type DebugLevelInfo,
+  type DeleteByIdProgress,
+  type DeleteByIdResult,
   type DeleteProgress,
   type TraceFlagInfo
 } from '../../core/salesforce/client'
@@ -21,8 +23,10 @@ import {
   loggingBusy,
   loggingFailed,
   loggingStatus,
+  logsDeleted,
   logsFailed,
   logsLoaded,
+  logsPolled,
   logsRequested,
   PAGE_SIZE,
   searchCleared,
@@ -40,6 +44,7 @@ import {
   type ApexLog,
   type ListFilters
 } from './utils'
+import { newestModified, newLogsWhereClause } from './auto-refresh'
 
 type Thunk<R = unknown> = (
   dispatch: AppDispatch,
@@ -68,6 +73,39 @@ export function loadLogs({ more = false } = {}): Thunk<Promise<void>> {
     } catch (err) {
       dispatch(logsFailed(explain(err, sf)))
     }
+  }
+}
+
+// One auto-refresh poll: asks only for the logs not older than the newest
+// loaded one (with the list's filters) and adds the new ones on top, keeping
+// the open log (keepId) in the list. Resolves with how many were new;
+// rejects when Salesforce can't be reached (auto-refresh.ts backs off).
+// A full load running or done meanwhile wins over the poll's result.
+export function pollNewLogs({
+  keepId = null
+}: { keepId?: string | null } = {}): Thunk<Promise<number>> {
+  return async (dispatch, getState, sf) => {
+    const { logs, filters, maxLogs, listStatus } = getState().logsPage
+    if (listStatus === 'loading') return 0
+    const records = (await sf.recentLogs(
+      maxLogs,
+      newLogsWhereClause(filters, newestModified(logs))
+    )) as ApexLog[]
+    const now = getState().logsPage
+    if (
+      now.listStatus === 'loading' ||
+      now.logs !== logs ||
+      now.filters !== filters
+    )
+      return 0
+    const known = new Set(logs.map(log => log.Id))
+    const added = new Set(
+      records.filter(log => !known.has(log.Id)).map(log => log.Id)
+    ).size
+    dispatch(logsPolled({ logs: records, at: Date.now(), keepId }))
+    const { search } = getState().logsPage
+    if (added && search.term) await dispatch(searchLogs(search.term))
+    return added
   }
 }
 
@@ -266,15 +304,30 @@ export function deleteLogs(
         : { scope: 'user', userId: await sf.getUserId() },
       { onProgress }
     )
-    dispatch(
-      showToast(
-        deleted === 1
-          ? 'Deleted 1 log'
-          : `Deleted ${deleted.toLocaleString()} logs`
-      )
-    )
+    dispatch(showToast(deletedMessage(deleted)))
     await dispatch(loadLogs())
     return deleted
+  }
+}
+
+export const deletedMessage = (count: number) =>
+  count === 1 ? 'Deleted 1 log' : `Deleted ${count.toLocaleString()} logs`
+
+// Deletes exactly these logs (the list's selection, or the open log), takes
+// them out of the list, the selection and the cached bodies, and confirms.
+// Resolves with what was deleted and what Salesforce refused, for the dialog
+// to report; rejects when no request got through.
+export function deleteLogsById(
+  ids: string[],
+  onProgress: (progress: DeleteByIdProgress) => void = () => {}
+): Thunk<Promise<DeleteByIdResult>> {
+  return async (dispatch, getState, sf) => {
+    const result = await sf.deleteLogsById(ids, { onProgress })
+    if (result.deleted.length) {
+      dispatch(logsDeleted(result.deleted))
+      dispatch(showToast(deletedMessage(result.deleted.length)))
+    }
+    return result
   }
 }
 
