@@ -20,6 +20,7 @@ import {
   type LogsPageState,
   type StyleConfig
 } from './pages/logs/logs-slice'
+import { isAutoRefreshInterval } from './pages/logs/auto-refresh'
 
 export const STORAGE_KEY = 'apex-debugger.settings'
 // Where 0.8.x saved them (sessionStorage).
@@ -32,7 +33,8 @@ export const PERSISTED_KEYS = [
   'sideLogsOpen',
   'styleConfig',
   'hiddenCategories',
-  'colorMode'
+  'colorMode',
+  'autoRefresh'
 ] as const
 
 type PersistedKey = (typeof PERSISTED_KEYS)[number]
@@ -88,6 +90,8 @@ function cleanSettings(saved: Record<string, unknown>): Settings {
   if (['system', 'light', 'dark'].includes(saved.colorMode as string)) {
     settings.colorMode = saved.colorMode as Settings['colorMode']
   }
+  if (isAutoRefreshInterval(saved.autoRefresh))
+    settings.autoRefresh = saved.autoRefresh
   return settings
 }
 

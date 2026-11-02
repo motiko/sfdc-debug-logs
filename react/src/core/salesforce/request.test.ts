@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createRequest, SalesforceError } from './request'
+import { createRequest, NoSessionError, SalesforceError } from './request'
 
 function response(status: number, body = '', type = 'application/json') {
   return new Response(status === 204 ? null : body, {
@@ -120,5 +120,34 @@ describe('createRequest', () => {
     expect(error).toBeInstanceOf(SalesforceError)
     expect(error.status).toBe(400)
     expect(error.message).toBe('400: Bad Request (LogType is required.)')
+  })
+})
+
+describe('createRequest without a session', () => {
+  it('throws NoSessionError instead of sending an empty token', async () => {
+    const fetch = vi.fn(async (..._args: any[]) => response(200, '{}'))
+    const request = createRequest({
+      origin: 'https://acme.my.salesforce.com',
+      getToken: async () => undefined,
+      fetch
+    })
+    await expect(request('/services/data/v62.0/limits')).rejects.toBeInstanceOf(
+      NoSessionError
+    )
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('throws NoSessionError when the renewal after a 401 finds none', async () => {
+    const fetch = vi.fn(async (..._args: any[]) => response(401))
+    const request = createRequest({
+      origin: 'https://acme.my.salesforce.com',
+      token: 'OLD',
+      getToken: async () => undefined,
+      fetch
+    })
+    await expect(request('/services/data/v62.0/limits')).rejects.toBeInstanceOf(
+      NoSessionError
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 })

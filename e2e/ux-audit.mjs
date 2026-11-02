@@ -6,9 +6,9 @@
 // indicators, dialog focus return). Used by the ux-ui-review agent
 // (.claude/agents/ux-ui-review.md), and meant to be rerun after UI changes.
 //
-//   node ux-audit.mjs [--out <dir>] [--views app,app-delete,classic,options,exec,trace]
+//   node ux-audit.mjs [--out <dir>] [--views app,app-delete,classic,options,exec,trace,callouts,download,auto-refresh]
 //                     [--sizes 1440x900,1024x768] [--compare <previous out dir>]
-//                     [--mock]
+//                     [--mock]   (views also: auto-refresh)
 //
 // Output (default e2e/ux-artifacts/, gitignored):
 //   <view>-<state>@<W>x<H>.png   screenshot of each state
@@ -39,6 +39,7 @@ import { createRequire } from 'node:module'
 import { parseArgs } from 'node:util'
 import { frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { startRun } from './lib/run.mjs'
+import { captureDownload } from './lib/downloads.mjs'
 import { logThemes } from './lib/styles.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -47,7 +48,7 @@ const AXE_PATH = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 const { values: args } = parseArgs({
   options: {
     out: { type: 'string', default: join(HERE, 'ux-artifacts') },
-    views: { type: 'string', default: 'app,app-delete,classic,options,exec,trace' },
+    views: { type: 'string', default: 'app,app-delete,classic,options,exec,trace,callouts,download,auto-refresh' },
     sizes: { type: 'string', default: '1440x900,1024x768' },
     compare: { type: 'string' },
     mock: { type: 'boolean', default: process.env.SF_MOCK === '1' }
@@ -2511,6 +2512,497 @@ async function optionsView(ctx) {
   await page.close()
 }
 
+// --- Auto-refresh of the app's log list (header control, menu, states) -----
+// Its states are reached in the browser only: the trace flag query is
+// answered as "no flag" (paused, logging off), the log queries are failed
+// (failing), and visibilityState is overridden (paused, in the background);
+// nothing is changed in the org. Only one new log is created, with
+// anonymous Apex, for the New badge. Auto-refresh is set back to Off.
+
+async function autoRefreshView(ctx) {
+  const V = 'auto-refresh'
+  const { logs, sf } = ctx
+  const page = await newPage(ctx)
+  let mode = 'normal' // 'no-logging' | 'fail-logs'
+  await page.setRequestInterception(true)
+  page.on('request', req => {
+    const url = decodeURIComponent(req.url()).replace(/\+/g, ' ')
+    if (mode === 'no-logging' && /FROM TraceFlag/i.test(url) && /ExpirationDate/.test(url)) {
+      return req
+        .respond({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ size: 0, totalSize: 0, done: true, records: [] })
+        })
+        .catch(() => {})
+    }
+    if (mode === 'fail-logs' && /FROM ApexLog/i.test(url)) return req.abort('internetdisconnected').catch(() => {})
+    req.continue().catch(() => {})
+  })
+  const scheme = value => page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value }])
+  // Its tooltip's text becomes a native title while closed: match the label.
+  const control = () => byName(page, [/auto-refresh: (off|\d+ s)/i], { roles: ['button'] })
+  const status = () => page.$eval('[data-testid="auto-refresh-status"]', el => el.textContent).catch(() => '')
+  const waitForStatus = (re, timeout = 30000) =>
+    page
+      .waitForFunction(
+        s => new RegExp(s, 'i').test(document.querySelector('[data-testid="auto-refresh-status"]')?.textContent || ''),
+        { timeout, polling: 250 },
+        re.source
+      )
+      .then(() => true)
+      .catch(() => false)
+  const choose = async label => {
+    const button = await control()
+    if (!button) return summary.errors.push('auto-refresh: no control found')
+    await safeClick(button)
+    await delay(400)
+    const item = await page.$(`::-p-aria([name="${label}"][role="menuitemradio"])`)
+    if (!item) return summary.errors.push(`auto-refresh: no menu item ${label}`)
+    await item.click()
+    await page.waitForSelector('[role="menu"]', { hidden: true }).catch(() => {})
+    await delay(300)
+  }
+  const load = async () => {
+    await page.goto(appUrl(ctx), { waitUntil: 'networkidle2' })
+    await page.waitForSelector(`[data-log-id="${logs.main.Id}"]`, { timeout: 30000 }).catch(() => {})
+    await delay(800)
+  }
+
+  await scheme('light')
+  await load()
+  await choose('Off') // a previous size may have left it on
+  await capture(ctx, page, V, 'off')
+
+  // The menu, opened by keyboard: where focus goes and whether it returns.
+  {
+    const button = await control()
+    if (button) {
+      const kb = { dialog: 'auto-refresh menu' }
+      await button.focus()
+      await page.keyboard.press('Enter')
+      await delay(500)
+      kb.opened = Boolean(await page.$('[role="menu"]'))
+      kb.focusMovedIntoMenu = await page.evaluate(() => Boolean(document.activeElement?.closest('[role="menu"]')))
+      kb.firstFocus = await describeActive(page)
+      await page.keyboard.press('ArrowDown')
+      await delay(150)
+      kb.afterArrowDown = await describeActive(page)
+      await capture(ctx, page, V, 'menu')
+      await scheme('dark')
+      await delay(400)
+      await capture(ctx, page, V, 'menu-dark')
+      await scheme('light')
+      await page.keyboard.press('Escape')
+      await delay(500)
+      kb.closedWithEscape = !(await page.$('[role="menu"]'))
+      kb.focusReturnedToTrigger = await button.evaluate(el => document.activeElement === el)
+      kb.focusVisible = await focusIndicatorVisible(page)
+      writeJson(`${V}-keyboard-menu@${ctx.size.label}.json`, kb)
+      summary.keyboard[`${V}-menu@${ctx.size.label}`] = {
+        dialog: kb.dialog,
+        focusMovedIntoDialog: kb.focusMovedIntoMenu,
+        focusReturnedToTrigger: kb.focusReturnedToTrigger
+      }
+    }
+  }
+
+  // Running.
+  await choose('Every 10 s')
+  if (!(await waitForStatus(/every 10/, 10000))) summary.errors.push(`auto-refresh: not running (${await status()})`)
+  await capture(ctx, page, V, 'running')
+  {
+    const button = await control()
+    if (button) {
+      await button.hover()
+      await delay(900)
+      await capture(ctx, page, V, 'running-tooltip')
+      await page.mouse.move(0, 0)
+      await delay(300)
+    }
+  }
+
+  // A new log arrives: the New badge on top.
+  {
+    const before = await page.$$eval('[data-log-id]', rows => rows.map(r => r.dataset.logId))
+    await sf.executeAnonymous(`System.debug('UXAUTOREFRESH${Date.now()}');`)
+    const arrived = await page
+      .waitForFunction(
+        known => [...document.querySelectorAll('[data-log-id]')].some(r => !known.includes(r.dataset.logId)),
+        { timeout: 45000, polling: 250 },
+        before
+      )
+      .then(() => true)
+      .catch(() => false)
+    if (!arrived) summary.errors.push('auto-refresh: the new log was not listed')
+    await capture(ctx, page, V, 'new-log')
+    await scheme('dark')
+    await delay(400)
+    await capture(ctx, page, V, 'new-log-dark')
+    await scheme('light')
+    // The badge in the compact list, next to an open log.
+    await page.evaluate(id => (location.hash = `#/logs/${id}`), logs.main.Id)
+    await delay(1500)
+    await capture(ctx, page, V, 'new-log-compact')
+    await page.evaluate(() => (location.hash = ''))
+    await delay(800)
+  }
+
+  // Paused while the tab is in the background.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  if (!(await waitForStatus(/background/, 5000)))
+    summary.errors.push(`auto-refresh: no hidden pause (${await status()})`)
+  await capture(ctx, page, V, 'paused-hidden')
+  await page.evaluate(() => {
+    delete document.visibilityState
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+
+  // Failing: the log queries can't reach Salesforce; then a failed Refresh
+  // shows the list's error banner, which the next good poll clears.
+  mode = 'fail-logs'
+  if (!(await waitForStatus(/could not|can.t reach|trying again/, 30000)))
+    summary.errors.push(`auto-refresh: no failing state (${await status()})`)
+  await capture(ctx, page, V, 'failing')
+  await scheme('dark')
+  await delay(400)
+  await capture(ctx, page, V, 'failing-dark')
+  await scheme('light')
+  const refresh = await byName(page, [/^refresh logs/i], { roles: ['button'] })
+  if (refresh) {
+    await safeClick(refresh)
+    await page.waitForSelector('[role="alert"]', { timeout: 10000 }).catch(() => {})
+    await delay(300)
+    await capture(ctx, page, V, 'failing-refresh-error')
+  }
+  mode = 'normal'
+  const cleared = await page
+    .waitForFunction(
+      () =>
+        !document.querySelector('[role="alert"]') &&
+        !/could not|trying again/i.test(
+          document.querySelector('[data-testid="auto-refresh-status"]')?.textContent || ''
+        ),
+      {
+        timeout: 60000,
+        polling: 250
+      }
+    )
+    .then(() => true)
+    .catch(() => false)
+  summary.autoRefreshErrorClearedByPoll = cleared
+  if (!cleared) summary.errors.push('auto-refresh: a good poll did not clear the error banner')
+  await capture(ctx, page, V, 'recovered')
+
+  // Paused because logging is off (the trace flag query finds none).
+  mode = 'no-logging'
+  await load()
+  if (!(await waitForStatus(/logging is off/, 10000)))
+    summary.errors.push(`auto-refresh: no logging pause (${await status()})`)
+  await capture(ctx, page, V, 'paused-logging')
+  await scheme('dark')
+  await delay(400)
+  await capture(ctx, page, V, 'paused-logging-dark')
+  await scheme('light')
+  mode = 'normal'
+
+  await choose('Off')
+  summary.pageErrors = { ...(summary.pageErrors || {}), [`${V}@${ctx.size.label}`]: page.errors.map(redact) }
+  await page.close()
+}
+
+// --- Callouts (CALLOUT_*, NAMED_CREDENTIAL_* entries) -----------------------
+// A log with HTTP callouts, in the app and on the classic log page: collapsed,
+// one value expanded, every value expanded, and dark mode. Mock org only: a
+// real org needs a Remote Site Setting or Named Credential for a callout.
+
+const CALLOUT_MARKER = `UXCALLOUT${Date.now()}`
+const CALLOUT_APEX = `
+HttpRequest req = new HttpRequest();
+req.setEndpoint('callout:Orders_API/v1/orders?ref=${CALLOUT_MARKER}');
+req.setMethod('POST');
+req.setBody(JSON.serialize(new Map<String, Object>{ 'marker' => '${CALLOUT_MARKER}', 'lines' => new List<Object>{ 1, 2, 3 } }));
+HttpResponse res = new Http().send(req);
+System.debug(res.getBody());
+HttpRequest ping = new HttpRequest();
+ping.setEndpoint('https://api.example.com/ping');
+ping.setMethod('GET');
+HttpResponse pong = new Http().send(ping);
+System.debug('Callouts done ' + pong.getStatusCode());
+`
+
+let calloutLog = null // one log for every size
+
+async function calloutsView(ctx) {
+  const V = 'callouts'
+  if (!args.mock) {
+    log('callouts: mock org only, skipped')
+    return
+  }
+  if (!calloutLog) {
+    const since = new Date(Date.now() - 60000)
+    await ctx.sf.executeAnonymous(CALLOUT_APEX)
+    calloutLog = (await ctx.sf.findLogs([CALLOUT_MARKER], { since }))[CALLOUT_MARKER]
+  }
+  // Scrolls the first line (in `selector`) containing `text` near the top of
+  // its scrolling area (not the document, which scrollIntoView would also
+  // move) and clicks its `button` if given; false if there's no such line or
+  // button.
+  const showLine = (page, selector, text, button = null) =>
+    page.evaluate(
+      (selector, text, button) => {
+        const line = [...document.querySelectorAll(selector)].find(d => d.textContent.includes(text))
+        if (!line) return false
+        let box = line.parentElement
+        while (box && !(box.scrollHeight > box.clientHeight && /auto|scroll/.test(getComputedStyle(box).overflowY)))
+          box = box.parentElement
+        const scroller = box || document.scrollingElement
+        const top = box ? box.getBoundingClientRect().top : 0
+        scroller.scrollTop += line.getBoundingClientRect().top - top - 120
+        if (!button) return true
+        const toggle = line.querySelector(button)
+        if (!toggle) return false
+        toggle.click()
+        return true
+      },
+      selector,
+      text,
+      button
+    )
+  const toggleLine = (page, selector, text, button) => showLine(page, selector, text, button)
+  const dark = async (page, on) => {
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: on ? 'dark' : 'light' }])
+    await delay(600)
+  }
+
+  // React app.
+  {
+    const ROW = 'pre > div'
+    const page = await newPage(ctx)
+    await dark(page, false)
+    await page.goto(`${appUrl(ctx)}#/logs/${calloutLog.Id}`, { waitUntil: 'networkidle2' })
+    await waitForText(page, 'Callouts done', 30000)
+    await delay(800)
+    await capture(ctx, page, V, 'app-collapsed')
+    if (await toggleLine(page, ROW, 'NAMED_CREDENTIAL_REQUEST', 'button[aria-expanded]')) {
+      await delay(400)
+      await capture(ctx, page, V, 'app-one-expanded')
+      await dark(page, true)
+      await capture(ctx, page, V, 'app-one-expanded-dark')
+      await dark(page, false)
+    } else summary.errors.push('callouts: no expand toggle on the Named Credential request in the app')
+    const expandAll = await byName(page, [/^expand values$/i])
+    if (expandAll) {
+      await safeClick(expandAll)
+      await delay(600)
+      await showLine(page, ROW, 'NAMED_CREDENTIAL_REQUEST')
+      await capture(ctx, page, V, 'app-all-expanded')
+      await dark(page, true)
+      await capture(ctx, page, V, 'app-all-expanded-dark')
+      await dark(page, false)
+    } else summary.errors.push('callouts: no "Expand values" control in the app')
+    if (ctx.primary) saveKeyboard(`${V}-keyboard-app`, await tabThrough(page, 'callouts app log', { maxStops: 40 }))
+    summary.pageErrors = { ...(summary.pageErrors || {}), [`callouts-app@${ctx.size.label}`]: page.errors.map(redact) }
+    await page.close()
+  }
+
+  // Classic log page.
+  {
+    const LINE = '#debugText .callout'
+    const BUTTON = '.expandUserDebugBtn'
+    const page = await newPage(ctx)
+    await dark(page, false)
+    await gotoSalesforce(ctx, page, `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${calloutLog.Id}`)
+    await waitForText(page, 'Callouts done', 30000)
+    await delay(1500)
+    const themeSelect = await controlByLabel(page, /log colors|style|theme/i)
+    if (themeSelect) await chooseOption(page, themeSelect, 'Match color mode').catch(() => {})
+    await capture(ctx, page, V, 'classic-collapsed', { scope: CLASSIC_LOG_SCOPE })
+    if (await toggleLine(page, LINE, 'NAMED_CREDENTIAL_REQUEST', BUTTON)) {
+      await delay(400)
+      await capture(ctx, page, V, 'classic-one-expanded', { scope: CLASSIC_LOG_SCOPE })
+      await dark(page, true)
+      await capture(ctx, page, V, 'classic-one-expanded-dark', { scope: CLASSIC_LOG_SCOPE })
+      await dark(page, false)
+      await toggleLine(page, LINE, 'NAMED_CREDENTIAL_REQUEST', BUTTON) // collapse again
+    } else summary.errors.push('callouts: no expand button on the Named Credential request on the classic page')
+    const expandAll = await byName(page, [/expand all/i])
+    if (expandAll) {
+      await safeClick(expandAll)
+      await delay(1000)
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await capture(ctx, page, V, 'classic-all-expanded', { scope: CLASSIC_LOG_SCOPE, fullPage: true })
+      await dark(page, true)
+      await capture(ctx, page, V, 'classic-all-expanded-dark', { scope: CLASSIC_LOG_SCOPE, fullPage: true })
+      await dark(page, false)
+    } else summary.errors.push('callouts: no "Expand all" control on the classic page')
+    if (ctx.primary)
+      saveKeyboard(`${V}-keyboard-classic`, await tabThrough(page, 'callouts classic log', { maxStops: 40 }))
+    await page.close()
+  }
+}
+
+// --- Download log (app viewer and classic toolbar) ------------------------
+
+// Where the Download button sits in its toolbar: whether the toolbar wraps
+// onto more rows, and whether the button is clipped, wrapped or off screen.
+function downloadLayout(buttonSelector, rowSelector) {
+  const button = document.querySelector(buttonSelector)
+  if (!button) return { error: `no ${buttonSelector}` }
+  const row = rowSelector ? button.closest(rowSelector) : button.parentElement
+  const r = button.getBoundingClientRect()
+  const style = getComputedStyle(button)
+  const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3
+  const childTops = row
+    ? [...row.children]
+        .map(c => c.getBoundingClientRect())
+        .filter(c => c.width > 0 && c.height > 0)
+        .map(c => Math.round(c.top))
+    : []
+  const rowTops = [...new Set(childTops)].sort((a, b) => a - b)
+  // Rows: children whose tops differ by more than half a control height.
+  const rows = rowTops.reduce((acc, t) => (acc.length && t - acc[acc.length - 1] < 14 ? acc : [...acc, t]), [])
+  return {
+    text: button.textContent.trim(),
+    name: button.getAttribute('aria-label') || button.textContent.trim(),
+    keyShortcuts: button.getAttribute('aria-keyshortcuts'),
+    rect: {
+      left: Math.round(r.left),
+      top: Math.round(r.top),
+      width: Math.round(r.width),
+      height: Math.round(r.height)
+    },
+    inViewport: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight,
+    clipped: button.scrollWidth > button.clientWidth + 1,
+    textWraps: button.tagName === 'BUTTON' && !button.querySelector('svg') && r.height > lineHeight * 2 + 8,
+    toolbarRows: rows.length,
+    buttonRow: rows.findIndex(
+      (t, i) => Math.round(r.top) >= t - 14 && (i === rows.length - 1 || Math.round(r.top) < rows[i + 1] - 14)
+    )
+  }
+}
+
+async function downloadView(ctx) {
+  const V = 'download'
+  const { logs } = ctx
+  const layout = {}
+
+  // App: the log view's Download button (Shift+D), its tooltip, light and
+  // dark, and disabled while the body is still loading.
+  {
+    const page = await newPage(ctx)
+    await page.setRequestInterception(true)
+    let holdBody = true
+    page.on('request', req => {
+      if (holdBody && /\/ApexLog\/[^/]+\/Body/i.test(req.url())) {
+        setTimeout(() => req.continue().catch(() => {}), 5000)
+      } else req.continue().catch(() => {})
+    })
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await page.goto(`${appUrl(ctx)}#/logs/${logs.main.Id}`, { waitUntil: 'domcontentloaded' })
+    const button = 'button[aria-label="Download log"]'
+    await page.waitForSelector(button, { timeout: 30000 })
+    await delay(600)
+    const disabled = await page.$eval(button, b => b.disabled)
+    if (disabled) {
+      await page.hover(button).catch(() => {})
+      await delay(900) // the tooltip fades in
+      await capture(ctx, page, V, 'app-loading')
+    } else log('download: the body loaded before the disabled state could be captured')
+    holdBody = false
+    await waitForText(page, `Done ${MARKER}`, 60000)
+    await page.mouse.move(0, 0)
+    await delay(800)
+    await capture(ctx, page, V, 'app-viewer')
+    layout[`app@${ctx.size.label}`] = await page.evaluate(downloadLayout, button, 'section > div')
+    await page.hover(button)
+    await delay(900)
+    const tooltip = await page.evaluate(() => {
+      const t = document.querySelector('[role=tooltip]')
+      return t ? t.textContent : null
+    })
+    layout[`app@${ctx.size.label}`].tooltip = tooltip
+    await capture(ctx, page, V, 'app-tooltip')
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await delay(800)
+    await capture(ctx, page, V, 'app-tooltip-dark')
+    await page.mouse.move(0, 0)
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await delay(500)
+    // The "?" overlay lists Shift+D with the log's keys.
+    await page.evaluate(() => document.activeElement && document.activeElement.blur())
+    await page.keyboard.press('?')
+    await delay(700)
+    const dialog = await openDialog(page)
+    if (dialog) {
+      layout[`app-help@${ctx.size.label}`] = await dialog.evaluate(el => {
+        const row = [...el.querySelectorAll('li, tr, div')].find(
+          n => /download/i.test(n.textContent) && n.textContent.length < 120
+        )
+        return row ? row.textContent : null
+      })
+      await dialog.evaluate(el => {
+        const row = [...el.querySelectorAll('*')].find(n => /^download/i.test(n.textContent.trim()))
+        if (row) row.scrollIntoView({ block: 'center' })
+      })
+      await capture(ctx, page, V, 'app-help')
+      await dialog.dispose()
+      await closeDialog(page)
+    }
+    if (ctx.primary) {
+      // Shift+D saves the file (the name is recorded; the file is deleted).
+      const saved = await captureDownload(page, async () => {
+        await page.keyboard.down('Shift')
+        await page.keyboard.press('KeyD')
+        await page.keyboard.up('Shift')
+      }).catch(e => ({ error: e.message }))
+      summary.download = { shortcut: saved.error ? saved : { name: saved.name, bytes: saved.text.length } }
+    }
+    await page.close()
+  }
+
+  // Classic log page: "Download log" next to Expand all, light and dark.
+  {
+    const page = await newPage(ctx)
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    await gotoSalesforce(ctx, page, `/p/setup/layout/ApexDebugLogDetailEdit/d?apex_log_id=${logs.main.Id}`)
+    await page.waitForFunction(m => document.body.innerText.includes(m), { timeout: 30000 }, `Done ${MARKER}`)
+    await delay(1000)
+    const themeSelect = await controlByLabel(page, /log colors/i)
+    if (themeSelect) await chooseOption(page, themeSelect, 'Match color mode').catch(() => {})
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.focus('#apexdbgDownloadLog').catch(() => summary.errors.push('download: no #apexdbgDownloadLog'))
+    await page.hover('#apexdbgDownloadLog').catch(() => {})
+    await delay(600)
+    layout[`classic@${ctx.size.label}`] = await page.evaluate(
+      downloadLayout,
+      '#apexdbgDownloadLog',
+      '.apexdbg-toolbar-row'
+    )
+    await capture(ctx, page, V, 'classic-toolbar', { scope: ['#apexdbgToolbar'] })
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
+    await delay(600)
+    await capture(ctx, page, V, 'classic-toolbar-dark', { scope: ['#apexdbgToolbar'] })
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
+    if (ctx.primary) {
+      const saved = await captureDownload(page, () => page.click('#apexdbgDownloadLog')).catch(e => ({
+        error: e.message
+      }))
+      summary.download = {
+        ...(summary.download || {}),
+        classic: saved.error ? saved : { name: saved.name, bytes: saved.text.length }
+      }
+    }
+    await page.close()
+  }
+
+  summary.downloadLayout = { ...(summary.downloadLayout || {}), ...layout }
+  log('download layout', JSON.stringify(layout))
+}
+
 // ---------------------------------------------------------------------------
 
 function compareWith(previousDir) {
@@ -2557,7 +3049,10 @@ async function main() {
           classic: classicViews,
           options: optionsView,
           exec: executionViews,
-          trace: traceFlagsView
+          trace: traceFlagsView,
+          download: downloadView,
+          callouts: calloutsView,
+          'auto-refresh': autoRefreshView
         }[view]
         if (!fn) throw new Error(`unknown view ${view}`)
         log(`--- ${view} @ ${size.label}`)

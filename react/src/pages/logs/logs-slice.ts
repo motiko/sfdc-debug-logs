@@ -8,6 +8,7 @@ import type { LogCategory } from '../../core/log/categories'
 import type { ExplainedError } from '../../core/salesforce/errors'
 import type { ColorModePreference } from '../../ui/tokens'
 import { NO_FILTERS, type ApexLog, type ListFilters } from './utils'
+import { mergeNewLogs, type AutoRefreshInterval } from './auto-refresh'
 
 export const DEFAULT_FONT_SIZE = 13
 export const MIN_FONT_SIZE = 10
@@ -85,6 +86,8 @@ export interface LogsPageState {
   styleConfig: StyleConfig
   hiddenCategories: LogCategory[]
   colorMode: ColorModePreference
+  // Seconds between auto-refresh polls; 0 = off (see auto-refresh.ts).
+  autoRefresh: AutoRefreshInterval
 }
 
 export const initialLogsPageState: LogsPageState = {
@@ -111,7 +114,8 @@ export const initialLogsPageState: LogsPageState = {
   sideLogsOpen: true,
   styleConfig: defaultStyleConfig,
   hiddenCategories: [],
-  colorMode: 'system'
+  colorMode: 'system',
+  autoRefresh: 0
 }
 
 const logsSlice = createSlice({
@@ -139,6 +143,30 @@ const logsSlice = createSlice({
         if (!listed.has(id)) delete state.selectedIds[id]
       state.listStatus = 'ready'
       state.loadedAt = at
+    },
+    // An auto-refresh poll's logs (only those not older than the newest
+    // loaded one): the new ones go on top and are marked new; a poll with
+    // none leaves the earlier marks. A good poll means Salesforce answers
+    // again, so the banner of an earlier failed refresh goes away.
+    logsPolled(
+      state,
+      action: PayloadAction<{
+        logs: ApexLog[]
+        at: number
+        keepId?: string | null
+      }>
+    ) {
+      const { logs, at, keepId = null } = action.payload
+      const merged = mergeNewLogs(state.logs, logs, state.maxLogs, keepId)
+      if (merged.added.length) {
+        state.logs = merged.logs
+        state.newIds = Object.fromEntries(merged.added.map(id => [id, true]))
+      }
+      state.loadedAt = at
+      if (state.listStatus === 'error') {
+        state.listStatus = 'ready'
+        state.listError = null
+      }
     },
     logsFailed(state, action: PayloadAction<ExplainedError>) {
       state.listStatus = 'error'
@@ -289,6 +317,10 @@ const logsSlice = createSlice({
       state.sideLogsOpen = !state.sideLogsOpen
     },
 
+    setAutoRefresh(state, action: PayloadAction<AutoRefreshInterval>) {
+      state.autoRefresh = action.payload
+    },
+
     // Appearance.
     setColorMode(state, action: PayloadAction<ColorModePreference>) {
       state.colorMode = action.payload
@@ -341,6 +373,7 @@ const logsSlice = createSlice({
 export const {
   logsRequested,
   logsLoaded,
+  logsPolled,
   logsFailed,
   setMaxLogs,
   toggleLogSelected,
@@ -362,6 +395,7 @@ export const {
   showToast,
   hideToast,
   toggleSideLogs,
+  setAutoRefresh,
   setColorMode,
   setTheme,
   setCustomColor,

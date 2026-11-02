@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { frontdoorUrl } from '../scripts/lib/sf-auth.mjs'
 import { startRun, MOCK } from './lib/run.mjs'
 import { gotoLightning } from './lib/lightning.mjs'
+import { captureDownload } from './lib/downloads.mjs'
 import { launchWithExtension } from './lib/browser.mjs'
 import {
   logThemes,
@@ -575,6 +576,81 @@ test('React log viewer', async t => {
     assert.deepEqual(errors.slice(errorsBefore), [], 'no page errors while filtering')
   })
 
+  await t.test('auto-refresh lists a new log without a reload, keeping the current row', async () => {
+    const chooseInterval = async (current, label) => {
+      await app.click(`::-p-aria([name="Auto-refresh: ${current}"][role="button"])`)
+      const item = `::-p-aria([name="${label}"][role="menuitemradio"])`
+      await app.waitForSelector(item, { visible: true })
+      await app.click(item)
+      await app.waitForSelector('[role="menu"]', { hidden: true })
+      await delay(200)
+    }
+    await chooseInterval('Off', 'Every 10 s')
+    // Logging is on (ensureLogging) and the tab is in front: it runs.
+    await app.waitForSelector('::-p-aria([name="Auto-refresh: 10 s"][role="button"])')
+    await app.waitForFunction(
+      () =>
+        document.querySelector('[data-testid="auto-refresh-status"]')?.textContent ===
+        'Checking for new logs every 10 s',
+      { timeout: 10000 }
+    )
+    const before = await rowIds()
+    // The user is on the second row: it stays the current, focused row.
+    const current = before[1]
+    await app.focus(`[role="grid"] [data-log-id="${current}"]`)
+    const marker = `E2E_AUTO_${Date.now()}`
+    await sf.executeAnonymous(`System.debug('${marker}');`)
+    await app.waitForFunction(
+      known =>
+        [...document.querySelectorAll('[role="grid"] [data-log-id]')].some(r => !known.includes(r.dataset.logId)),
+      { timeout: 45000 },
+      before
+    )
+    const after = await rowIds()
+    const added = after.filter(id => !before.includes(id))
+    assert.ok(added.length >= 1, 'a new row was added')
+    assert.ok(added.includes(after[0]), 'the new log is on top')
+    const newRow = await app.$eval(`[role="grid"] [data-log-id="${after[0]}"]`, r => r.innerText)
+    assert.match(newRow, /New/, 'the new row is marked')
+    await app.waitForFunction(
+      () => /^\d+ new logs?$/.test(document.querySelector('[data-testid="auto-refresh-announcement"]').textContent),
+      { timeout: 5000 }
+    )
+    const live = await app.$eval('[data-testid="auto-refresh-announcement"]', el => el.getAttribute('aria-live'))
+    assert.equal(live, 'polite', 'new logs are announced politely')
+    const focus = await app.evaluate(() => ({
+      id: document.activeElement.dataset.logId,
+      tabIndex: document.activeElement.tabIndex
+    }))
+    assert.deepEqual(focus, { id: current, tabIndex: 0 }, 'focus and the current row stay on the same log')
+    assert.equal(new URL(app.url()).hash, '', 'no log was opened')
+    // The mock org counts the requests: none while the tab is hidden or
+    // auto-refresh is off.
+    const queries = () =>
+      run.mock ? run.mock.org.requests.filter(r => r.source === 'browser' && r.kind === 'tooling query').length : 0
+    if (run.mock) {
+      await sfPage.bringToFront()
+      // Hidden pages don't run animation frames: poll by time.
+      await app.waitForFunction(() => document.visibilityState === 'hidden', { timeout: 5000, polling: 200 })
+      const hidden = queries()
+      await delay(12000)
+      assert.equal(queries(), hidden, 'no polls while the tab is in the background')
+      await app.bringToFront()
+      // More than an interval passed: it checks once, right away.
+      await app.waitForFunction(() => document.visibilityState === 'visible', { polling: 200 })
+      const deadline = Date.now() + 5000
+      while (queries() === hidden && Date.now() < deadline) await delay(200)
+      assert.equal(queries(), hidden + 1, 'one poll when the tab is back in front')
+    }
+    await chooseInterval('10 s', 'Off')
+    await app.waitForSelector('[data-testid="auto-refresh-status"]', { hidden: true })
+    if (run.mock) {
+      const off = queries()
+      await delay(12000)
+      assert.equal(queries(), off, 'no polls while auto-refresh is off')
+    }
+  })
+
   await t.test('keyboard: Tab reaches a log row and Enter opens it', async () => {
     await app.focus(SEARCH)
     let rowId = null
@@ -756,6 +832,7 @@ test('React log viewer', async t => {
     await app.waitForSelector(HELP, { visible: true })
     const text = await app.$eval(HELP, d => d.innerText)
     assert.match(text, /Refresh the list of logs/)
+    assert.match(text, /Download this log/)
     assert.doesNotMatch(text, /delete all/i)
     await app.keyboard.press('Escape')
     await app.waitForSelector(HELP, { hidden: true })
@@ -822,6 +899,42 @@ test('React log viewer', async t => {
     const errorLines = await app.$$eval('pre > div[data-category="error"]', els => els.length)
     assert.ok(errorLines > 0, 'the log has an error line (the caught exception)')
     assert.equal(markers, errorLines, 'each error line has an error marker')
+  })
+
+  await t.test('Download saves the raw log, whatever the view hides', async () => {
+    // Hide the debug lines (the marker's own lines) in the view.
+    const EVENTS = '::-p-xpath(//button[starts-with(normalize-space(), "Events")])'
+    const setDebugShown = async shown => {
+      await app.click(EVENTS)
+      await app.waitForSelector(dialog('Event types'), { visible: true })
+      await app.evaluate(shown => {
+        const box = [...document.querySelectorAll('[role="dialog"] label')]
+          .find(l => l.innerText.startsWith('Debug output'))
+          .querySelector('input')
+        if (box.checked !== shown) box.click()
+      }, shown)
+      await app.click('::-p-xpath(//button[normalize-space()="Done"])')
+      await app.waitForSelector(dialog('Event types'), { hidden: true })
+    }
+    await setDebugShown(false)
+    await app.waitForFunction(() => !document.querySelector('pre > div[data-category="debug"]'))
+    const button = '::-p-aria([name="Download log"][role="button"])'
+    assert.equal(await app.$eval(button, b => b.getAttribute('aria-keyshortcuts')), 'Shift+D')
+    const clicked = await captureDownload(app, () => app.click(button))
+    assert.equal(clicked.text, log.body, 'the file is the raw body, debug lines included')
+    assert.match(clicked.name, /^\d{4}-\d\d-\d\dT\d\d-\d\d-\d\dZ_.+_[A-Za-z0-9]+\.log$/)
+    assert.ok(clicked.name.endsWith(`_${log.Id}.log`), `file name ${clicked.name} has the log id`)
+    await setDebugShown(true)
+
+    // Shift+D does the same.
+    await app.evaluate(() => document.activeElement && document.activeElement.blur())
+    const pressed = await captureDownload(app, async () => {
+      await app.keyboard.down('Shift')
+      await app.keyboard.press('KeyD')
+      await app.keyboard.up('Shift')
+    })
+    assert.equal(pressed.name, clicked.name)
+    assert.equal(pressed.text, log.body)
   })
 
   await t.test('summary shows limits, the exception, SOQL and DML, and jumps to their lines', async () => {
@@ -1282,6 +1395,16 @@ test('sessions are only handed out for org hosts', async () => {
     const org = await lookup(`${session.instance}/setup/ui/listApexTraces.apexp`)
     assert.ok(org.token && org.token !== 'saved-token', 'org host gets its sid cookie')
     assert.equal(org.host, new URL(session.instance).hostname)
+    // The Setup domain has no API session: the my.salesforce.com cookie is used.
+    const setup = await lookup(
+      `https://${new URL(session.instance).hostname.replace('.my.salesforce.com', '.my.salesforce-setup.com')}/`
+    )
+    assert.equal(setup.token, org.token, 'Setup host gets the API host cookie')
+    assert.equal(setup.host, org.host)
+    // Another org without a cookie: the saved token, for the API host (not
+    // the Setup host it was asked for, where the API doesn't answer).
+    const saved = await lookup('https://other-org.my.salesforce-setup.com/')
+    assert.deepEqual(saved, { token: 'saved-token', host: 'other-org.my.salesforce.com' })
   } finally {
     await ext.background.evaluate(() => chrome.storage.local.remove('token'))
   }
@@ -1555,6 +1678,13 @@ test('classic log page toolbar', async t => {
     assert.deepEqual(after, ['Collapse value', 'true'])
   })
 
+  await t.test('Download log saves the log text as a .log file', async () => {
+    const { name, text } = await captureDownload(page, () => page.click('#apexdbgDownloadLog'))
+    assert.equal(name, `${log.Id}.log`)
+    assert.ok(text.includes(MARKER), 'the file has the log text')
+    assert.ok(text.includes(XSS), 'markup is kept as text')
+  })
+
   await t.test('"Match color mode" follows dark mode', async () => {
     await page.select('#styleSelection', 'auto')
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
@@ -1742,6 +1872,145 @@ test(
     }
   }
 )
+
+// HTTP callouts need a Remote Site Setting or Named Credential in a real org;
+// the mock org answers every callout. CALLOUT_REQUEST/RESPONSE and the Named
+// Credential entries are callouts in both views (core/log/callouts.ts); only
+// the ones expanding changes much have a button: the Named Credential entries
+// (many fields), not the two-field HttpRequest and HttpResponse.
+test('callouts can be expanded in both views', { skip: !MOCK && 'mock org only' }, async t => {
+  const marker = `E2E_CALLOUT_${Date.now()}`
+  const since = new Date(Date.now() - 60000)
+  await sf.executeAnonymous(`
+HttpRequest req = new HttpRequest();
+req.setEndpoint('callout:Orders_API/v1/orders?ref=${marker}');
+req.setMethod('POST');
+req.setBody(JSON.serialize(new Map<String, Object>{ 'marker' => '${marker}' }));
+HttpResponse res = new Http().send(req);
+System.debug(res.getBody());
+`)
+  const calloutLog = (await sf.findLogs([marker], { since }))[marker]
+  // The innerText of the first line (in `selector`) containing `text`.
+  const lineText = (page, selector, text) =>
+    page.evaluate(
+      (selector, text) => {
+        const div = [...document.querySelectorAll(selector)].find(d => d.textContent.includes(text))
+        return div ? div.innerText : null
+      },
+      selector,
+      text
+    )
+  const clickIn = (page, selector, text, button) =>
+    page.evaluate(
+      (selector, text, button) => {
+        const div = [...document.querySelectorAll(selector)].find(d => d.textContent.includes(text))
+        div.querySelector(button).click()
+      },
+      selector,
+      text,
+      button
+    )
+
+  await t.test('React app: a Named Credential request expands to one field per line', async () => {
+    const page = await ext.browser.newPage()
+    const errors = collectPageErrors(page)
+    const ROW = 'pre > div'
+    try {
+      const host = new URL(session.instance).hostname
+      await page.goto(
+        `chrome-extension://${ext.extensionId}/html/app.html?oid=${session.orgId}&uid=${session.userId}` +
+          `&sid=${encodeURIComponent(session.sessionId)}&host=${host}#/logs/${calloutLog.Id}`
+      )
+      await page.waitForFunction(
+        row => [...document.querySelectorAll(row)].some(d => d.textContent.includes('CALLOUT_REQUEST')),
+        { timeout: 30000 },
+        ROW
+      )
+      const request = () => lineText(page, ROW, 'NAMED_CREDENTIAL_REQUEST')
+      assert.ok(!(await request()).trim().includes('\n'), 'collapsed: one line')
+      const callouts = await page.$$eval(`${ROW}[data-category="callout"]`, divs =>
+        divs.map(d => [
+          d.textContent.match(/\|(\w+)\|/)[1],
+          Boolean(d.querySelector('button[aria-label="Expand value"]'))
+        ])
+      )
+      assert.deepEqual(
+        callouts,
+        [
+          ['NAMED_CREDENTIAL_REQUEST', true],
+          ['CALLOUT_REQUEST', false],
+          ['NAMED_CREDENTIAL_RESPONSE', true],
+          ['CALLOUT_RESPONSE', false]
+        ],
+        'callout and Named Credential entries are callouts; only the long ones have an expand button'
+      )
+      await clickIn(page, ROW, 'NAMED_CREDENTIAL_REQUEST', 'button[aria-label="Expand value"]')
+      await page.waitForFunction(
+        row =>
+          [...document.querySelectorAll(row)]
+            .find(d => d.textContent.includes('NAMED_CREDENTIAL_REQUEST'))
+            .querySelector('button[aria-expanded="true"][aria-label="Collapse value"]'),
+        { timeout: 5000 },
+        ROW
+      )
+      assert.match(
+        await request(),
+        new RegExp(
+          `NamedCallout\\[\\n\\s+Named Credential Id=\\w+,\\n[^]*\\n\\s+Endpoint=callout:Orders_API/v1/orders\\?ref=${marker},\\n\\s+Method=POST,\\n`
+        ),
+        'expanded: one field per indented line'
+      )
+      // "Expand values" expands the Named Credential entries too.
+      await page.click('::-p-aria([name="Expand values"][role="button"])')
+      await page.waitForFunction(
+        row =>
+          /\n\s+Status Code=200,\n/.test(
+            [...document.querySelectorAll(row)].find(d => d.textContent.includes('NAMED_CREDENTIAL_RESPONSE')).innerText
+          ),
+        { timeout: 5000 },
+        ROW
+      )
+    } finally {
+      if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
+      await page.close()
+    }
+  })
+
+  await t.test('classic log page: callout values expand and collapse', async () => {
+    const page = await ext.browser.newPage()
+    const errors = collectPageErrors(page)
+    const LINE = '#debugText .callout'
+    try {
+      await page.goto(frontdoorUrl(session, classicUrl(calloutLog.Id)), { waitUntil: 'networkidle2' })
+      await page.waitForSelector(`${LINE} .expandUserDebugBtn`, { timeout: 20000 })
+      const buttons = await page.$$eval(`${LINE} .expandUserDebugBtn`, els => els.length)
+      assert.equal(buttons, 2, 'the two Named Credential entries have an expand button')
+      const response = await lineText(page, LINE, 'CALLOUT_RESPONSE')
+      assert.ok(response.includes('System.HttpResponse[Status=OK, StatusCode=200]'), 'short response as logged')
+      assert.equal(
+        await page.$$eval(
+          `${LINE}`,
+          divs =>
+            divs.filter(d => /\|CALLOUT_(REQUEST|RESPONSE)\|/.test(d.textContent) && d.querySelector('button')).length
+        ),
+        0,
+        'no button on the two-field request and response'
+      )
+      const before = await lineText(page, LINE, 'NAMED_CREDENTIAL_RESPONSE')
+      await clickIn(page, LINE, 'NAMED_CREDENTIAL_RESPONSE', '.expandUserDebugBtn')
+      assert.match(
+        await lineText(page, LINE, 'NAMED_CREDENTIAL_RESPONSE'),
+        /NamedCallout\[\n\s+Named Credential Id=\w+,\n[^]*\n\s+Status Code=200,\n/,
+        'expanded: one field per indented line'
+      )
+      await clickIn(page, LINE, 'NAMED_CREDENTIAL_RESPONSE', '.expandUserDebugBtn')
+      assert.equal(await lineText(page, LINE, 'NAMED_CREDENTIAL_RESPONSE'), before, 'collapsing restores the line')
+    } finally {
+      if (errors.length) t.diagnostic(`page errors: ${errors.join(' | ')}`)
+      await page.close()
+    }
+  })
+})
 
 // Reloading or updating the extension cuts the content scripts of open tabs
 // off from it (chrome.runtime loses its id). The shortcuts script must then
