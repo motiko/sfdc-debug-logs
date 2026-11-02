@@ -44,6 +44,14 @@
 
 .apexdbg-toolbar .apexdbg-spacer { flex: 1 }
 
+.apexdbg-toolbar .apexdbg-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .apexdbg-toolbar .apexdbg-separator {
   width: 1px;
   align-self: stretch;
