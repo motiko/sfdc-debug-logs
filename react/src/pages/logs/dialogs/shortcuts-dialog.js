@@ -10,6 +10,7 @@ import {
 } from '@mui/material'
 import ShortcutList from '../../../ui/components/shortcut-list'
 import { APP_SHORTCUTS } from '../../../core/app-shortcuts'
+import { isMac } from '../../../core/key-labels'
 import {
   describePageShortcuts,
   loadPageShortcuts
@@ -60,14 +61,16 @@ export default function ShortcutsDialog({ open, onClose }) {
         {pageShortcuts ? (
           <ShortcutList title="On Salesforce pages" items={pageShortcuts} />
         ) : null}
-        <Typography variant="body2" color="text.secondary">
-          None of these shortcuts deletes anything. On Salesforce pages, add Alt
-          to open a page in the same tab. Change or turn off the page shortcuts
-          in the{' '}
-          <Link href="options.html" target="_blank" rel="noreferrer">
-            extension options
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          None of these shortcuts deletes anything. On Salesforce pages, add{' '}
+          {isMac() ? '⌥ (Option)' : 'Alt'} to open a page in the same tab. On
+          any Salesforce tab, the Apex Debugger button in the browser toolbar
+          opens this log viewer too.
+        </Typography>
+        <Typography variant="body2">
+          <Link href="options.html#shortcuts" target="_blank" rel="noreferrer">
+            Change or turn off the page shortcuts in the extension options
           </Link>
-          .
         </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>

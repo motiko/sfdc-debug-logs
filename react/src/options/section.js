@@ -6,6 +6,7 @@ export default function Section({ id, title, intro, children }) {
   return (
     <Paper
       component="section"
+      id={id}
       aria-labelledby={`${id}-title`}
       variant="outlined"
       sx={{

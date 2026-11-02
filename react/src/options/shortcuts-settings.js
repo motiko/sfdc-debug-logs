@@ -37,6 +37,7 @@ import {
   validateShortcuts
 } from '../core/page-shortcuts'
 import { APP_SHORTCUTS } from '../core/app-shortcuts'
+import { keyText } from '../core/key-labels'
 
 // The log viewer's call tree and timeline keys, listed apart.
 const VIEWER_PANES = ['Call tree', 'Timeline']
@@ -124,7 +125,7 @@ export default function ShortcutsSettings() {
   }, [focusId, draft])
 
   const problems = useMemo(
-    () => (draft ? validateShortcuts(draft.shortcuts) : []),
+    () => (draft ? validateShortcuts(draft.shortcuts, keyText) : []),
     [draft]
   )
 
@@ -216,7 +217,7 @@ export default function ShortcutsSettings() {
     <Section
       id="shortcuts"
       title="Keyboard shortcuts"
-      intro="Shortcuts that work on Salesforce pages while no field has focus. Shift + a letter opens a page in a new tab; Alt + Shift + the letter opens it in this tab."
+      intro={`Shortcuts that work on Salesforce pages while no field has focus. ${keyText('Shift')} + a letter opens a page in a new tab; ${keyText('Alt+Shift')} + the letter opens it in this tab.`}
     >
       <FormControlLabel
         control={

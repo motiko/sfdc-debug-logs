@@ -175,7 +175,9 @@ export function activeShortcuts(
   )
 }
 
-// "Alt+Shift+d" -> "Alt+Shift+D", "Mod+s" -> "Ctrl/Cmd+S" (plain text).
+// "Alt+Shift+d" -> "Alt+Shift+D", "Mod+s" -> "Ctrl/Cmd+S" (plain text). The
+// default label of validateShortcuts; pages pass key-labels.ts keyText, which
+// knows the platform (⌥⇧D, ⌘S on macOS).
 export function comboLabel(keys: string): string {
   return keys
     .split('+')
@@ -197,8 +199,12 @@ export interface Problem {
 
 // What's wrong with a list of shortcuts: missing or invalid keys and paths,
 // two shortcuts on the same key combination, browser shortcuts. Shortcuts
-// with no key are off, which is fine.
-export function validateShortcuts(shortcuts: PageShortcut[]): Problem[] {
+// with no key are off, which is fine. label: how messages show a key
+// combination (app-shortcuts.ts notation in, text out).
+export function validateShortcuts(
+  shortcuts: PageShortcut[],
+  label: (keys: string) => string = comboLabel
+): Problem[] {
   const problems: Problem[] = []
   const owners = new Map<string, PageShortcut>()
   for (const shortcut of shortcuts) {
@@ -233,7 +239,7 @@ export function validateShortcuts(shortcuts: PageShortcut[]): Problem[] {
       problems.push({
         id: shortcut.id,
         field: 'key',
-        message: `The browser uses ${shortcut.key.toUpperCase()} with Ctrl/Cmd; pick another letter.`
+        message: `The browser uses ${label(`Mod+${shortcut.key}`)} itself; pick another letter.`
       })
       continue
     }
@@ -243,7 +249,7 @@ export function validateShortcuts(shortcuts: PageShortcut[]): Problem[] {
         problems.push({
           id: shortcut.id,
           field: 'key',
-          message: `${comboLabel(binding.keys)} is also used by “${owner.name || 'another shortcut'}”.`
+          message: `${label(binding.keys)} is also used by “${owner.name || 'another shortcut'}”.`
         })
         break
       }

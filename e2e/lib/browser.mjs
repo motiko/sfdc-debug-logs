@@ -44,9 +44,17 @@ export async function launchWithExtension({ mock = null } = {}) {
   )
   const background = await swTarget.worker()
   const extensionId = new URL(swTarget.url()).host
+  // Every profile is new, so installing opens the options page's welcome
+  // (background.ts runtime.onInstalled) in a tab of its own. Wait for it here,
+  // so callers get it deterministically: the e2e flow tests it, the UX audit
+  // closes it and opens its own. null if it didn't open.
+  const welcomeTarget = await browser
+    .waitForTarget(t => t.type() === 'page' && t.url().includes('/html/options.html#welcome'), { timeout: 15000 })
+    .catch(() => null)
+  const welcome = welcomeTarget ? await welcomeTarget.page() : null
   const close = async () => {
     await browser.close()
     rmSync(userDataDir, { recursive: true, force: true })
   }
-  return { browser, background, extensionId, close }
+  return { browser, background, extensionId, welcome, close }
 }

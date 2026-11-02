@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { Box, Container, Typography, Link } from '@mui/material'
 import Section from './section'
@@ -6,10 +7,47 @@ import { useResolvedColorMode } from '../ui/color-mode'
 import AppearanceSettings from '../pages/settings/appearance-settings'
 import ShortcutsSettings from './shortcuts-settings'
 import SessionSettings from './session-settings'
+import Welcome from './welcome'
+import NoSessionNotice from './no-session-notice'
+
+const hash = () => window.location.hash.slice(1)
 
 function Page() {
   const preference = useSelector(state => state.logsPage.colorMode)
   const mode = useResolvedColorMode(preference)
+  // #welcome: opened once on install (background.ts).
+  const [welcome, setWelcome] = useState(() => hash() === 'welcome')
+  // #no-session: the toolbar button was clicked on an org tab without a
+  // session. The worker may set it on an open options tab, so follow the hash.
+  const [noSession, setNoSession] = useState(() => hash() === 'no-session')
+  const titleRef = useRef(null)
+  const noticeRef = useRef(null)
+  useEffect(() => {
+    const onHashChange = () => {
+      if (hash() === 'no-session') {
+        setNoSession(true)
+        window.scrollTo(0, 0)
+        if (noticeRef.current) noticeRef.current.focus()
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+  // A link to a section (options.html#shortcuts): the page is rendered after
+  // the browser looked for the anchor, so scroll to it here.
+  useEffect(() => {
+    const id = hash()
+    if (!id || id === 'welcome' || id === 'no-session') return
+    const section = document.getElementById(id)
+    if (section) section.scrollIntoView()
+  }, [])
+  // Removes the #welcome or #no-session, so a reload doesn't bring it back,
+  // and moves focus to the page title.
+  const dismiss = setShown => () => {
+    setShown(false)
+    history.replaceState(null, '', location.pathname + location.search)
+    if (titleRef.current) titleRef.current.focus()
+  }
   return (
     <Box
       sx={{
@@ -37,7 +75,13 @@ function Page() {
             sx={{ width: 32, height: 32 }}
           />
           <Box>
-            <Typography component="h1" variant="h1" sx={{ fontSize: 20 }}>
+            <Typography
+              component="h1"
+              variant="h1"
+              tabIndex={-1}
+              ref={titleRef}
+              sx={{ fontSize: 20, outline: 'none' }}
+            >
               Apex Debugger settings
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -52,6 +96,10 @@ function Page() {
         maxWidth="lg"
         sx={{ py: 3, display: 'flex', flexDirection: 'column', gap: 3 }}
       >
+        {noSession ? (
+          <NoSessionNotice ref={noticeRef} onClose={dismiss(setNoSession)} />
+        ) : null}
+        {welcome ? <Welcome onDismiss={dismiss(setWelcome)} /> : null}
         <Section
           id="appearance"
           title="Appearance"

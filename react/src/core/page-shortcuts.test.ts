@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { keyText } from './key-labels'
 import {
   activeShortcuts,
   bindingsFor,
@@ -80,6 +81,26 @@ describe('validateShortcuts', () => {
         field: 'key',
         message: 'Shift+A is also used by “Accounts”.'
       }
+    ])
+  })
+
+  it('shows keys in messages the way the page asks (macOS symbols)', () => {
+    const shortcuts: PageShortcut[] = [
+      { id: 'a', name: 'Accounts', key: 'a', path: '/001' },
+      { id: 'b', name: 'Assets', key: 'a', path: '/02i' },
+      { id: 'z', name: 'Save', key: 't', action: 'save' }
+    ]
+    expect(
+      validateShortcuts(shortcuts, keys => keyText(keys, true)).map(
+        p => p.message
+      )
+    ).toEqual([
+      '⇧A is also used by “Accounts”.',
+      'The browser uses ⌘T itself; pick another letter.'
+    ])
+    expect(validateShortcuts(shortcuts).map(p => p.message)).toEqual([
+      'Shift+A is also used by “Accounts”.',
+      'The browser uses Ctrl/Cmd+T itself; pick another letter.'
     ])
   })
 
