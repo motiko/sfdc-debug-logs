@@ -14,8 +14,8 @@
     "test:login": "node --test mock/jwt-login.test.mjs ../scripts/lib/*.test.mjs"
   },
   "devDependencies": {
-    "@puppeteer/browsers": "^3.2.4",
+    "@puppeteer/browsers": "^3.2.6",
     "axe-core": "^4.14.0",
-    "puppeteer-core": "^25.13.0"
+    "puppeteer-core": "^25.16.0"
   }
 }
