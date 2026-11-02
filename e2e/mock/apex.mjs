@@ -3,9 +3,11 @@
 // (variables, string concatenation, System.debug with a logging level,
 // JSON.serialize of map literals, SOQL on a few objects, for loops, try/catch,
 // division by zero, Limits, insert/update/delete of SObject lists, which
-// change no data) and to write the debug log Salesforce would:
+// change no data, HTTP callouts with HttpRequest and Http.send)
+// and to write the debug log Salesforce would:
 // header, the echoed source, USER_DEBUG, SOQL, DML, method, system and
-// exception entries, limit usage. Anything it doesn't understand is debugged as its
+// exception entries, callouts (with Named Credential entries for "callout:"
+// endpoints), limit usage. Anything it doesn't understand is debugged as its
 // source text, so a new snippet still produces a log.
 
 class ApexException extends Error {
@@ -110,6 +112,26 @@ function parseBlock(src, baseLine = 1) {
     }
   }
   return statements
+}
+
+// HttpRequest and HttpResponse, logged the way Salesforce prints them.
+class HttpRequest {
+  endpoint = null
+  method = null
+  body = null
+  toString() {
+    return `System.HttpRequest[Endpoint=${this.endpoint}, Method=${this.method}]`
+  }
+}
+
+class HttpResponse {
+  constructor(statusCode, body) {
+    this.statusCode = statusCode
+    this.body = body
+  }
+  toString() {
+    return `System.HttpResponse[Status=${this.statusCode === 200 ? 'OK' : 'Error'}, StatusCode=${this.statusCode}]`
+  }
 }
 
 const toApexString = value => {
@@ -228,11 +250,52 @@ export function runAnonymousApex(apex, { user, data, start = new Date() }) {
         getStackTraceString: `AnonymousBlock: line ${line}, column 1`
       }[exceptionCall[2]]
     }
+    if (/^new\s+HttpRequest\(\)$/.test(expr)) return new HttpRequest()
+    const send = /^new\s+Http\(\)\.send\((\w+)\)$/.exec(expr)
+    if (send) return callout(vars.get(send[1]), line)
+    const response = /^(\w+)\.(getBody|getStatusCode)\(\)$/.exec(expr)
+    if (response && vars.get(response[1]) instanceof HttpResponse) {
+      const res = vars.get(response[1])
+      return response[2] === 'getBody' ? res.body : res.statusCode
+    }
     if (/^\w+$/.test(expr) && vars.has(expr)) return vars.get(expr)
     return expr
   }
 
+  // An HTTP callout: every request gets a 200 with a small JSON body.
+  function callout(request, line) {
+    const named = /^callout:(\w+)/.exec(request.endpoint || '')
+    const credential = named && `Named Credential Id=0XAMK0000000001, Named Credential Name=${named[1]}`
+    const size = (request.body || '').length
+    const body = JSON.stringify({ ok: true, method: request.method, received: size })
+    if (named) {
+      entry(
+        'NAMED_CREDENTIAL_REQUEST',
+        `NamedCallout[${credential}, Endpoint=${request.endpoint}, Method=${request.method}, ` +
+          `External Credential Type=EXTERNAL, Content-Type=application/json, ` +
+          `Request Size bytes=${size}, Retry on 401=True]`
+      )
+    }
+    entry('CALLOUT_REQUEST', `[${line}]`, String(request))
+    const res = new HttpResponse(200, body)
+    if (named) {
+      entry(
+        'NAMED_CREDENTIAL_RESPONSE',
+        `NamedCallout[${credential}, Status Code=200, Content-Type=application/json, ` +
+          `Response Size bytes=${body.length}, Overall Callout Time ms=42, Connect Time ms=7]`
+      )
+    }
+    entry('CALLOUT_RESPONSE', `[${line}]`, String(res))
+    return res
+  }
+
   function runSimple({ code, line }) {
+    const setter = /^(\w+)\.(setEndpoint|setMethod|setBody)\(([\s\S]*)\)$/.exec(code)
+    if (setter && vars.get(setter[1]) instanceof HttpRequest) {
+      const field = { setEndpoint: 'endpoint', setMethod: 'method', setBody: 'body' }[setter[2]]
+      vars.get(setter[1])[field] = evaluate(setter[3], line)
+      return
+    }
     const dml = /^(insert|update|upsert|delete)\s+([\s\S]+)$/.exec(code)
     if (dml) {
       const value = evaluate(dml[2], line)
