@@ -51,6 +51,7 @@ export function requestKind(method, path) {
   if (/\/tooling\/executeAnonymous/.test(path)) return 'execute anonymous'
   if (/\/tooling\/sobjects\//.test(path)) return `tooling ${method}`
   if (/\/jobs\/ingest/.test(path)) return 'bulk api 2.0'
+  if (/\/services\/data\/v[\d.]+\/composite\/sobjects/.test(path)) return `composite ${method}`
   if (/\/services\/data\/v[\d.]+\/sobjects\/?$/.test(path)) return 'describe global'
   if (/\/services\/data\/v[\d.]+\/sobjects\//.test(path)) return `rest ${method}`
   if (path.startsWith('/services/data')) return 'rest other'
@@ -171,6 +172,8 @@ export class MockOrg {
     this.debugLevels = []
     this.traceFlags = []
     this.jobs = new Map()
+    // The ids of each sObject Collections delete request, in order.
+    this.compositeDeletes = []
     this.requests = []
     // Optional delay (ms) per path pattern, e.g. to hold the frontdoor
     // redirect to Lightning: [{ pattern: /\/lightning\//, ms: 70000, times: 1 }].
@@ -379,6 +382,28 @@ export class MockOrg {
       }
       const fields = (params.get('fields') || 'Id,Name').split(',')
       return json(200, Object.fromEntries(fields.map(f => [f, this.user[f]])))
+    }
+    // sObject Collections delete (the app's "Delete selected"): at most 200
+    // ids, results in their order; with allOrNone=false a missing log is
+    // reported as ENTITY_IS_DELETED and the others are still deleted.
+    if (method === 'DELETE' && path === '/composite/sobjects') {
+      const ids = (params.get('ids') || '').split(',').filter(Boolean)
+      if (!ids.length || ids.length > 200) {
+        return sfError(400, 'INVALID_FIELD', 'Give between 1 and 200 ids')
+      }
+      this.compositeDeletes.push(ids)
+      return json(
+        200,
+        ids.map(id => {
+          const index = this.logs.findIndex(l => l.Id === id)
+          if (index < 0) {
+            return { success: false, errors: [{ statusCode: 'ENTITY_IS_DELETED', message: 'entity is deleted' }] }
+          }
+          this.logs.splice(index, 1)
+          this.bodies.delete(id)
+          return { id, success: true, errors: [] }
+        })
+      )
     }
     if (method === 'POST' && path === '/jobs/ingest') {
       const id = mockId('750')
