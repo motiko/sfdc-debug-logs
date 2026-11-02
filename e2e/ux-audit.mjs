@@ -48,7 +48,10 @@ const AXE_PATH = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 const { values: args } = parseArgs({
   options: {
     out: { type: 'string', default: join(HERE, 'ux-artifacts') },
-    views: { type: 'string', default: 'app,app-delete,classic,options,exec,trace,callouts,download,auto-refresh,welcome' },
+    views: {
+      type: 'string',
+      default: 'app,app-delete,classic,options,exec,trace,callouts,download,auto-refresh,welcome'
+    },
     sizes: { type: 'string', default: '1440x900,1024x768' },
     compare: { type: 'string' },
     mock: { type: 'boolean', default: process.env.SF_MOCK === '1' }
