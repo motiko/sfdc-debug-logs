@@ -3,16 +3,19 @@ Apex Debugger
 
 Install Links
 -----------------------------
-[<img src="https://cdnjs.cloudflare.com/ajax/libs/browser-logos/43.2.0/archive/chrome_12-48/chrome_12-48_128x128.png" >](https://chrome.google.com/webstore/detail/apex-debugger/mpckkbblhbfngaininanfjpdfjhbncjo)    [<img src="https://cdnjs.cloudflare.com/ajax/libs/browser-logos/43.2.0/archive/firefox_3.5-22/firefox_3.5-22_128x128.png"  >](https://addons.mozilla.org/en-US/firefox/addon/apex-dbgr/)
+[<img src="https://cdnjs.cloudflare.com/ajax/libs/browser-logos/43.2.0/archive/chrome_12-48/chrome_12-48_128x128.png" >](https://chrome.google.com/webstore/detail/apex-debugger/mpckkbblhbfngaininanfjpdfjhbncjo)
 
 Description
 ------------
-Browser extension to debug salesforce code. (Chrome/Firefox)
+Browser extension to read, search and analyze Salesforce Apex debug logs, with keyboard shortcuts for Salesforce setup pages.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/1-log-list-dark.png"><img src="docs/screenshots/1-log-list.png" alt="The log list with a new log from auto-refresh"></picture>
 
 Key Features
 ------------
 
-  * Search in logs
+  * Search in logs: find the logs whose text contains a word and filter them by operation, user or status; inside a log, find with a match counter and jump to the next error or debug line.
+  * Show or hide event types (with their counts) to keep only the lines you care about.
   * Improved view of logs, with the same color palettes in the log viewer and on Salesforce's log page: Light, Dark, Monokai and High contrast, following your light or dark mode.
   * Log summary in the log viewer: governor limits per namespace, exceptions and fatal errors, SOQL queries (count, rows, time, likely queries in loops) and DML by operation and object; click an entry to jump to its line. It opens by itself for a failed run.
   * Click any Id to go to Object (Class, Trigger, Validation Rule e.t.c).
@@ -24,7 +27,20 @@ Key Features
   * Start, extend or stop logging (a 24-hour trace flag for the current user).
   * Trace flags: see the org's active trace flags with their expiry and stop them; trace yourself, another user (found by name), the Automated Process user or an Apex class or trigger, with the extension's debug level, one of the org's, or custom levels per category (presets Default, Apex FINEST, Quiet), for 30 minutes up to 24 hours.
   * Auto-refresh the log list (off, every 10, 30 or 60 s): new logs appear on top, marked as new, while your logging is on and the log viewer's tab is in front. Each check is one small query for the logs newer than the newest one listed.
+  * Salesforce's own debug log page gets a toolbar too: log colors, font size, line wrap, timestamps, expand values, Download and "Open in Apex Debugger". The debug log list gets a body search, "Load new logs" and "Delete logs…".
   * Customizable keyboard shortcuts for Salesforce
+
+Screenshots
+-----------
+
+| | |
+|---|---|
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/2-log-summary-dark.png"><img src="docs/screenshots/2-log-summary.png" alt="Log summary: governor limits with usage bars"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/3-call-tree-dark.png"><img src="docs/screenshots/3-call-tree.png" alt="Call tree: code units, methods and SOQL with total and self time"></picture> |
+| **Log summary**: limits, errors, SOQL and DML; likely queries in loops are flagged. | **Call tree**: what ran inside what, with time and SOQL/DML counts. |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/4-callouts-dark.png"><img src="docs/screenshots/4-callouts.png" alt="A Named Credential callout expanded one field per line"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/5-trace-flags-dark.png"><img src="docs/screenshots/5-trace-flags.png" alt="Trace flags dialog: active flags and starting a new one"></picture> |
+| **Callouts**: requests and responses expanded and pretty-printed. | **Trace flags**: trace yourself, another user or a class, then stop it. |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/6-classic-log-page-dark.png"><img src="docs/screenshots/6-classic-log-page.png" alt="Salesforce's classic debug log page with the Apex Debugger toolbar"></picture> | |
+| **Salesforce's log page**, enhanced in place. | |
 
 Getting Started
 ---------------
